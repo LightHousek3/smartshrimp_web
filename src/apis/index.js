@@ -11,6 +11,17 @@ const authAPI = {
     refreshToken: () => apiClient.post('/auth/refresh-token', {}),
 };
 
+// Admin account management API
+const adminAccountAPI = {
+    getAccounts: (params = {}) => apiClient.get('/admin/accounts', { params }),
+    getAccount: (accountId) => apiClient.get(`/admin/accounts/${accountId}`),
+    createAccount: (payload) => apiClient.post('/admin/accounts', payload),
+    resendActivation: (accountId) =>
+        apiClient.post(`/admin/accounts/${accountId}/resend-activation`),
+    updateStatus: (accountId, payload) =>
+        apiClient.patch(`/admin/accounts/${accountId}/status`, payload),
+};
+
 // Cloudinary API
 const cloudinaryAPI = {
     upload: (file, { resourceType = 'image', folder, onProgress } = {}) => {
@@ -43,4 +54,4 @@ const cloudinaryAPI = {
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
-export { authAPI, cloudinaryAPI };
+export { adminAccountAPI, authAPI, cloudinaryAPI };
