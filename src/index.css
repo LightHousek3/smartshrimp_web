@@ -461,6 +461,401 @@ input:focus-visible {
     display: none;
 }
 
+/* Admin account management */
+.account-page {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.account-page-header {
+    margin-bottom: 18px;
+}
+
+.account-page-header .ant-typography {
+    margin: 0;
+}
+
+.account-page-header h3.ant-typography {
+    color: #0f1c2e;
+    font-family: Sora, 'Plus Jakarta Sans', sans-serif;
+    font-size: 22px;
+    line-height: 1.35;
+}
+
+.account-page-header .ant-typography-secondary {
+    font-size: 13px;
+}
+
+.pending-count .ant-badge-count {
+    background: #d98314;
+    box-shadow: none;
+}
+
+.account-primary-button.ant-btn {
+    border: 0;
+    background: linear-gradient(90deg, #77a1d3, #79cbca);
+    box-shadow: none;
+    font-weight: 600;
+}
+
+.account-primary-button.ant-btn:not(:disabled):hover,
+.account-primary-button.ant-btn:not(:disabled):focus-visible {
+    background: linear-gradient(90deg, #5f91cc, #57bdbd);
+}
+
+.create-account-button.ant-btn {
+    min-height: 38px;
+    padding-inline: 16px;
+}
+
+.account-filters {
+    margin-bottom: 16px;
+}
+
+.account-search.ant-input-affix-wrapper {
+    width: 280px;
+}
+
+.account-search .ant-input-prefix {
+    color: #6a7994;
+}
+
+.account-filter-select {
+    width: 180px;
+}
+
+.account-status-filter {
+    width: 195px;
+}
+
+.account-search.ant-input-affix-wrapper,
+.account-filter-select .ant-select-selector {
+    border-color: #e0e6ef !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.account-list-alert {
+    margin-bottom: 14px;
+}
+
+.account-table-shell {
+    min-width: 0;
+    border: 1px solid #e8edf4;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 28, 46, 0.06);
+    overflow: hidden;
+}
+
+.account-table-shell .ant-table {
+    border-radius: 0;
+}
+
+.account-table-shell .ant-table-thead > tr > th {
+    padding-block: 13px;
+    color: #52647d;
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.account-table-shell .ant-table-tbody > tr > td {
+    padding-block: 12px;
+    border-color: #e8edf4;
+}
+
+.account-table-shell .ant-table-tbody > tr {
+    cursor: pointer;
+}
+
+.account-table-shell .ant-table-tbody > tr:hover > td {
+    background: #f2f8fd !important;
+}
+
+.account-table-shell .ant-table-pagination.ant-pagination {
+    min-height: 58px;
+    margin: 0 !important;
+    padding: 14px 16px;
+    border-top: 1px solid #edf0f5;
+    background: #fff;
+    align-items: center;
+}
+
+.account-table-shell .ant-pagination-total-text {
+    margin-inline-end: 12px;
+    color: #52647d;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.account-table-shell .ant-pagination-item,
+.account-table-shell .ant-pagination-prev,
+.account-table-shell .ant-pagination-next {
+    min-width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    line-height: 26px;
+}
+
+.account-table-shell .ant-pagination-item {
+    border-color: transparent;
+    background: transparent;
+}
+
+.account-table-shell .ant-pagination-item-active {
+    border-color: #1d7ad6;
+    background: #fff;
+}
+
+.account-table-shell .ant-pagination-item-active a {
+    color: #1d7ad6;
+    font-weight: 600;
+}
+
+.account-table-filter-dropdown .ant-table-filter-dropdown {
+    min-width: 148px;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.account-table-filter-dropdown .ant-table-filter-dropdown-btns {
+    min-height: 42px;
+    padding: 7px 8px;
+    gap: 12px;
+}
+
+.account-table-filter-dropdown .ant-table-filter-dropdown-btns .ant-btn {
+    min-width: 38px;
+    padding-inline: 7px;
+    font-size: 12px;
+}
+
+.account-identity {
+    min-width: 0;
+}
+
+.account-avatar-small.ant-avatar {
+    flex: 0 0 auto;
+    color: #1d7ad6;
+    background: rgba(29, 122, 214, 0.12);
+    font-family: Sora, 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.account-identity-copy,
+.account-drawer-heading,
+.owner-option {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.account-identity-copy > .ant-typography {
+    max-width: 205px;
+    margin: 0;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-identity-copy > .ant-typography-secondary {
+    color: #6a7994;
+    font-family: Consolas, monospace;
+    font-size: 11px;
+}
+
+.pending-account-name {
+    color: #6a7994 !important;
+    font-style: italic;
+    font-weight: 400;
+}
+
+.account-tag.ant-tag {
+    margin-inline-end: 0;
+    border: 0;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 21px;
+}
+
+.account-owner-name,
+.account-date {
+    margin: 0;
+    color: #52647d;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.account-drawer-title .account-drawer-heading {
+    gap: 4px;
+}
+
+.account-drawer-title .account-drawer-heading > .ant-typography {
+    margin: 0;
+    color: #0f1c2e;
+    font-size: 15px;
+}
+
+.account-email-block {
+    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.account-email-block > .ant-typography-secondary {
+    font-size: 12px;
+}
+
+.account-email {
+    color: #0f1c2e;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+}
+
+.account-descriptions .ant-descriptions-item-label {
+    width: 142px;
+    color: #6a7994;
+    font-size: 12px;
+}
+
+.account-descriptions .ant-descriptions-item-content {
+    color: #0f1c2e;
+    font-size: 13px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.account-status-reason {
+    margin-top: 18px;
+}
+
+.account-drawer-divider {
+    margin: 18px 0 16px !important;
+}
+
+.activation-resend-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+}
+
+.activation-resend-panel > .ant-typography {
+    margin: 0;
+    color: #6a7994;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.account-detail-drawer .ant-drawer-footer {
+    padding: 14px 20px;
+    border-color: #e8edf4;
+}
+
+.account-detail-drawer .ant-drawer-footer .ant-btn {
+    min-height: 36px;
+    border-color: #d7dee8;
+    color: #3a4a63;
+}
+
+.change-status-modal .ant-modal-title {
+    color: #28364a;
+    font-family: Sora, 'Plus Jakarta Sans', sans-serif;
+    font-size: 17px;
+}
+
+.status-account-summary {
+    margin: 14px 0 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f7f9fc;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-account-summary .ant-typography {
+    margin: 0;
+    font-size: 12px;
+}
+
+.change-status-form .change-status-reason-item {
+    margin-bottom: 22px;
+}
+
+.status-radio-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-radio-option.ant-radio-wrapper {
+    width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding: 9px 13px;
+    border: 1px solid #e0e6ef;
+    border-radius: 8px;
+    align-items: center;
+}
+
+.status-radio-option.ant-radio-wrapper-checked {
+    border-color: #78afe0;
+    background: #f5faff;
+}
+
+.status-radio-option .ant-radio + span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.create-account-modal .ant-modal-title {
+    color: #28364a;
+    font-family: Sora, 'Plus Jakarta Sans', sans-serif;
+    font-size: 17px;
+}
+
+.create-account-form {
+    margin-top: 14px;
+}
+
+.create-account-form .ant-input,
+.create-account-form .ant-select-selector {
+    min-height: 38px;
+    border-radius: 8px !important;
+}
+
+.create-account-form .ant-select-selection-item,
+.create-account-form .ant-select-selection-placeholder {
+    line-height: 36px !important;
+}
+
+.create-account-form .ant-form-item-extra .ant-btn-link {
+    height: auto;
+    padding: 4px 0 0;
+    color: #c13c52;
+    white-space: normal;
+    text-align: left;
+}
+
+.owner-option {
+    gap: 1px;
+    padding-block: 3px;
+}
+
+.owner-option .ant-typography {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 /* Error pages */
 .error-page .ant-result {
     width: min(540px, calc(100% - 32px));
@@ -532,9 +927,65 @@ input:focus-visible {
     .sidebar-backdrop.is-visible {
         display: block;
     }
+
+    .account-page-header {
+        align-items: center;
+    }
 }
 
 @media (max-width: 600px) {
+    .portal-content {
+        padding: 70px 12px 18px;
+    }
+
+    .account-page-header {
+        align-items: flex-start;
+    }
+
+    .account-page-header h3.ant-typography {
+        font-size: 19px;
+    }
+
+    .account-page-header .ant-typography-secondary {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+    }
+
+    .create-account-button.ant-btn {
+        width: 40px;
+        min-width: 40px;
+        padding-inline: 0;
+    }
+
+    .create-account-button .ant-btn-icon {
+        margin-inline-end: 0;
+    }
+
+    .create-account-button > span:not(.ant-btn-icon) {
+        display: none;
+    }
+
+    .account-search.ant-input-affix-wrapper,
+    .account-filter-select,
+    .account-status-filter {
+        width: 100%;
+    }
+
+    .account-table-shell .ant-pagination {
+        justify-content: center;
+    }
+
+    .account-table-shell .ant-pagination-total-text {
+        width: 100%;
+        margin: 0 0 6px;
+        text-align: center;
+    }
+
+    .account-detail-drawer .ant-drawer-content-wrapper {
+        max-width: calc(100vw - 18px);
+    }
+
     .login-page {
         align-items: center;
         padding: 12px;
