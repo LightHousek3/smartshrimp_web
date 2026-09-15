@@ -13,7 +13,7 @@ import { AccountList, Dashboard } from './pages/admin';
 import { EmptyExpertPage } from './pages/expert';
 import { NotFound, UnAuthorized } from './pages/error';
 import { Login } from './pages/auth';
-import { USER_ROLES } from './constants/portal';
+import { ACCOUNT_ROLES } from './constants/portal';
 
 function App() {
     return (
@@ -46,7 +46,7 @@ function App() {
                             <Route
                                 path="/admin"
                                 element={
-                                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                                    <ProtectedRoute allowedRoles={[ACCOUNT_ROLES.ADMIN]}>
                                         <AdminLayout />
                                     </ProtectedRoute>
                                 }
@@ -58,7 +58,7 @@ function App() {
                             <Route
                                 path="/expert"
                                 element={
-                                    <ProtectedRoute allowedRoles={[USER_ROLES.EXPERT]}>
+                                    <ProtectedRoute allowedRoles={[ACCOUNT_ROLES.EXPERT]}>
                                         <ExpertLayout />
                                     </ProtectedRoute>
                                 }

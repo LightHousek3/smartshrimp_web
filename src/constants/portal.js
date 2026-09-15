@@ -1,18 +1,18 @@
-export const USER_ROLES = Object.freeze({
+export const ACCOUNT_ROLES = Object.freeze({
     ADMIN: 'ADMIN',
     EXPERT: 'EXPERT',
 });
 
-export const WEB_ROLES = Object.freeze([USER_ROLES.ADMIN, USER_ROLES.EXPERT]);
+export const WEB_ROLES = Object.freeze([ACCOUNT_ROLES.ADMIN, ACCOUNT_ROLES.EXPERT]);
 
 export const ROLE_LABELS = Object.freeze({
-    [USER_ROLES.ADMIN]: 'Quản trị viên',
-    [USER_ROLES.EXPERT]: 'Chuyên gia thủy sản',
+    [ACCOUNT_ROLES.ADMIN]: 'Quản trị viên',
+    [ACCOUNT_ROLES.EXPERT]: 'Chuyên gia thủy sản',
 });
 
 export const ROLE_HOME_PATHS = Object.freeze({
-    [USER_ROLES.ADMIN]: '/admin',
-    [USER_ROLES.EXPERT]: '/expert',
+    [ACCOUNT_ROLES.ADMIN]: '/admin',
+    [ACCOUNT_ROLES.EXPERT]: '/expert',
 });
 
 export const getRoleHomePath = (role) => ROLE_HOME_PATHS[role] || '/unauthorized';

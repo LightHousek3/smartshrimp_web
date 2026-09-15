@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { App, Button, Form, Input } from 'antd';
 import { CheckOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { BRAND_LOGO_URL, getRoleHomePath } from '../../constants/portal';
 
 const passwordByteLength = (value) => new TextEncoder().encode(value || '').length;
@@ -21,10 +21,10 @@ const Login = () => {
         setSubmitting(true);
 
         try {
-            const user = await login(values);
+            const account = await login(values);
 
             message.success('Đăng nhập thành công!');
-            navigate(getRoleHomePath(user.role), { replace: true });
+            navigate(getRoleHomePath(account.role), { replace: true });
         } catch (error) {
             const errorMessage =
                 error.response?.data?.message ||

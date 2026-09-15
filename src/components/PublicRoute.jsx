@@ -1,10 +1,10 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { getRoleHomePath } from '../constants/portal';
 import Loading from './Loading';
 
 const PublicRoute = ({ children }) => {
-    const { isAuthenticated, loading, user } = useAuth();
+    const { account, isAuthenticated, loading } = useAuth();
 
     if (loading) {
         return (
@@ -15,7 +15,7 @@ const PublicRoute = ({ children }) => {
     }
 
     if (isAuthenticated) {
-        return <Navigate to={getRoleHomePath(user?.role)} replace />;
+        return <Navigate to={getRoleHomePath(account?.role)} replace />;
     }
 
     return children;

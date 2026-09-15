@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { App, Button } from 'antd';
 import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { BRAND_LOGO_URL, ROLE_LABELS } from '../constants/portal';
 
 const getInitial = (name, email) => (name?.trim()?.[0] || email?.trim()?.[0] || 'S').toUpperCase();
@@ -10,7 +10,7 @@ const getInitial = (name, email) => (name?.trim()?.[0] || email?.trim()?.[0] || 
 const PortalLayout = ({ portalLabel, menuItems }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
-    const { user, logout } = useAuth();
+    const { account, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const { message } = App.useApp();
@@ -81,16 +81,16 @@ const PortalLayout = ({ portalLabel, menuItems }) => {
 
                 <div className="sidebar-account">
                     <div className="account-summary">
-                        {user?.avatarUrl ? (
-                            <img className="account-avatar" src={user.avatarUrl} alt="" />
+                        {account?.avatarUrl ? (
+                            <img className="account-avatar" src={account.avatarUrl} alt="" />
                         ) : (
                             <span className="account-avatar account-avatar-fallback">
-                                {getInitial(user?.fullName, user?.email)}
+                                {getInitial(account?.fullName, account?.email)}
                             </span>
                         )}
                         <div className="account-copy">
-                            <strong>{user?.fullName || ROLE_LABELS[user?.role]}</strong>
-                            <span title={user?.email}>{user?.email}</span>
+                            <strong>{account?.fullName || ROLE_LABELS[account?.role]}</strong>
+                            <span title={account?.email}>{account?.email}</span>
                         </div>
                     </div>
 
