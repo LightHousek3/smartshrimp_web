@@ -599,7 +599,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                         { max: 320, message: 'Email không được vượt quá 320 ký tự.' },
                     ]}
                 >
-                    <Input placeholder="user@example.com" autoComplete="off" maxLength={320} />
+                    <Input placeholder="account@example.com" autoComplete="off" maxLength={320} />
                 </Form.Item>
 
                 <Form.Item

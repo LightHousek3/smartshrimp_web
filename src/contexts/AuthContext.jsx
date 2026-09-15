@@ -1,23 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, useContext, createContext } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { authAPI } from '../apis';
 import { deviceId, clearAccessToken, setAccessToken } from '../config';
 import { WEB_ROLES } from '../constants/portal';
+import { AuthContext } from './useAuth';
 
-const AuthContext = createContext(null);
 let bootstrapAuthPromise = null;
 
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-
-    return context;
-};
-
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
+    const [account, setAccount] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -32,25 +22,25 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 const response = await bootstrapAuthPromise;
-                const { accessToken, user: restoredUser } = response.data?.data || {};
+                const { accessToken, account: restoredAccount } = response.data?.data || {};
 
                 if (!mounted) return;
 
-                if (!accessToken || !restoredUser) {
+                if (!accessToken || !restoredAccount) {
                     throw new Error('Không thể khôi phục phiên đăng nhập.');
                 }
 
-                if (!WEB_ROLES.includes(restoredUser.role)) {
+                if (!WEB_ROLES.includes(restoredAccount.role)) {
                     await authAPI.logout();
                     throw new Error('Vai trò không được phép truy cập.');
                 }
 
                 setAccessToken(accessToken);
-                setUser(restoredUser);
+                setAccount(restoredAccount);
             } catch {
                 if (mounted) {
                     clearAccessToken();
-                    setUser(null);
+                    setAccount(null);
                 }
             } finally {
                 if (mounted) setLoading(false);
@@ -65,26 +55,26 @@ export const AuthProvider = ({ children }) => {
 
     const login = useCallback(async (credentials) => {
         const response = await authAPI.login({ deviceId, ...credentials });
-        const { user: authenticatedUser, tokens } = response.data?.data || {};
+        const { account: authenticatedAccount, tokens } = response.data?.data || {};
 
-        if (!authenticatedUser || !tokens?.accessToken) {
+        if (!authenticatedAccount || !tokens?.accessToken) {
             throw new Error('Phản hồi đăng nhập không hợp lệ.');
         }
 
-        if (!WEB_ROLES.includes(authenticatedUser.role)) {
+        if (!WEB_ROLES.includes(authenticatedAccount.role)) {
             await authAPI.logout().catch(() => undefined);
             clearAccessToken();
-            throw new Error('Tài khoản này không có quyền truy cập cổng Expert và Admin.');
+            throw new Error('Tài khoản không có quyền truy cập cổng này.');
         }
 
         setAccessToken(tokens.accessToken);
-        setUser(authenticatedUser);
-        return authenticatedUser;
+        setAccount(authenticatedAccount);
+        return authenticatedAccount;
     }, []);
 
     const clearSession = useCallback(() => {
         clearAccessToken();
-        setUser(null);
+        setAccount(null);
     }, []);
 
     const logout = useCallback(async () => {
@@ -97,14 +87,14 @@ export const AuthProvider = ({ children }) => {
 
     const value = useMemo(
         () => ({
-            user,
+            account,
             loading,
             login,
             logout,
             clearSession,
-            isAuthenticated: Boolean(user),
+            isAuthenticated: Boolean(account),
         }),
-        [clearSession, loading, login, logout, user],
+        [account, clearSession, loading, login, logout],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
