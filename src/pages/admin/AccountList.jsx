@@ -19,9 +19,13 @@ import {
     Space,
     Table,
     Tag,
+    Tooltip,
     Typography,
 } from 'antd';
 import {
+    CheckOutlined,
+    CloseOutlined,
+    EditOutlined,
     PlusOutlined,
     ReloadOutlined,
     SearchOutlined,
@@ -142,6 +146,10 @@ const API_ERROR_MESSAGES = Object.freeze({
         'Cần vô hiệu hóa hoặc chuyển nhân sự của chủ trại trước.',
     'Owner with an open season cannot be deactivated':
         'Không thể vô hiệu hóa chủ trại đang có vụ nuôi mở.',
+    'Only pending accounts can be updated':
+        'Chỉ có thể cập nhật tài khoản đang chờ kích hoạt.',
+    'Account updated and activation invitation sent successfully':
+        'Đã cập nhật email và gửi lại lời mời kích hoạt.',
 });
 
 const getErrorMessage = (error, fallback) => {
@@ -161,13 +169,23 @@ const StatusTag = ({ status }) => (
     </Tag>
 );
 
-const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange }) => {
+const AccountDetailDrawer = ({
+    accountId,
+    open,
+    onClose,
+    onStatusChange,
+    onAccountUpdated,
+}) => {
     const { message } = App.useApp();
     const [account, setAccount] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [resending, setResending] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
+    const [isEditingEmail, setIsEditingEmail] = useState(false);
+    const [editEmail, setEditEmail] = useState('');
+    const [updatingEmail, setUpdatingEmail] = useState(false);
+    const [emailError, setEmailError] = useState('');
 
     const loadAccount = useCallback(async () => {
         if (!accountId) return;
@@ -177,7 +195,11 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange }) => {
 
         try {
             const response = await adminAccountAPI.getAccount(accountId);
-            setAccount(response.data?.data || null);
+            const data = response.data?.data || null;
+            setAccount(data);
+            setEditEmail(data?.email || '');
+            setIsEditingEmail(false);
+            setEmailError('');
         } catch (requestError) {
             setAccount(null);
             setError(getErrorMessage(requestError, 'Không thể tải chi tiết tài khoản.'));
@@ -219,6 +241,61 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange }) => {
             message.error(getErrorMessage(requestError, 'Không thể gửi lại email kích hoạt.'));
         } finally {
             setResending(false);
+        }
+    };
+
+    const handleStartEditEmail = () => {
+        setEditEmail(account?.email || '');
+        setIsEditingEmail(true);
+        setEmailError('');
+    };
+
+    const handleCancelEditEmail = () => {
+        setIsEditingEmail(false);
+        setEditEmail(account?.email || '');
+        setEmailError('');
+    };
+
+    const handleSaveEmail = async () => {
+        const trimmedEmail = editEmail.trim().toLowerCase();
+        if (!trimmedEmail) {
+            setEmailError('Vui lòng nhập email.');
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+            setEmailError('Email không hợp lệ.');
+            return;
+        }
+        if (trimmedEmail.length > 320) {
+            setEmailError('Email không được vượt quá 320 ký tự.');
+            return;
+        }
+
+        setUpdatingEmail(true);
+        setEmailError('');
+        try {
+            const response = await adminAccountAPI.updatePendingAccount(account.id, {
+                email: trimmedEmail,
+            });
+            const updated = response.data?.data;
+            setAccount((prev) => ({ ...prev, ...updated }));
+            setIsEditingEmail(false);
+
+            const availableAt = updated?.activation?.resendAvailableAt;
+            const seconds = availableAt
+                ? Math.max(1, Math.ceil(dayjs(availableAt).diff(dayjs(), 'second', true)))
+                : 60;
+            setResendCooldown(seconds);
+
+            message.success('Đã cập nhật email và gửi lại lời mời kích hoạt.');
+            onAccountUpdated?.(updated);
+        } catch (requestError) {
+            const msg = getErrorMessage(requestError, 'Không thể cập nhật email.');
+            setEmailError(msg);
+            message.error(msg);
+        } finally {
+            setUpdatingEmail(false);
         }
     };
 
@@ -278,9 +355,92 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange }) => {
                 <>
                     <div className="account-email-block">
                         <Text type="secondary">Email</Text>
-                        <Text className="account-email" copyable>
-                            {account.email}
-                        </Text>
+                        {isEditingEmail ? (
+                            <div>
+                                <Flex align="center" gap={8} style={{ width: '100%' }}>
+                                    <Input
+                                        value={editEmail}
+                                        onChange={(e) => {
+                                            setEditEmail(e.target.value);
+                                            if (emailError) setEmailError('');
+                                        }}
+                                        onPressEnter={handleSaveEmail}
+                                        disabled={updatingEmail}
+                                        status={emailError ? 'error' : ''}
+                                        placeholder="user@example.com"
+                                        maxLength={320}
+                                        autoFocus
+                                        style={{
+                                            flex: 1,
+                                            height: 32,
+                                            borderRadius: 6,
+                                            fontFamily: 'Consolas, monospace',
+                                            fontSize: 13,
+                                        }}
+                                    />
+                                    <Button
+                                        type="primary"
+                                        icon={<CheckOutlined />}
+                                        loading={updatingEmail}
+                                        onClick={handleSaveEmail}
+                                        style={{
+                                            width: 32,
+                                            height: 32,
+                                            minWidth: 32,
+                                            padding: 0,
+                                            borderRadius: 6,
+                                        }}
+                                    />
+                                    <Button
+                                        icon={<CloseOutlined />}
+                                        disabled={updatingEmail}
+                                        onClick={handleCancelEditEmail}
+                                        style={{
+                                            width: 32,
+                                            height: 32,
+                                            minWidth: 32,
+                                            padding: 0,
+                                            borderRadius: 6,
+                                        }}
+                                    />
+                                </Flex>
+                                {emailError && (
+                                    <Text
+                                        type="danger"
+                                        style={{ fontSize: 12, marginTop: 4, display: 'block' }}
+                                    >
+                                        {emailError}
+                                    </Text>
+                                )}
+                            </div>
+                        ) : (
+                            <Flex align="center" gap={8}>
+                                <Text className="account-email">
+                                    {account.email}
+                                </Text>
+                                {account.status === ACCOUNT_STATUSES.PENDING_ACTIVATION && (
+                                    <Tooltip title="Sửa email rồi gửi lại lời mời">
+                                        <Button
+                                            size="small"
+                                            style={{
+                                                width: 26,
+                                                height: 26,
+                                                minWidth: 26,
+                                                padding: 0,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                borderRadius: 6,
+                                                borderColor: '#e2e8f0',
+                                                backgroundColor: '#f8fafc',
+                                            }}
+                                            icon={<EditOutlined style={{ color: '#1677ff', fontSize: 13 }} />}
+                                            onClick={handleStartEditEmail}
+                                        />
+                                    </Tooltip>
+                                )}
+                            </Flex>
+                        )}
                     </div>
 
                     <Descriptions className="account-descriptions" column={1} size="small" colon={false}>
@@ -324,8 +484,7 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange }) => {
                             <Divider className="account-drawer-divider" />
                             <div className="activation-resend-panel">
                                 <Text type="secondary">
-                                    Tài khoản đang chờ kích hoạt. Gửi lại lời mời nếu người dùng
-                                    chưa nhận được email.
+                                    Tài khoản chờ kích hoạt. Bạn có thể sửa email và gửi lại lời mời.
                                 </Text>
                                 <Button
                                     className="account-primary-button"
@@ -351,12 +510,21 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange }) => {
     );
 };
 
-const ChangeStatusModal = ({ account, open, onClose, onChanged }) => {
+const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged }) => {
     const [form] = Form.useForm();
     const { message } = App.useApp();
     const [submitting, setSubmitting] = useState(false);
     const selectedStatus = Form.useWatch('status', form);
     const options = account ? NEXT_STATUSES[account.status] || [] : [];
+
+    useEffect(() => {
+        if (open && account) {
+            form.setFieldsValue({
+                status: initialStatus || options[0],
+                reason: '',
+            });
+        }
+    }, [open, account, initialStatus, options, form]);
 
     const handleClose = () => {
         if (submitting) return;
@@ -676,6 +844,7 @@ const AccountList = () => {
     const [detailOpen, setDetailOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [statusTarget, setStatusTarget] = useState(null);
+    const [statusInitialChoice, setStatusInitialChoice] = useState(null);
     const [statusOpen, setStatusOpen] = useState(false);
     const requestIdRef = useRef(0);
     const pageCacheRef = useRef({ key: '', pages: {}, cursors: { 1: null } });
@@ -729,26 +898,31 @@ const AccountList = () => {
                 pageCacheRef.current = { key: queryKey, pages: {}, cursors: { 1: null } };
             }
 
-            const cache = pageCacheRef.current;
-
             try {
                 let resolvedPage = targetPage;
 
                 for (let pageNumber = 1; pageNumber <= targetPage; pageNumber += 1) {
-                    const shouldFetch = !cache.pages[pageNumber] || (force && pageNumber === targetPage);
+                    const shouldFetch =
+                        !pageCacheRef.current.pages[pageNumber] ||
+                        (force && pageNumber === targetPage);
 
                     if (shouldFetch) {
-                        const result = await requestAccountPage(cache.cursors[pageNumber]);
-                        cache.pages[pageNumber] = result;
+                        const result = await requestAccountPage(
+                            pageCacheRef.current.cursors[pageNumber],
+                        );
+                        pageCacheRef.current.pages[pageNumber] = result;
 
                         if (result.meta.hasNextPage && result.meta.nextCursor) {
-                            cache.cursors[pageNumber + 1] = result.meta.nextCursor;
+                            pageCacheRef.current.cursors[pageNumber + 1] = result.meta.nextCursor;
                         } else {
-                            delete cache.cursors[pageNumber + 1];
+                            delete pageCacheRef.current.cursors[pageNumber + 1];
                         }
                     }
 
-                    if (pageNumber < targetPage && !cache.pages[pageNumber].meta.hasNextPage) {
+                    if (
+                        pageNumber < targetPage &&
+                        !pageCacheRef.current.pages[pageNumber].meta.hasNextPage
+                    ) {
                         resolvedPage = pageNumber;
                         break;
                     }
@@ -756,7 +930,7 @@ const AccountList = () => {
 
                 if (requestId !== requestIdRef.current) return;
 
-                const result = cache.pages[resolvedPage];
+                const result = pageCacheRef.current.pages[resolvedPage];
                 setAccounts(result.accounts);
                 setMeta(result.meta);
                 setPage(resolvedPage);
@@ -805,9 +979,10 @@ const AccountList = () => {
         setDetailOpen(true);
     }, []);
 
-    const openStatusModal = useCallback((account) => {
+    const openStatusModal = useCallback((account, chosenStatus = null) => {
         setDetailOpen(false);
         setStatusTarget(account);
+        setStatusInitialChoice(chosenStatus || null);
         setStatusOpen(true);
     }, []);
 
@@ -915,24 +1090,58 @@ const AccountList = () => {
             {
                 title: '',
                 key: 'actions',
-                width: 92,
+                width: 210,
                 fixed: 'right',
                 align: 'right',
-                render: (_, account) => (
-                    <Button
-                        size="small"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            openDetail(account);
-                        }}
-                    >
-                        Chi tiết
-                    </Button>
-                ),
+                render: (_, account) => {
+                    const isAdmin = account.role === ACCOUNT_ROLES.ADMIN;
+                    const isPending = account.status === ACCOUNT_STATUSES.PENDING_ACTIVATION;
+                    const isDisabled = isAdmin || isPending;
+                    const disabledReason = isAdmin
+                        ? 'Không thể đổi trạng thái Quản trị viên'
+                        : isPending
+                          ? 'Tài khoản đang chờ người dùng kích hoạt qua email'
+                          : '';
+
+                    const changeStatusButton = (
+                        <Button
+                            size="small"
+                            disabled={isDisabled}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                openStatusModal(account);
+                            }}
+                        >
+                            Đổi trạng thái
+                        </Button>
+                    );
+
+                    return (
+                        <Flex justify="flex-end" align="center" gap={6} onClick={(e) => e.stopPropagation()}>
+                            {isDisabled ? (
+                                <Tooltip title={disabledReason}>
+                                    <span>{changeStatusButton}</span>
+                                </Tooltip>
+                            ) : (
+                                changeStatusButton
+                            )}
+                            <Button
+                                size="small"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    openDetail(account);
+                                }}
+                            >
+                                Chi tiết
+                            </Button>
+                        </Flex>
+                    );
+                },
             },
         ],
         [
             openDetail,
+            openStatusModal,
             identitySortOrder,
             pageRoles,
             pageStatuses,
@@ -1060,6 +1269,7 @@ const AccountList = () => {
                 open={detailOpen}
                 onClose={() => setDetailOpen(false)}
                 onStatusChange={openStatusModal}
+                onAccountUpdated={handleStatusChanged}
             />
 
             <CreateAccountModal
@@ -1069,10 +1279,15 @@ const AccountList = () => {
             />
 
             <ChangeStatusModal
-                key={statusTarget?.id}
+                key={`${statusTarget?.id}-${statusInitialChoice}`}
                 account={statusTarget}
+                initialStatus={statusInitialChoice}
                 open={statusOpen}
-                onClose={() => setStatusOpen(false)}
+                onClose={() => {
+                    setStatusOpen(false);
+                    setStatusTarget(null);
+                    setStatusInitialChoice(null);
+                }}
                 onChanged={handleStatusChanged}
             />
         </section>

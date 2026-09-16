@@ -18,6 +18,8 @@ const adminAccountAPI = {
     createAccount: (payload) => apiClient.post('/admin/accounts', payload),
     resendActivation: (accountId) =>
         apiClient.post(`/admin/accounts/${accountId}/resend-activation`),
+    updatePendingAccount: (accountId, payload) =>
+        apiClient.patch(`/admin/accounts/${accountId}`, payload),
     updateStatus: (accountId, payload) =>
         apiClient.patch(`/admin/accounts/${accountId}/status`, payload),
 };
