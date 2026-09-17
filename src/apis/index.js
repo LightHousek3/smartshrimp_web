@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiClient } from '../config';
+import { apiClient, deviceId } from '../config';
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
@@ -9,6 +9,13 @@ const authAPI = {
     login: (credentials) => apiClient.post('/auth/login', credentials),
     logout: () => apiClient.post('/auth/logout', {}),
     refreshToken: () => apiClient.post('/auth/refresh-token', {}),
+};
+
+// Expert profile API
+const profileAPI = {
+    getProfile: () => apiClient.get('/profile'),
+    updateProfile: (payload) => apiClient.patch('/profile', payload),
+    changePassword: (payload) => apiClient.patch('/profile/password', { ...payload, deviceId }),
 };
 
 // Admin account management API
@@ -56,4 +63,4 @@ const cloudinaryAPI = {
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
-export { adminAccountAPI, authAPI, cloudinaryAPI };
+export { adminAccountAPI, authAPI, cloudinaryAPI, profileAPI };

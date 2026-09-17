@@ -515,7 +515,10 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
     const { message } = App.useApp();
     const [submitting, setSubmitting] = useState(false);
     const selectedStatus = Form.useWatch('status', form);
-    const options = account ? NEXT_STATUSES[account.status] || [] : [];
+    const options = useMemo(
+        () => (account ? NEXT_STATUSES[account.status] || [] : []),
+        [account],
+    );
 
     useEffect(() => {
         if (open && account) {
