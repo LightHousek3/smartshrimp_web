@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { parseNotificationDetail, parseNotificationPage } from '../utils/notificationUtils';
 import { apiClient, deviceId } from '../config';
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
@@ -29,6 +30,19 @@ const adminAccountAPI = {
         apiClient.patch(`/admin/accounts/${accountId}`, payload),
     updateStatus: (accountId, payload) =>
         apiClient.patch(`/admin/accounts/${accountId}/status`, payload),
+};
+
+const notificationAPI = {
+    getNotifications: async (params, signal) => {
+        const response = await apiClient.get('/notifications', { params, signal });
+        return parseNotificationPage(response.data);
+    },
+    getNotification: async (notificationId, signal) => {
+        const response = await apiClient.get(`/notifications/${encodeURIComponent(notificationId)}`, {
+            signal,
+        });
+        return parseNotificationDetail(response.data);
+    },
 };
 
 // Cloudinary API
@@ -63,4 +77,4 @@ const cloudinaryAPI = {
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
-export { adminAccountAPI, authAPI, cloudinaryAPI, profileAPI };
+export { adminAccountAPI, authAPI, cloudinaryAPI, notificationAPI, profileAPI };

@@ -9,6 +9,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:300
     /\/+$/,
     '',
 );
+const SOCKET_BASE_URL = new URL(API_BASE_URL, window.location.origin).origin;
 
 let accessToken = null;
 
@@ -113,4 +114,4 @@ dayjs.extend(customParseFormat);
 dayjs.extend(utc);
 dayjs.locale('vi');
 
-export { apiClient, deviceId, getAccessToken, setAccessToken, clearAccessToken };
+export { apiClient, deviceId, getAccessToken, setAccessToken, clearAccessToken, SOCKET_BASE_URL };

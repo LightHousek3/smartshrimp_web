@@ -7,7 +7,7 @@ import { BRAND_LOGO_URL, ROLE_LABELS } from '../constants/portal';
 
 const getInitial = (name, email) => (name?.trim()?.[0] || email?.trim()?.[0] || 'S').toUpperCase();
 
-const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle }) => {
+const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const { account, logout } = useAuth();
@@ -129,6 +129,7 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
             </aside>
 
             <main className="portal-content">
+                {headerAction && <div className="portal-topbar">{headerAction}</div>}
                 <Outlet />
             </main>
         </div>
