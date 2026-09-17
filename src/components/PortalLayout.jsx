@@ -7,7 +7,7 @@ import { BRAND_LOGO_URL, ROLE_LABELS } from '../constants/portal';
 
 const getInitial = (name, email) => (name?.trim()?.[0] || email?.trim()?.[0] || 'S').toUpperCase();
 
-const PortalLayout = ({ portalLabel, menuItems }) => {
+const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const { account, logout } = useAuth();
@@ -25,8 +25,20 @@ const PortalLayout = ({ portalLabel, menuItems }) => {
         message.success('Đăng xuất thành công!');
     };
 
+    const isPortalRoot = (path) => path === '/admin' || path === '/expert';
     const isActive = (path) =>
-        path === '/admin' ? location.pathname === path : location.pathname.startsWith(path);
+        isPortalRoot(path) ? location.pathname === path : location.pathname.startsWith(path);
+
+    const menuGroups = menuItems.reduce((groups, item) => {
+        const section = item.section || 'CHỨC NĂNG';
+        const currentGroup = groups.at(-1);
+        if (!currentGroup || currentGroup.section !== section) {
+            groups.push({ section, items: [item] });
+        } else {
+            currentGroup.items.push(item);
+        }
+        return groups;
+    }, []);
 
     return (
         <div className="portal-layout">
@@ -59,24 +71,31 @@ const PortalLayout = ({ portalLabel, menuItems }) => {
                     <img src={BRAND_LOGO_URL} alt="SmartShrimp" className="system-logo" />
                 </div>
 
-                <div className="portal-label">{portalLabel}</div>
+                <div className="portal-label">
+                    {portalIcon ? <span className="portal-label-icon">{portalIcon}</span> : null}
+                    <span>{portalLabel}</span>
+                </div>
 
                 <nav className="portal-navigation" aria-label="Chức năng chính">
-                    <p className="navigation-heading">CHỨC NĂNG</p>
-                    <div className="navigation-list">
-                        {menuItems.map((item) => (
-                            <NavLink
-                                key={item.path}
-                                to={item.path}
-                                end={item.path === '/admin'}
-                                className={`navigation-item ${isActive(item.path) ? 'is-active' : ''}`}
-                                onClick={() => setMobileOpen(false)}
-                            >
-                                <span className="navigation-icon">{item.icon}</span>
-                                <span>{item.label}</span>
-                            </NavLink>
-                        ))}
-                    </div>
+                    {menuGroups.map((group) => (
+                        <div className="navigation-group" key={group.section}>
+                            <p className="navigation-heading">{group.section}</p>
+                            <div className="navigation-list">
+                                {group.items.map((item) => (
+                                    <NavLink
+                                        key={item.path}
+                                        to={item.path}
+                                        end={isPortalRoot(item.path)}
+                                        className={`navigation-item ${isActive(item.path) ? 'is-active' : ''}`}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <span className="navigation-icon">{item.icon}</span>
+                                        <span>{item.label}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
                 </nav>
 
                 <div className="sidebar-account">
@@ -89,8 +108,12 @@ const PortalLayout = ({ portalLabel, menuItems }) => {
                             </span>
                         )}
                         <div className="account-copy">
-                            <strong>{account?.fullName || ROLE_LABELS[account?.role]}</strong>
-                            <span title={account?.email}>{account?.email}</span>
+                            <strong title={account?.fullName || ROLE_LABELS[account?.role]}>
+                                {account?.fullName || ROLE_LABELS[account?.role]}
+                            </strong>
+                            <span title={accountSubtitle || account?.email}>
+                                {accountSubtitle || account?.email}
+                            </span>
                         </div>
                     </div>
 
