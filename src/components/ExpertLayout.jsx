@@ -5,6 +5,7 @@ import {
     WarningOutlined,
 } from '@ant-design/icons';
 import PortalLayout from './PortalLayout';
+import ExpertNotificationBell from './ExpertNotificationBell';
 
 const expertMenuItems = [
     { path: '/expert/protocols', label: 'Phác đồ nuôi mẫu', icon: <ProfileOutlined /> },
@@ -13,6 +14,12 @@ const expertMenuItems = [
     { path: '/expert/treatments', label: 'Phác đồ điều trị', icon: <MedicineBoxOutlined /> },
 ];
 
-const ExpertLayout = () => <PortalLayout portalLabel="EXPERT PORTAL" menuItems={expertMenuItems} />;
+const ExpertLayout = () => (
+    <PortalLayout
+        portalLabel="EXPERT PORTAL"
+        menuItems={expertMenuItems}
+        headerAction={<ExpertNotificationBell />}
+    />
+);
 
 export default ExpertLayout;
