@@ -77,6 +77,17 @@ export const AuthProvider = ({ children }) => {
         setAccount(null);
     }, []);
 
+    const updateAccount = useCallback((profile) => {
+        setAccount((current) => (current ? { ...current, ...profile } : current));
+    }, []);
+
+    const replaceAccessToken = useCallback((token) => {
+        if (!token) {
+            throw new Error('Phản hồi làm mới phiên không hợp lệ.');
+        }
+        setAccessToken(token);
+    }, []);
+
     const logout = useCallback(async () => {
         try {
             await authAPI.logout();
@@ -92,9 +103,11 @@ export const AuthProvider = ({ children }) => {
             login,
             logout,
             clearSession,
+            updateAccount,
+            replaceAccessToken,
             isAuthenticated: Boolean(account),
         }),
-        [account, clearSession, loading, login, logout],
+        [account, clearSession, loading, login, logout, replaceAccessToken, updateAccount],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
