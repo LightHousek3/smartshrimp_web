@@ -12,7 +12,7 @@ import {
 import { AccountList, Dashboard } from './pages/admin';
 import { EmptyExpertPage, Profile } from './pages/expert';
 import { NotFound, UnAuthorized } from './pages/error';
-import { Login } from './pages/auth';
+import { ActivateAccount, ForgotPassword, Login } from './pages/auth';
 import { ACCOUNT_ROLES } from './constants/portal';
 
 function App() {
@@ -39,6 +39,22 @@ function App() {
                                 element={
                                     <PublicRoute>
                                         <Login />
+                                    </PublicRoute>
+                                }
+                            />
+                            <Route
+                                path="/activate-account"
+                                element={
+                                    <PublicRoute>
+                                        <ActivateAccount />
+                                    </PublicRoute>
+                                }
+                            />
+                            <Route
+                                path="/forgot-password"
+                                element={
+                                    <PublicRoute>
+                                        <ForgotPassword />
                                     </PublicRoute>
                                 }
                             />

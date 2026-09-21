@@ -43,9 +43,9 @@ export const validateVietnamesePhone = (value = '') => {
         : 'Số điện thoại không đúng định dạng Việt Nam.';
 };
 
-export const validatePassword = (value = '') => {
+export const validatePassword = (value = '', { label = 'Mật khẩu mới' } = {}) => {
     if (characterCount(value) < PROFILE_RULES.passwordMinLength) {
-        return `Mật khẩu mới cần ít nhất ${PROFILE_RULES.passwordMinLength} ký tự.`;
+        return `${label} cần ít nhất ${PROFILE_RULES.passwordMinLength} ký tự.`;
     }
     if (utf8ByteLength(value) > PROFILE_RULES.passwordMaxBytes) {
         return `Mật khẩu quá dài. Vui lòng sử dụng mật khẩu ngắn hơn.`;
