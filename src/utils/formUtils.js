@@ -75,3 +75,15 @@ export const hasNewFile = (fileList, originalUrl) => {
 
     return false;
 };
+
+/** Convert a synchronous field validator into an Ant Design rule validator. */
+export const fieldValidator = (validator) => (_, value) => {
+    const validationMessage = validator(value);
+    return validationMessage
+        ? Promise.reject(new Error(validationMessage))
+        : Promise.resolve();
+};
+
+/** Prefer the API's operational message while retaining a safe UI fallback. */
+export const getApiErrorMessage = (error, fallback) =>
+    error?.response?.data?.message || error?.message || fallback;

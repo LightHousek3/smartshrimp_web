@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
 @import 'tailwindcss';
 
 :root {
@@ -29,6 +29,19 @@ body {
 button,
 input {
     font: inherit;
+}
+
+/* Chrome/Edge paint saved credentials with an opaque blue background by default. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-text-fill-color: #0f1c2e !important;
+    caret-color: #0f1c2e;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    background-color: transparent !important;
+    transition: background-color 9999s ease-out 0s;
 }
 
 button:focus-visible,
@@ -205,19 +218,6 @@ input:focus-visible {
 
 .login-card .ant-input::placeholder {
     color: #929eb0;
-}
-
-/* Chrome/Edge paint saved credentials with an opaque blue background by default. */
-.login-card input.ant-input:-webkit-autofill,
-.login-card input.ant-input:-webkit-autofill:hover,
-.login-card input.ant-input:-webkit-autofill:focus,
-.login-card input.ant-input:-webkit-autofill:active {
-    -webkit-text-fill-color: #0f1c2e !important;
-    caret-color: #0f1c2e;
-    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
-    box-shadow: 0 0 0 1000px #fff inset !important;
-    background-color: transparent !important;
-    transition: background-color 9999s ease-out 0s;
 }
 
 .login-card input.ant-input:autofill {

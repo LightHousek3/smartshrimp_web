@@ -13,10 +13,6 @@ const Login = () => {
     const navigate = useNavigate();
     const { message } = App.useApp();
 
-    const showPendingFeature = (feature) => {
-        message.info(`${feature} sẽ được triển khai trong hạng mục xác thực tiếp theo.`);
-    };
-
     const onFinish = async (values) => {
         setSubmitting(true);
 
@@ -87,7 +83,7 @@ const Login = () => {
                                             ? Promise.resolve()
                                             : Promise.reject(
                                                   new Error(
-                                                      'Mật khẩu không được vượt quá 72 byte!',
+                                                      'Mật khẩu quá dài. Vui lòng thử mật khẩu ngắn hơn',
                                                   ),
                                               ),
                                 },
@@ -114,13 +110,10 @@ const Login = () => {
                     </Form>
 
                     <div className="login-actions">
-                        <button
-                            type="button"
-                            onClick={() => showPendingFeature('Kích hoạt tài khoản')}
-                        >
+                        <button type="button" onClick={() => navigate('/activate-account')}>
                             Kích hoạt tài khoản
                         </button>
-                        <button type="button" onClick={() => showPendingFeature('Quên mật khẩu')}>
+                        <button type="button" onClick={() => navigate('/forgot-password')}>
                             Quên mật khẩu?
                         </button>
                     </div>

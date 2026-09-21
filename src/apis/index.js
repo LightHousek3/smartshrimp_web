@@ -10,6 +10,15 @@ const authAPI = {
     login: (credentials) => apiClient.post('/auth/login', credentials),
     logout: () => apiClient.post('/auth/logout', {}),
     refreshToken: () => apiClient.post('/auth/refresh-token', {}),
+    requestActivationOtp: (email) => apiClient.post('/auth/activation/request-otp', { email }),
+    verifyActivationOtp: (email, code) =>
+        apiClient.post('/auth/activation/verify-otp', { email, code }),
+    activateAccount: (payload) => apiClient.post('/auth/activation/complete', payload),
+    requestPasswordResetOtp: (email) =>
+        apiClient.post('/auth/forgot-password/request-otp', { email }),
+    verifyPasswordResetOtp: (email, code) =>
+        apiClient.post('/auth/forgot-password/verify-otp', { email, code }),
+    resetPassword: (payload) => apiClient.post('/auth/forgot-password/reset', payload),
 };
 
 // Expert profile API
