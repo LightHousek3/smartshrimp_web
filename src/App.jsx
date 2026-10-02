@@ -10,7 +10,7 @@ import {
     PublicRoute,
 } from './components';
 import { AccountList, Dashboard } from './pages/admin';
-import { EmptyExpertPage, Profile } from './pages/expert';
+import { EmptyExpertPage, ExpertDashboard, Profile } from './pages/expert';
 import { NotFound, UnAuthorized } from './pages/error';
 import { ActivateAccount, ForgotPassword, Login } from './pages/auth';
 import { ACCOUNT_ROLES } from './constants/portal';
@@ -79,7 +79,7 @@ function App() {
                                     </ProtectedRoute>
                                 }
                             >
-                                <Route index element={<EmptyExpertPage />} />
+                                <Route index element={<ExpertDashboard />} />
                                 <Route path="protocols" element={<EmptyExpertPage />} />
                                 <Route path="seasons" element={<EmptyExpertPage />} />
                                 <Route path="disease-cases" element={<EmptyExpertPage />} />
