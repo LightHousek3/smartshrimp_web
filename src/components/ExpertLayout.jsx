@@ -1,9 +1,10 @@
 import {
+    AlertOutlined,
     DashboardOutlined,
     ExperimentOutlined,
-    UserOutlined,
     ProfileOutlined,
-    AlertOutlined,
+    SafetyCertificateOutlined,
+    UserOutlined,
 } from '@ant-design/icons';
 import PortalLayout from './PortalLayout';
 import ExpertNotificationBell from './ExpertNotificationBell';
@@ -23,7 +24,8 @@ const expertMenuItems = [
 
 const ExpertLayout = () => (
     <PortalLayout
-        portalLabel="EXPERT PORTAL"
+        portalLabel="CỔNG CHUYÊN GIA"
+        portalIcon={<SafetyCertificateOutlined />}
         menuItems={expertMenuItems}
         headerAction={<ExpertNotificationBell />}
         accountSubtitle="Chuyên gia thủy sản"

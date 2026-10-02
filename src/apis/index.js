@@ -28,6 +28,10 @@ const profileAPI = {
     changePassword: (payload) => apiClient.patch('/profile/password', { ...payload, deviceId }),
 };
 
+const expertDashboardAPI = {
+    getDashboard: (signal) => apiClient.get('/expert/dashboard', { signal }),
+};
+
 // Admin account management API
 const adminAccountAPI = {
     getAccounts: (params = {}) => apiClient.get('/admin/accounts', { params }),
@@ -86,4 +90,4 @@ const cloudinaryAPI = {
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
-export { adminAccountAPI, authAPI, cloudinaryAPI, notificationAPI, profileAPI };
+export { adminAccountAPI, authAPI, cloudinaryAPI, expertDashboardAPI, notificationAPI, profileAPI };
