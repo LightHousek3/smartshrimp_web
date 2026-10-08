@@ -110,7 +110,15 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                                         onClick={() => setMobileOpen(false)}
                                     >
                                         <span className="navigation-icon">{item.icon}</span>
-                                        <span>{item.label}</span>
+                                        <span className="min-w-0 truncate">{item.label}</span>
+                                        {item.badge > 0 && (
+                                            <span
+                                                className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[99px] border-2 border-[rgba(255,255,255,0.95)] bg-[#d93f5b] px-[5px] text-[9px] leading-none font-[750] text-white"
+                                                aria-label={`${item.badge} chưa đọc`}
+                                            >
+                                                {item.badge > 99 ? '99+' : item.badge}
+                                            </span>
+                                        )}
                                     </NavLink>
                                 ))}
                             </div>
