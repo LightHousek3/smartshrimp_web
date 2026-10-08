@@ -6,27 +6,21 @@ import { useAuth } from '../contexts/useAuth';
 import { BRAND_LOGO_URL, ROLE_LABELS } from '../constants/portal';
 
 const getInitial = (name, email) => (name?.trim()?.[0] || email?.trim()?.[0] || 'S').toUpperCase();
-const expertDashboardMainClassName = `
-    ml-[220px] min-h-screen w-[calc(100%-220px)] p-0
+const expertMainClassName = `
+    ml-55 min-h-screen w-[calc(100%-220px)] min-w-0 p-0
     bg-[linear-gradient(152.6deg,#eaf4ff_0%,#f0f8ff_40%,#e2f6f3_100%)]
     max-[900px]:ml-0 max-[900px]:w-full
 `;
-const expertDashboardTopbarClassName = `
-    flex min-h-14 items-center justify-between border-b border-[rgba(15,28,46,0.06)]
-    bg-[linear-gradient(to_right,#ace0f9,#fff1eb)] px-7
+const expertTopbarClassName = `
+    flex h-14 shrink-0 items-center justify-between border-b border-[rgba(15,28,46,0.06)]
+    bg-[linear-gradient(to_right,#ace0f9,#fff1eb)] px-7 backdrop-blur-sm
     max-[900px]:fixed max-[900px]:inset-x-0 max-[900px]:top-0 max-[900px]:z-[12]
-    max-[900px]:pl-[72px] max-[900px]:pr-5 max-[650px]:pr-3
-    [&_.expert-notification-trigger.ant-btn]:h-9! [&_.expert-notification-trigger.ant-btn]:w-9!
-    [&_.expert-notification-trigger.ant-btn]:rounded-full!
-    [&_.expert-notification-trigger.ant-btn]:border-[#e5e8f0]!
-    [&_.expert-notification-trigger.ant-btn]:bg-[rgba(255,255,255,0.8)]!
-    [&_.expert-notification-trigger.ant-btn]:text-[17px]!
-    [&_.expert-notification-trigger.ant-btn]:shadow-[0_2px_0_rgba(15,28,46,0.02)]!
+    max-[900px]:pl-18 max-[900px]:pr-5 max-[650px]:pr-3
 `;
-const portalTopbarClassName = `
-    mb-[18px] flex min-h-[46px] items-center justify-end
-    max-[900px]:fixed max-[900px]:top-4 max-[900px]:right-5 max-[900px]:z-[12]
-    max-[900px]:m-0 max-[600px]:right-3
+const expertPageClassName = `
+    w-full min-w-0 p-7
+    max-[900px]:px-5 max-[900px]:pt-21
+    max-[650px]:px-3 max-[650px]:pt-20
 `;
 
 const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction }) => {
@@ -62,10 +56,9 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
         return groups;
     }, []);
 
-    const isExpertDashboard = location.pathname === '/expert';
-    const isExpertNotifications = location.pathname.startsWith('/expert/notifications');
-    const useExpertTopbar = isExpertDashboard || isExpertNotifications;
-    const expertPageLabel = isExpertNotifications ? 'Thông báo' : 'Tổng quan';
+    const isExpertScreen = location.pathname === '/expert' || location.pathname.startsWith('/expert/');
+    const pageLabel = menuItems.find((item) => isActive(item.path))?.label
+        || (location.pathname.startsWith('/expert/treatments') ? 'Phác đồ điều trị' : '');
 
     return (
         <div className="portal-layout">
@@ -163,20 +156,24 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                 </div>
             </aside>
 
-            <main className={useExpertTopbar
-                ? expertDashboardMainClassName
+            <main className={isExpertScreen
+                ? expertMainClassName
                 : 'portal-content'}>
-                {headerAction && <div className={useExpertTopbar
-                    ? expertDashboardTopbarClassName
-                    : portalTopbarClassName}>
-                    {useExpertTopbar && <div className="flex items-center gap-2.5 text-xs text-[#6a7994]">
+                {headerAction && <header className={isExpertScreen
+                    ? expertTopbarClassName
+                    : 'portal-topbar'}>
+                    {isExpertScreen && <div className="flex items-center gap-2.5 text-xs text-[#6a7994]">
                         <span>Cổng chuyên gia</span>
                         <span aria-hidden="true">/</span>
-                        <strong className="font-semibold text-[#0f1c2e]">{expertPageLabel}</strong>
+                        <strong className="font-semibold text-[#0f1c2e]">{pageLabel}</strong>
                     </div>}
                     {headerAction}
-                </div>}
-                <Outlet />
+                </header>}
+                {isExpertScreen ? (
+                    <div className={expertPageClassName}>
+                        <Outlet />
+                    </div>
+                ) : <Outlet />}
             </main>
         </div>
     );
