@@ -158,7 +158,6 @@ const SeasonPill = ({ tone, children, dot = true }) => (
 const ExpertSeasonList = () => {
     const [filters, setFilters] = useState(initialFilters);
     const [search, setSearch] = useState('');
-    const [isComposing, setIsComposing] = useState(false);
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [revision, setRevision] = useState(0);
@@ -166,7 +165,7 @@ const ExpertSeasonList = () => {
 
     useEffect(() => {
         const normalizedSearch = search.trim();
-        if (isComposing || normalizedSearch === filters.search) return;
+        if (normalizedSearch === filters.search) return;
 
         const timer = setTimeout(() => {
             setFilters((current) => ({ ...current, search: normalizedSearch }));
@@ -174,7 +173,7 @@ const ExpertSeasonList = () => {
             setState((current) => ({ ...current, loading: true, error: null }));
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, filters.search, isComposing]);
+    }, [search, filters.search]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -403,11 +402,6 @@ const ExpertSeasonList = () => {
                             aria-label="Tìm theo tên vụ, ao hoặc trang trại"
                             value={search}
                             onChange={(event) => setSearch(event.target.value.slice(0, 255))}
-                            onCompositionStart={() => setIsComposing(true)}
-                            onCompositionEnd={(event) => {
-                                setSearch(event.currentTarget.value.slice(0, 255));
-                                setIsComposing(false);
-                            }}
                             allowClear
                         />
                         <Flex
