@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Empty } from 'antd';
+import { Alert, Button, Empty, Flex, Typography } from 'antd';
 import {
     ArrowRightOutlined,
     ClockCircleOutlined,
     EditOutlined,
     ExperimentOutlined,
-    LoadingOutlined,
     MedicineBoxOutlined,
     UnorderedListOutlined,
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { expertDashboardAPI } from '../../apis';
+import Loading from '../../components/Loading';
 import { formatDate } from '../../utils/dateUtils';
+
+const { Paragraph, Title } = Typography;
 
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const panelClassName = 'rounded-[14px] border border-[#e5e8f0] bg-white';
-const pillClassName = 'inline-block w-fit max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-[20px] px-2 py-0.5 text-[10px] font-semibold leading-4';
-const tableHeaderClassName = 'h-[38px] bg-[#f8fafc] p-2 text-left text-[13px] font-semibold text-[#6a7994]';
+const pillClassName =
+    'inline-block w-fit max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-[20px] px-2 py-0.5 text-[10px] font-semibold leading-4';
+const tableHeaderClassName =
+    'h-[38px] bg-[#f8fafc] p-2 text-left text-[13px] font-semibold text-[#6a7994]';
 const tableCellClassName = 'h-[54px] border-b border-[#e5e8f0] p-2 align-middle';
 
 const caseTableHeaders = [
@@ -63,32 +67,46 @@ const healthDotStyles = {
 };
 
 const severityLabels = {
-    CRITICAL: 'Nghiêm trọng', HIGH: 'Cao', MEDIUM: 'Trung bình', LOW: 'Thấp',
+    CRITICAL: 'Nghiêm trọng',
+    HIGH: 'Cao',
+    MEDIUM: 'Trung bình',
+    LOW: 'Thấp',
 };
 const statusLabels = {
-    OPEN: 'Mới', WAITING_FOR_INFO: 'Chờ bổ sung', MONITORING: 'Theo dõi',
-    IN_TREATMENT: 'Đang điều trị', RESOLVED: 'Đã giải quyết',
+    OPEN: 'Mới',
+    WAITING_FOR_INFO: 'Chờ bổ sung',
+    MONITORING: 'Theo dõi',
+    IN_TREATMENT: 'Đang điều trị',
+    RESOLVED: 'Đã giải quyết',
 };
 const healthLabels = {
-    EXCELLENT: 'Rất tốt', GOOD: 'Tốt', WARNING: 'Cảnh báo', CRITICAL: 'Nguy hiểm',
+    EXCELLENT: 'Rất tốt',
+    GOOD: 'Tốt',
+    WARNING: 'Cảnh báo',
+    CRITICAL: 'Nguy hiểm',
 };
 
 const Metric = ({ label, value, unit, tone }) => (
     <div className="flex min-w-0 flex-col gap-1">
         <span className="text-[10px] leading-4 text-[#6a7994]">{label}</span>
-        <strong className={`whitespace-nowrap text-lg leading-[29px] font-bold ${metricToneStyles[tone]}`}>
+        <strong
+            className={`whitespace-nowrap text-lg leading-7.25 font-bold ${metricToneStyles[tone]}`}
+        >
             {value == null ? '—' : `${number.format(value)}${unit || ''}`}
         </strong>
     </div>
 );
 
 const StatCard = ({ icon, tone, value, label, detail }) => (
-    <div className={`${panelClassName} flex min-h-[110px] items-start gap-3.5 p-5`}>
-        <span className={`grid size-11 shrink-0 place-items-center rounded-xl text-xl ${statToneStyles[tone]}`} aria-hidden="true">
+    <div className={`${panelClassName} flex min-h-27.5 items-start gap-3.5 p-5`}>
+        <span
+            className={`grid size-11 shrink-0 place-items-center rounded-xl text-xl ${statToneStyles[tone]}`}
+            aria-hidden="true"
+        >
             {icon}
         </span>
         <div className="flex min-w-0 flex-col">
-            <strong className="font-['Sora',_'Plus_Jakarta_Sans',_sans-serif] text-[30px] leading-[37.5px] font-extrabold text-[#0f1c2e]">
+            <strong className="font-['Sora','Plus_Jakarta_Sans',sans-serif] text-[30px] leading-[37.5px] font-extrabold text-[#0f1c2e]">
                 {value}
             </strong>
             <span className="text-xs leading-4 text-[#6a7994]">{label}</span>
@@ -98,17 +116,18 @@ const StatCard = ({ icon, tone, value, label, detail }) => (
 );
 
 const SeasonCard = ({ season }) => (
-    <article className={`${panelClassName} min-h-[177px] min-w-0 p-5`}>
+    <article className={`${panelClassName} min-h-44.25 min-w-0 p-5`}>
         <div className="flex items-start justify-between gap-3">
             <div>
-                <h3 className="m-0 text-sm leading-[23px] font-bold text-[#0f1c2e] max-[650px]:text-[13px]">
+                <h3 className="m-0 text-sm leading-5.75 font-bold text-[#0f1c2e] max-[650px]:text-[13px]">
                     {season.pond.name} — {season.farm.name}
                 </h3>
-                <p className="m-0 text-xs leading-[19px] text-[#6a7994]">
-                    {season.name}{season.dayOfCulture != null ? ` · DOC ${season.dayOfCulture} ngày` : ''}
+                <p className="m-0 text-xs leading-4.75 text-[#6a7994]">
+                    {season.name}
+                    {season.dayOfCulture != null ? ` · DOC ${season.dayOfCulture} ngày` : ''}
                 </p>
             </div>
-            <span className="shrink-0 rounded-[20px] border border-[rgba(15,155,142,0.19)] bg-[rgba(15,155,142,0.09)] px-[7px] text-[11px] leading-[18px] font-semibold text-[#0f9b8e]">
+            <span className="shrink-0 rounded-[20px] border border-[rgba(15,155,142,0.19)] bg-[rgba(15,155,142,0.09)] px-1.75 text-[11px] leading-4.5 font-semibold text-[#0f9b8e]">
                 Đang nuôi
             </span>
         </div>
@@ -118,16 +137,27 @@ const SeasonCard = ({ season }) => (
             <Metric label="Sinh khối" value={season.biomassKg} unit=" kg" tone="slate" />
         </div>
         <p className="mt-2 mb-0 text-[11px] leading-4 text-[#6a7994]">
-            <span className={healthDotStyles[season.healthStatus] || 'text-[#1d7ad6]'} aria-hidden="true">•</span>
-            {' '}Sức khỏe: {healthLabels[season.healthStatus] || 'Chưa có dữ liệu'}
+            <span
+                className={healthDotStyles[season.healthStatus] || 'text-[#1d7ad6]'}
+                aria-hidden="true"
+            >
+                •
+            </span>{' '}
+            Sức khỏe: {healthLabels[season.healthStatus] || 'Chưa có dữ liệu'}
         </p>
     </article>
 );
 
 const RecentCases = ({ cases }) => (
-    <section className={`${panelClassName} mt-6 overflow-hidden`} aria-labelledby="recent-cases-title">
+    <section
+        className={`${panelClassName} mt-6 overflow-hidden`}
+        aria-labelledby="recent-cases-title"
+    >
         <div className="flex min-h-14 items-center justify-between gap-4 border-b border-[#eef1f7] px-5 max-[650px]:px-3">
-            <h2 id="recent-cases-title" className="m-0 flex items-center gap-2 text-[13px] font-bold text-[#0f1c2e]">
+            <h2
+                id="recent-cases-title"
+                className="m-0 flex items-center gap-2 text-[13px] font-bold text-[#0f1c2e]"
+            >
                 <UnorderedListOutlined className="text-[#1d7ad6]" aria-hidden="true" />
                 Ca bệnh gần đây
             </h2>
@@ -138,34 +168,64 @@ const RecentCases = ({ cases }) => (
                 Xem tất cả <ArrowRightOutlined aria-hidden="true" />
             </Link>
         </div>
-        {cases.length === 0 ? <div className="py-[30px]"><Empty description="Chưa có ca bệnh nào" /></div> : (
+        {cases.length === 0 ? (
+            <div className="py-7.5">
+                <Empty description="Chưa có ca bệnh nào" />
+            </div>
+        ) : (
             <div className="overflow-x-auto px-5 pt-3 pb-5 max-[650px]:p-3">
-                <table className="w-full min-w-[980px] table-fixed border-collapse text-xs">
+                <table className="w-full min-w-245 table-fixed border-collapse text-xs">
                     <thead>
-                        <tr>{caseTableHeaders.map(({ label, width }) => (
-                            <th className={`${tableHeaderClassName} ${width}`} key={label}>{label}</th>
-                        ))}</tr>
+                        <tr>
+                            {caseTableHeaders.map(({ label, width }) => (
+                                <th className={`${tableHeaderClassName} ${width}`} key={label}>
+                                    {label}
+                                </th>
+                            ))}
+                        </tr>
                     </thead>
-                    <tbody>{cases.map((item) => <tr key={item.id}>
-                        <td className={`${tableCellClassName} text-[13px] font-semibold text-[#0f1c2e]`}>{item.title}</td>
-                        <td className={`${tableCellClassName} text-[#3a4a63]`}>{item.farm.name}</td>
-                        <td className={`${tableCellClassName} text-[#3a4a63]`}>
-                            <strong className="block overflow-hidden text-ellipsis whitespace-nowrap font-medium text-[#0f1c2e]">{item.pond.name}</strong>
-                            <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[#6a7994]">{item.season.name}</span>
-                        </td>
-                        <td className={tableCellClassName}>
-                            <span className={`${pillClassName} ${severityStyles[item.severity] || severityStyles.LOW}`}>
-                                {severityLabels[item.severity] || item.severity}
-                            </span>
-                        </td>
-                        <td className={tableCellClassName}>
-                            <span className={`${pillClassName} ${statusStyles[item.status] || statusStyles.OPEN}`}>
-                                {statusLabels[item.status] || item.status}
-                            </span>
-                        </td>
-                        <td className={`${tableCellClassName} text-[#3a4a63]`}>{item.reporterName || '—'}</td>
-                        <td className={`${tableCellClassName} text-[#6a7994]`}>{formatDate(item.updatedAt)}</td>
-                    </tr>)}</tbody>
+                    <tbody>
+                        {cases.map((item) => (
+                            <tr key={item.id}>
+                                <td
+                                    className={`${tableCellClassName} text-[13px] font-semibold text-[#0f1c2e]`}
+                                >
+                                    {item.title}
+                                </td>
+                                <td className={`${tableCellClassName} text-[#3a4a63]`}>
+                                    {item.farm.name}
+                                </td>
+                                <td className={`${tableCellClassName} text-[#3a4a63]`}>
+                                    <strong className="block overflow-hidden text-ellipsis whitespace-nowrap font-medium text-[#0f1c2e]">
+                                        {item.pond.name}
+                                    </strong>
+                                    <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[#6a7994]">
+                                        {item.season.name}
+                                    </span>
+                                </td>
+                                <td className={tableCellClassName}>
+                                    <span
+                                        className={`${pillClassName} ${severityStyles[item.severity] || severityStyles.LOW}`}
+                                    >
+                                        {severityLabels[item.severity] || item.severity}
+                                    </span>
+                                </td>
+                                <td className={tableCellClassName}>
+                                    <span
+                                        className={`${pillClassName} ${statusStyles[item.status] || statusStyles.OPEN}`}
+                                    >
+                                        {statusLabels[item.status] || item.status}
+                                    </span>
+                                </td>
+                                <td className={`${tableCellClassName} text-[#3a4a63]`}>
+                                    {item.reporterName || '—'}
+                                </td>
+                                <td className={`${tableCellClassName} text-[#6a7994]`}>
+                                    {formatDate(item.updatedAt)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
                 </table>
             </div>
         )}
@@ -182,56 +242,108 @@ const ExpertDashboard = () => {
 
     useEffect(() => {
         const controller = new AbortController();
-        expertDashboardAPI.getDashboard(controller.signal)
+        expertDashboardAPI
+            .getDashboard(controller.signal)
             .then((response) => {
                 if (controller.signal.aborted) return;
                 const data = response.data?.data;
-                if (!data?.summary || !Array.isArray(data.seasons) || !Array.isArray(data.recentCases)) {
+                if (
+                    !data?.summary ||
+                    !Array.isArray(data.seasons) ||
+                    !Array.isArray(data.recentCases)
+                ) {
                     throw new Error('Dữ liệu tổng quan không hợp lệ.');
                 }
                 setState({ loading: false, data, error: null });
             })
             .catch((error) => {
                 if (controller.signal.aborted) return;
-                setState({ loading: false, data: null,
-                    error: error.response?.data?.message
-                        || (error.message === 'Dữ liệu tổng quan không hợp lệ.' ? error.message : 'Không thể tải tổng quan.') });
+                setState({
+                    loading: false,
+                    data: null,
+                    error:
+                        error.response?.data?.message ||
+                        (error.message === 'Dữ liệu tổng quan không hợp lệ.'
+                            ? error.message
+                            : 'Không thể tải tổng quan.'),
+                });
             });
         return () => controller.abort();
     }, [revision]);
 
     const summary = state.data?.summary;
-    return <div className="p-7 max-[900px]:px-5 max-[900px]:pt-[84px] max-[900px]:pb-6 max-[650px]:px-3 max-[650px]:pt-20 max-[650px]:pb-[18px]">
-        <header>
-            <h1 className="m-0 font-['Sora',_'Plus_Jakarta_Sans',_sans-serif] text-[22px] leading-tight font-bold text-[#0f1c2e]">Tổng quan hoạt động</h1>
-            <p className="mt-1 mb-0 text-[13px] leading-[21px] text-[#6a7994]">Theo dõi hoạt động chuyên môn của bạn</p>
-        </header>
-        {state.loading ? (
-            <div className="grid min-h-[360px] place-items-center" role="status" aria-live="polite">
-                <LoadingOutlined className="text-[32px] text-[#1d7ad6]" spin aria-hidden="true" />
-                <span className="sr-only">Đang tải tổng quan</span>
-            </div>
-        ) : state.error ? (
-            <Alert className="mt-5" type="error" showIcon message={state.error}
-                action={<Button size="small" onClick={retry}>Thử lại</Button>} />
-        ) : <>
-            <div className="mt-5 grid grid-cols-4 gap-4 max-[1250px]:grid-cols-2 max-[650px]:grid-cols-1">
-                <StatCard icon={<ExperimentOutlined />} tone="blue" value={summary.activeSeasons}
-                    label="Vụ đang phụ trách" detail={`${summary.planningSeasons} vụ đang chuẩn bị`} />
-                <StatCard icon={<MedicineBoxOutlined />} tone="amber" value={summary.openCases}
-                    label="Ca bệnh đang mở" detail={`${summary.criticalCases} ca bệnh nghiêm trọng`} />
-                <StatCard icon={<ClockCircleOutlined />} tone="rose" value={summary.pendingProtocols}
-                    label="Phác đồ chờ duyệt" detail="Nuôi & điều trị" />
-                <StatCard icon={<EditOutlined />} tone="teal" value={summary.draftProtocols + summary.rejectedProtocols}
-                    label="Phác đồ cần hoàn thiện"
-                    detail={`${summary.draftProtocols} bản nháp & ${summary.rejectedProtocols} bị từ chối`} />
-            </div>
-            {state.data.seasons.length ? <div className="mt-6 grid grid-cols-2 gap-4 max-[650px]:grid-cols-1">
-                {state.data.seasons.map((season) => <SeasonCard key={season.id} season={season} />)}
-            </div> : <div className={`${panelClassName} mt-6 p-8`}><Empty description="Chưa có vụ nuôi đang phụ trách" /></div>}
-            <RecentCases cases={state.data.recentCases} />
-        </>}
-    </div>;
+    return (
+        <div className="w-full min-w-0">
+            <Flex vertical gap={0} className="w-full! min-w-0!">
+                <Title level={1} className="m-0! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[22px]! leading-6.875! font-bold! text-[#0f1c2e]!">
+                    Tổng quan hoạt động
+                </Title>
+                <Paragraph className="mb-0! mt-1! text-[13px]! leading-5.25! text-[#6a7994]!">
+                    Theo dõi hoạt động chuyên môn của bạn
+                </Paragraph>
+            </Flex>
+            {state.loading ? (
+                <Loading className="min-h-90! w-full!" tip="Đang tải tổng quan" />
+            ) : state.error ? (
+                <Alert
+                    className="mt-5"
+                    type="error"
+                    showIcon
+                    message={state.error}
+                    action={
+                        <Button size="small" onClick={retry}>
+                            Thử lại
+                        </Button>
+                    }
+                />
+            ) : (
+                <>
+                    <div className="mt-5 grid grid-cols-4 gap-4 max-[1250px]:grid-cols-2 max-[650px]:grid-cols-1">
+                        <StatCard
+                            icon={<ExperimentOutlined />}
+                            tone="blue"
+                            value={summary.activeSeasons}
+                            label="Vụ đang phụ trách"
+                            detail={`${summary.planningSeasons} vụ đang chuẩn bị`}
+                        />
+                        <StatCard
+                            icon={<MedicineBoxOutlined />}
+                            tone="amber"
+                            value={summary.openCases}
+                            label="Ca bệnh đang mở"
+                            detail={`${summary.criticalCases} ca bệnh nghiêm trọng`}
+                        />
+                        <StatCard
+                            icon={<ClockCircleOutlined />}
+                            tone="rose"
+                            value={summary.pendingProtocols}
+                            label="Phác đồ chờ duyệt"
+                            detail="Nuôi & điều trị"
+                        />
+                        <StatCard
+                            icon={<EditOutlined />}
+                            tone="teal"
+                            value={summary.draftProtocols + summary.rejectedProtocols}
+                            label="Phác đồ cần hoàn thiện"
+                            detail={`${summary.draftProtocols} bản nháp & ${summary.rejectedProtocols} bị từ chối`}
+                        />
+                    </div>
+                    {state.data.seasons.length ? (
+                        <div className="mt-6 grid grid-cols-2 gap-4 max-[650px]:grid-cols-1">
+                            {state.data.seasons.map((season) => (
+                                <SeasonCard key={season.id} season={season} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className={`${panelClassName} mt-6 p-8`}>
+                            <Empty description="Chưa có vụ nuôi đang phụ trách" />
+                        </div>
+                    )}
+                    <RecentCases cases={state.data.recentCases} />
+                </>
+            )}
+        </div>
+    );
 };
 
 export default ExpertDashboard;
