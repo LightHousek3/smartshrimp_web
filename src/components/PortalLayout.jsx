@@ -16,12 +16,17 @@ const expertDashboardTopbarClassName = `
     bg-[linear-gradient(to_right,#ace0f9,#fff1eb)] px-7
     max-[900px]:fixed max-[900px]:inset-x-0 max-[900px]:top-0 max-[900px]:z-[12]
     max-[900px]:pl-[72px] max-[900px]:pr-5 max-[650px]:pr-3
-    [&_.expert-notification-trigger.ant-btn]:h-9 [&_.expert-notification-trigger.ant-btn]:w-9
-    [&_.expert-notification-trigger.ant-btn]:rounded-full
-    [&_.expert-notification-trigger.ant-btn]:border-[#e5e8f0]
-    [&_.expert-notification-trigger.ant-btn]:bg-[rgba(255,255,255,0.8)]
-    [&_.expert-notification-trigger.ant-btn]:text-[17px]
-    [&_.expert-notification-trigger.ant-btn]:shadow-[0_2px_0_rgba(15,28,46,0.02)]
+    [&_.expert-notification-trigger.ant-btn]:h-9! [&_.expert-notification-trigger.ant-btn]:w-9!
+    [&_.expert-notification-trigger.ant-btn]:rounded-full!
+    [&_.expert-notification-trigger.ant-btn]:border-[#e5e8f0]!
+    [&_.expert-notification-trigger.ant-btn]:bg-[rgba(255,255,255,0.8)]!
+    [&_.expert-notification-trigger.ant-btn]:text-[17px]!
+    [&_.expert-notification-trigger.ant-btn]:shadow-[0_2px_0_rgba(15,28,46,0.02)]!
+`;
+const portalTopbarClassName = `
+    mb-[18px] flex min-h-[46px] items-center justify-end
+    max-[900px]:fixed max-[900px]:top-4 max-[900px]:right-5 max-[900px]:z-[12]
+    max-[900px]:m-0 max-[600px]:right-3
 `;
 
 const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction }) => {
@@ -58,6 +63,9 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
     }, []);
 
     const isExpertDashboard = location.pathname === '/expert';
+    const isExpertNotifications = location.pathname.startsWith('/expert/notifications');
+    const useExpertTopbar = isExpertDashboard || isExpertNotifications;
+    const expertPageLabel = isExpertNotifications ? 'Thông báo' : 'Tổng quan';
 
     return (
         <div className="portal-layout">
@@ -109,7 +117,15 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                                         onClick={() => setMobileOpen(false)}
                                     >
                                         <span className="navigation-icon">{item.icon}</span>
-                                        <span>{item.label}</span>
+                                        <span className="min-w-0 truncate">{item.label}</span>
+                                        {item.badge > 0 && (
+                                            <span
+                                                className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[99px] border-2 border-[rgba(255,255,255,0.95)] bg-[#d93f5b] px-[5px] text-[9px] leading-none font-[750] text-white"
+                                                aria-label={`${item.badge} chưa đọc`}
+                                            >
+                                                {item.badge > 99 ? '99+' : item.badge}
+                                            </span>
+                                        )}
                                     </NavLink>
                                 ))}
                             </div>
@@ -147,16 +163,16 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                 </div>
             </aside>
 
-            <main className={isExpertDashboard
+            <main className={useExpertTopbar
                 ? expertDashboardMainClassName
                 : 'portal-content'}>
-                {headerAction && <div className={isExpertDashboard
+                {headerAction && <div className={useExpertTopbar
                     ? expertDashboardTopbarClassName
-                    : 'portal-topbar'}>
-                    {isExpertDashboard && <div className="flex items-center gap-2.5 text-xs text-[#6a7994]">
+                    : portalTopbarClassName}>
+                    {useExpertTopbar && <div className="flex items-center gap-2.5 text-xs text-[#6a7994]">
                         <span>Cổng chuyên gia</span>
                         <span aria-hidden="true">/</span>
-                        <strong className="font-semibold text-[#0f1c2e]">Tổng quan</strong>
+                        <strong className="font-semibold text-[#0f1c2e]">{expertPageLabel}</strong>
                     </div>}
                     {headerAction}
                 </div>}

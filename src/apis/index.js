@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { parseNotificationDetail, parseNotificationPage } from '../utils/notificationUtils';
+import {
+    parseMarkAllNotificationsRead,
+    parseNotificationDetail,
+    parseNotificationPage,
+} from '../utils/notificationUtils';
 import { apiClient, deviceId } from '../config';
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
@@ -55,6 +59,10 @@ const notificationAPI = {
             signal,
         });
         return parseNotificationDetail(response.data);
+    },
+    markAllAsRead: async () => {
+        const response = await apiClient.patch('/notifications/read-all');
+        return parseMarkAllNotificationsRead(response.data);
     },
 };
 
