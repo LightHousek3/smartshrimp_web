@@ -18,13 +18,41 @@ import { notificationAPI } from '../apis';
 import { getAccessToken, SOCKET_BASE_URL } from '../config';
 import { useAuth } from '../contexts/useAuth';
 import { formatDate } from '../utils/dateUtils';
-import './expertNotificationBell.css';
 
 const FILTERS = [
     { label: 'Tất cả', value: 'all' },
     { label: 'Chưa đọc', value: 'unread' },
     { label: 'Đã đọc', value: 'read' },
 ];
+
+// The popup is portaled; semantic body classes style it independently of the page layout.
+const popoverClassNames = {
+    body: [
+        'w-[min(400px,calc(100vw-24px))]! max-w-full! p-0! overflow-hidden!',
+        'border! border-[#e0eaf3]! rounded-[18px]!',
+        'shadow-[0_18px_48px_rgba(15,28,46,0.2)]!',
+        '[&_.ant-popover-inner-content]:p-0!',
+    ].join(' '),
+};
+const headingClassName =
+    'flex items-center gap-3 px-4.5 pt-4.5 pb-3 [&_span]:text-[12px]! [&_span]:text-[#69809a]!';
+const headingTitleClassName =
+    "font-['Sora','Plus_Jakarta_Sans',sans-serif] text-[#17243a]";
+const scrollClassName = 'max-h-[min(60vh,490px)] overflow-y-auto overscroll-contain';
+const loadingClassName = 'grid min-h-42.5 place-items-center';
+const iconClassName =
+    'grid size-8.5 shrink-0 basis-8.5 place-items-center rounded-[10px] text-[16px]';
+const iconTone = {
+    blue: 'text-[#247cc3] bg-[#dceefa]',
+    rose: 'text-[#bb4c5e] bg-[#fcecef]',
+    teal: 'text-[#168677] bg-[#e1f5ef]',
+    amber: 'text-[#a66a22] bg-[#fff2d9]',
+};
+const itemClassName = [
+    'mb-1.5 flex min-h-19 w-full cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 text-left',
+    'hover:border-[#a9d1ed] hover:bg-[#eaf5ff]',
+    'focus-visible:border-[#a9d1ed] focus-visible:bg-[#eaf5ff]',
+].join(' ');
 
 const emptyList = { items: [], totalResults: 0, hasNextPage: false, nextCursor: null };
 
@@ -66,7 +94,7 @@ const formatNotificationTime = (value) => {
 
 const NotificationStatus = ({ readAt }) => (
     <span
-        className={`notification-status ${readAt ? 'is-read' : 'is-unread'}`}
+        className={`grid h-4.5 w-3.75 shrink-0 basis-3.75 place-items-center text-[12px] ${readAt ? 'text-[#159168]' : 'text-[#e5a32d]'}`}
         title={readAt ? 'Đã đọc' : 'Chưa đọc'}
         aria-label={readAt ? 'Đã đọc' : 'Chưa đọc'}
     >
@@ -99,7 +127,8 @@ const ExpertNotificationBell = () => {
     useEffect(() => {
         if (!account?.id) return undefined;
         const controller = new AbortController();
-        notificationAPI.getNotifications({ readStatus: 'unread', limit: 1 }, controller.signal)
+        notificationAPI
+            .getNotifications({ readStatus: 'unread', limit: 1 }, controller.signal)
             .then((page) => setUnreadCount(page.totalResults))
             .catch((error) => {
                 if (!controller.signal.aborted && error?.response?.status === 401) {
@@ -154,7 +183,8 @@ const ExpertNotificationBell = () => {
         const request = ++listRequest.current;
         const controller = new AbortController();
         moreAbort.current?.abort();
-        notificationAPI.getNotifications({ readStatus: filter, limit: 20 }, controller.signal)
+        notificationAPI
+            .getNotifications({ readStatus: filter, limit: 20 }, controller.signal)
             .then((page) => {
                 if (request === listRequest.current) {
                     setList(page);
@@ -163,7 +193,9 @@ const ExpertNotificationBell = () => {
             })
             .catch((error) => {
                 if (!controller.signal.aborted && request === listRequest.current) {
-                    setListError(getErrorMessage(error, 'Không thể tải thông báo. Vui lòng thử lại.'));
+                    setListError(
+                        getErrorMessage(error, 'Không thể tải thông báo. Vui lòng thử lại.'),
+                    );
                 }
             })
             .finally(() => {
@@ -178,7 +210,8 @@ const ExpertNotificationBell = () => {
     useEffect(() => {
         if (!open || !selectedId) return undefined;
         const controller = new AbortController();
-        notificationAPI.getNotification(selectedId, controller.signal)
+        notificationAPI
+            .getNotification(selectedId, controller.signal)
             .then((item) => {
                 if (controller.signal.aborted) return;
                 setDetail(item);
@@ -261,9 +294,9 @@ const ExpertNotificationBell = () => {
 
     const renderList = () => (
         <>
-            <div className="expert-notification-heading">
-                <div>
-                    <strong>Thông báo</strong>
+            <div className={`${headingClassName} justify-between`}>
+                <div className="flex flex-col gap-0.5">
+                    <strong className={`${headingTitleClassName} text-[16px]`}>Thông báo</strong>
                     <span>Cập nhật dành cho chuyên gia</span>
                 </div>
                 <Button
@@ -274,51 +307,72 @@ const ExpertNotificationBell = () => {
                 />
             </div>
             <Segmented
-                className="expert-notification-filter"
+                className="mx-4.5! mt-0! mb-3! w-[calc(100%-36px)]! rounded-[11px]! bg-[#edf4f9]! p-1! text-[12px]! font-[650]!"
                 block
                 options={FILTERS}
                 value={filter}
                 onChange={changeFilter}
             />
             {realtimeError && (
-                <p className="expert-notification-connection">Kết nối trực tiếp bị gián đoạn.</p>
+                <p className="mx-4.5 mt-0 mb-2.25 text-[11px] text-[#a46b24]">Kết nối trực tiếp bị gián đoạn.</p>
             )}
-            <div className="expert-notification-list" aria-live="polite">
+            <div className={`${scrollClassName} px-2.5 pt-0 pb-3 [&_.ant-alert]:mx-2! [&_.ant-alert]:mt-1! [&_.ant-alert]:mb-2.5!`} aria-live="polite">
                 {listLoading ? (
-                    <div className="expert-notification-center"><Spin tip="Đang tải" /></div>
+                    <div className={loadingClassName}>
+                        <Spin tip="Đang tải" />
+                    </div>
                 ) : listError ? (
                     <Alert
                         type="error"
                         showIcon
                         message={listError}
-                        action={<Button size="small" onClick={refresh}>Thử lại</Button>}
+                        action={
+                            <Button size="small" onClick={refresh}>
+                                Thử lại
+                            </Button>
+                        }
                     />
                 ) : list.items.length === 0 ? (
                     <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description={filter === 'unread' ? 'Không có thông báo chưa đọc' :
-                            filter === 'read' ? 'Chưa có thông báo đã đọc' : 'Chưa có thông báo'}
+                        description={
+                            filter === 'unread'
+                                ? 'Không có thông báo chưa đọc'
+                                : filter === 'read'
+                                  ? 'Chưa có thông báo đã đọc'
+                                  : 'Chưa có thông báo'
+                        }
                     />
                 ) : (
                     <>
-                        <div className="expert-notification-count">{list.totalResults} thông báo</div>
+                        <div className="px-2.25 pt-0 pb-2 text-[11px] font-[650] text-[#69809a]">
+                            {list.totalResults} thông báo
+                        </div>
                         {list.items.map((item) => {
                             const kind = getKind(item.type);
                             return (
                                 <button
                                     key={item.id}
                                     type="button"
-                                    className={`expert-notification-item ${item.readAt ? 'is-read' : 'is-unread'}`}
+                                    className={`${itemClassName} ${item.readAt ? 'border-transparent bg-white' : 'border-[#d5e7f5] bg-[#f1f8ff]'}`}
                                     onClick={() => openDetail(item.id)}
                                     aria-label={`${item.readAt ? 'Đã đọc' : 'Chưa đọc'}, ${item.title}`}
                                 >
-                                    <span className={`expert-notification-icon is-${kind.color}`}>{kind.icon}</span>
-                                    <span className="expert-notification-copy">
-                                        <span className="expert-notification-item-top">
-                                            <span className="expert-notification-kind">{kind.label}</span>
-                                            <span className="expert-notification-time">{formatNotificationTime(item.createdAt)}</span>
+                                    <span className={`${iconClassName} ${iconTone[kind.color]}`}>
+                                        {kind.icon}
+                                    </span>
+                                    <span className="flex min-w-0 flex-1 flex-col gap-1.25">
+                                        <span className="flex items-baseline justify-between gap-2">
+                                            <span className="text-[11px] font-[750] text-[#247cc3]">
+                                                {kind.label}
+                                            </span>
+                                            <span className="flex-none text-[10px] text-[#7a899d]">
+                                                {formatNotificationTime(item.createdAt)}
+                                            </span>
                                         </span>
-                                        <span className="expert-notification-title">{item.title}</span>
+                                        <span className={`text-[12.5px] leading-[1.35] wrap-anywhere ${item.readAt ? 'font-[550] text-[#52647d]' : 'font-[750] text-[#17243a]'}`}>
+                                            {item.title}
+                                        </span>
                                     </span>
                                     <NotificationStatus readAt={item.readAt} />
                                 </button>
@@ -338,39 +392,64 @@ const ExpertNotificationBell = () => {
 
     const renderDetail = () => (
         <>
-            <div className="expert-notification-heading is-detail">
-                <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => setSelectedId(null)}>
+            <div className={`${headingClassName} justify-start border-b border-[#e5e8f0]`}>
+                <Button
+                    type="text"
+                    icon={<ArrowLeftOutlined />}
+                    className="pl-0! text-[12px]! text-[#247cc3]!"
+                    onClick={() => setSelectedId(null)}
+                >
                     Danh sách
                 </Button>
-                <strong>Chi tiết thông báo</strong>
+                <strong className={`${headingTitleClassName} text-[14px]`}>Chi tiết thông báo</strong>
             </div>
-            <div className="expert-notification-detail" aria-live="polite">
+            <div className={`${scrollClassName} p-4.5`} aria-live="polite">
                 {detailLoading ? (
-                    <div className="expert-notification-center"><Spin tip="Đang tải" /></div>
+                    <div className={loadingClassName}>
+                        <Spin tip="Đang tải" />
+                    </div>
                 ) : detailError ? (
                     <Alert
                         type="error"
                         message={detailError}
                         showIcon
-                        action={<Button size="small" onClick={retryDetail}>Thử lại</Button>}
+                        action={
+                            <Button size="small" onClick={retryDetail}>
+                                Thử lại
+                            </Button>
+                        }
                     />
-                ) : detail && (
-                    <>
-                        <div className="expert-notification-detail-type">
-                            <span className={`expert-notification-icon is-${getKind(detail.type).color}`}>
-                                {getKind(detail.type).icon}
-                            </span>
-                            <span>
-                                <strong>{getKind(detail.type).label}</strong>
-                                <small><ClockCircleOutlined /> {formatDate(detail.createdAt, 'HH:mm dd/MM/yyyy')}</small>
-                            </span>
-                        </div>
-                        <h3>{detail.title}</h3>
-                        {detail.content?.trim() && <p className="expert-notification-body">{detail.content}</p>}
-                        <div className="expert-notification-read-time">
-                            <CheckOutlined /> Đã đọc lúc {formatDate(detail.readAt, 'HH:mm dd/MM/yyyy')}
-                        </div>
-                    </>
+                ) : (
+                    detail && (
+                        <>
+                            <div className="flex items-center gap-2.5">
+                                <span
+                                    className={`${iconClassName} ${iconTone[getKind(detail.type).color]}`}
+                                >
+                                    {getKind(detail.type).icon}
+                                </span>
+                                <span className="flex flex-col gap-0.5">
+                                    <strong className="text-[12px] text-[#247cc3]">
+                                        {getKind(detail.type).label}
+                                    </strong>
+                                    <small className="text-[11px] text-[#7a899d]">
+                                        <ClockCircleOutlined />{' '}
+                                        {formatDate(detail.createdAt, 'HH:mm dd/MM/yyyy')}
+                                    </small>
+                                </span>
+                            </div>
+                            <h3 className="mt-4.5 mr-0 mb-2.5 ml-0 font-['Sora','Plus_Jakarta_Sans',sans-serif] text-[17px] leading-[1.4] wrap-anywhere text-[#17243a]">
+                                {detail.title}
+                            </h3>
+                            {detail.content?.trim() && (
+                                <p className="m-0 text-[13px] leading-[1.6] whitespace-pre-wrap wrap-anywhere text-[#40546b]">{detail.content}</p>
+                            )}
+                            <div className="mt-5 border-t border-[#e5e8f0] pt-3 text-[11px] font-[650] text-[#159168]">
+                                <CheckOutlined /> Đã đọc lúc{' '}
+                                {formatDate(detail.readAt, 'HH:mm dd/MM/yyyy')}
+                            </div>
+                        </>
+                    )
                 )}
             </div>
         </>
@@ -383,14 +462,16 @@ const ExpertNotificationBell = () => {
             open={open}
             onOpenChange={changeOpen}
             content={selectedId ? renderDetail() : renderList()}
-            overlayClassName="expert-notification-popover"
+            classNames={popoverClassNames}
         >
             <Badge count={unreadCount} overflowCount={99} size="small">
                 <Button
-                    className="expert-notification-trigger"
+                    className="size-9! min-w-9! rounded-full! border! border-[#e5e8f0]! bg-white/80! text-[13px]! text-[#6a7994]! shadow-[0_2px_0_rgba(15,28,46,0.02)]! hover:bg-white! hover:text-[#0f62b4]! focus-visible:bg-white! focus-visible:text-[#0f62b4]!"
                     type="text"
                     icon={<BellOutlined />}
-                    aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo'}
+                    aria-label={
+                        unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo'
+                    }
                     aria-expanded={open}
                 />
             </Badge>

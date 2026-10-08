@@ -32,6 +32,10 @@ const expertDashboardAPI = {
     getDashboard: (signal) => apiClient.get('/expert/dashboard', { signal }),
 };
 
+const expertSeasonAPI = {
+    getAssignedSeasons: (params, signal) => apiClient.get('/expert/seasons', { params, signal }),
+};
+
 // Admin account management API
 const adminAccountAPI = {
     getAccounts: (params = {}) => apiClient.get('/admin/accounts', { params }),
@@ -90,4 +94,4 @@ const cloudinaryAPI = {
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
-export { adminAccountAPI, authAPI, cloudinaryAPI, expertDashboardAPI, notificationAPI, profileAPI };
+export { adminAccountAPI, authAPI, cloudinaryAPI, expertDashboardAPI, expertSeasonAPI, notificationAPI, profileAPI };

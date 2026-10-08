@@ -5,10 +5,16 @@ import {
     Avatar,
     Button,
     Card,
+    Col,
+    Divider,
+    Flex,
     Form,
     Input,
     Modal,
-    Skeleton,
+    Progress,
+    Row,
+    Spin,
+    Statistic,
     Tag,
     Typography,
     Upload,
@@ -21,7 +27,6 @@ import {
     ClockCircleOutlined,
     EditOutlined,
     ExperimentOutlined,
-    LoadingOutlined,
     LockOutlined,
     MailOutlined,
     PhoneOutlined,
@@ -30,6 +35,7 @@ import {
     UserOutlined,
 } from '@ant-design/icons';
 import { cloudinaryAPI, profileAPI } from '../../apis';
+import Loading from '../../components/Loading';
 import { useAuth } from '../../contexts/useAuth';
 import {
     PROFILE_RULES,
@@ -42,7 +48,7 @@ import {
     validateVietnamesePhone,
 } from '../../utils/profileRules';
 
-const { Text, Title } = Typography;
+const { Paragraph, Text, Title } = Typography;
 
 const AVATAR_RULES = Object.freeze({
     acceptedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
@@ -94,51 +100,161 @@ const isHttpUrl = (value) => {
     }
 };
 
+const cardClassName =
+    'w-full! min-w-0! rounded-[14px]! border! border-[#e5e8f0]! bg-white! shadow-[0_1px_1px_rgba(15,28,46,0.04)]!';
+const actionClassName =
+    'h-9! rounded-[10px]! border-[#e5e8f0]! text-[13px]! font-medium! text-[#3a4a63]! shadow-none! hover:border-[#69b3cc]! hover:text-[#1788b0]!';
+const modalButtonClassName = 'm-0! h-9! rounded-[10px]! px-4! py-0! text-[13px]!';
+const primaryButtonClassName = [
+    modalButtonClassName,
+    'min-h-9! border-0! text-white! normal-case! shadow-none!',
+    'bg-[linear-gradient(to_right,#77a1d3_0%,#79cbca_51%,#77a1d3_100%)]!',
+    'bg-size-[200%_auto]! bg-position-[left_center]! transition-[background-position]! duration-500!',
+    'hover:bg-position-[right_center]! focus-visible:bg-position-[right_center]!',
+].join(' ');
+const formClassName = [
+    '[&_.ant-form-item]:min-h-22.25! [&_.ant-form-item]:mb-0!',
+    '[&_.ant-form-item-label]:h-7.25! [&_.ant-form-item-label]:p-0!',
+    '[&_.ant-form-item-label>label]:h-5! [&_.ant-form-item-label>label]:text-[12px]!',
+    '[&_.ant-form-item-label>label]:font-normal! [&_.ant-form-item-label>label]:leading-5!',
+    '[&_.ant-form-item-label>label]:text-[#3a4a63]!',
+    '[&_.ant-form-item-required::before]:text-[#d43b57]!',
+    '[&_.ant-form-item-required::before]:text-[13px]!',
+    '[&_.ant-input-affix-wrapper]:h-9! [&_.ant-input-affix-wrapper]:rounded-[10px]!',
+    '[&_.ant-input-affix-wrapper]:px-2.75! [&_.ant-input-affix-wrapper]:py-1.5!',
+    '[&_.ant-input-affix-wrapper]:text-[13px]! [&_input]:text-[13px]!',
+    '[&_.ant-input-prefix]:mr-1! [&_.ant-input-prefix]:text-[13px]!',
+    '[&_.ant-input-prefix]:text-[#6a7994]!',
+    '[&_.ant-form-item-explain-error]:text-[13px]!',
+    '[&_.ant-form-item-explain-error]:leading-5.25!',
+    '[&_.ant-form-item-explain-error]:text-[#d43b57]!',
+    '[&_.ant-form-item-additional]:min-h-6!',
+].join(' ');
+const modalClassNames = {
+    content:
+        'rounded-2xl! px-6! py-5! shadow-[0_1px_1px_rgba(15,28,46,0.04),0_8px_12px_rgba(15,28,46,0.25)]! max-[600px]:px-4!',
+    header:
+        'mb-0! [&_.ant-modal-title]:text-[14px]! [&_.ant-modal-title]:font-semibold! [&_.ant-modal-title]:leading-5.5! [&_.ant-modal-title]:text-[rgba(15,28,46,0.88)]!',
+    body: 'p-0!',
+    footer:
+        'mt-0! flex! min-h-12! items-center! justify-end! gap-2! pt-3! max-[600px]:flex-wrap! [&_.ant-btn]:ms-0!',
+};
+const statTone = {
+    teal: 'bg-[rgba(15,155,142,0.12)]! text-[#0f9b8e]!',
+    blue: 'bg-[rgba(29,122,214,0.1)]! text-[#1d7ad6]!',
+    amber: 'bg-[rgba(217,134,11,0.12)]! text-[#d9860b]!',
+};
+const passwordTone = {
+    'too-short': { stroke: '#e44861', text: 'text-[#d53c55]!' },
+    medium: { stroke: '#e0a000', text: 'text-[#c88d00]!' },
+    'fairly-strong': { stroke: '#19a7a0', text: 'text-[#0f918b]!' },
+    strong: { stroke: '#15945d', text: 'text-[#117a4e]!' },
+};
+const passwordPercent = [0, 20, 50, 75, 100];
+
 const ProfileInfoRow = ({ icon, label, value, locked = false }) => (
-    <div className="expert-profile-info-row">
-        <span className="expert-profile-info-icon">{icon}</span>
-        <div className="expert-profile-info-copy">
-            <Text className="expert-profile-info-label">{label}</Text>
-            <span className="expert-profile-info-value">
-                {value}
-                {locked ? <LockOutlined className="expert-profile-lock" /> : null}
-            </span>
-        </div>
-    </div>
+    <Flex align="start" gap={10} className="min-h-9.5! min-w-0!">
+        <Avatar
+            size={22}
+            shape="square"
+            icon={icon}
+            className="shrink-0! border-0! bg-transparent! text-[14px]! text-[#6a7994]!"
+        />
+        <Flex vertical gap={0} className="min-w-0! flex-1!">
+            <Text className="text-[10px]! font-semibold! tracking-[0.03em]! leading-4.25! text-[#6a7994]! uppercase!">
+                {label}
+            </Text>
+            <Flex align="center" gap={5} className="min-w-0!">
+                <Text
+                    ellipsis={{ tooltip: value }}
+                    className="min-w-0! text-[13px]! font-medium! leading-5.25! text-[rgba(15,28,46,0.88)]!"
+                >
+                    {value}
+                </Text>
+                {locked && <LockOutlined className="shrink-0 text-[11px] text-[#6a7994]" />}
+            </Flex>
+        </Flex>
+    </Flex>
 );
 
 const ExpertStatCard = ({ tone, icon, label, value, subtitle }) => (
-    <Card className="expert-stat-card" variant="borderless">
-        <span className={`expert-stat-icon is-${tone}`}>{icon}</span>
-        <div className="expert-stat-copy">
-            <span className="expert-stat-label">{label}</span>
-            <strong className="expert-stat-value">{value}</strong>
-            <span className="expert-stat-subtitle">{subtitle}</span>
-        </div>
+    <Card
+        className={`${cardClassName} min-h-25.25! [&>.ant-card-body]:p-4!`}
+        variant="borderless"
+    >
+        <Flex align="start" gap={12}>
+            <Avatar
+                size={44}
+                shape="square"
+                icon={icon}
+                className={`shrink-0! rounded-xl! text-[20px]! ${statTone[tone]}`}
+            />
+            <Flex vertical gap={0} className="min-w-0! flex-1!">
+                <Statistic
+                    title={
+                        <Text className="block! truncate! text-[10px]! font-bold! tracking-[0.04em]! leading-4! text-[#6a7994]!">
+                            {label}
+                        </Text>
+                    }
+                    value={value}
+                    formatter={() => value}
+                    className="[&_.ant-statistic-title]:mb-0! [&_.ant-statistic-content]:truncate! [&_.ant-statistic-content]:font-['Sora','Plus_Jakarta_Sans',sans-serif]! [&_.ant-statistic-content]:text-[24px]! [&_.ant-statistic-content]:font-extrabold! [&_.ant-statistic-content]:leading-7.25! [&_.ant-statistic-content]:text-[#0f1c2e]!"
+                />
+                <Text
+                    ellipsis={{ tooltip: subtitle }}
+                    className="text-[11px]! leading-4.25! text-[#6a7994]!"
+                >
+                    {subtitle}
+                </Text>
+            </Flex>
+        </Flex>
     </Card>
 );
 
 const PasswordStrength = ({ password }) => {
-    if (!password) {
-        return null;
-    }
+    if (!password) return null;
 
     const strength = getPasswordStrength(password);
-    const widthByLevel = [0, 20, 50, 75, 100];
+    const tone = passwordTone[strength.key];
 
     return (
-        <div
-            className={`password-strength password-strength-${strength.key}`}
-            role="status"
-            aria-live="polite"
-        >
-            <div className="password-strength-track" aria-hidden="true">
-                <span style={{ width: `${widthByLevel[strength.level]}%` }} />
-            </div>
-            <Text>{strength.label}</Text>
-        </div>
+        <Flex vertical gap={4} className="min-h-7.5!" role="status" aria-live="polite">
+            <Progress
+                percent={passwordPercent[strength.level]}
+                showInfo={false}
+                size={{ height: 6 }}
+                strokeColor={tone.stroke}
+                trailColor="#e5e8f0"
+                className="m-0! block! leading-none! [&_.ant-progress-inner]:block!"
+                aria-label="Độ mạnh mật khẩu"
+            />
+            <Text className={`text-[11px]! font-normal! leading-4.5! ${tone.text}`}>
+                {strength.label}
+            </Text>
+        </Flex>
     );
 };
+
+const ProfileModal = ({ title, open, saving, onCancel, afterClose, onSubmit, submitText, children }) => (
+    <Modal
+        title={title}
+        open={open}
+        width={460}
+        centered
+        onCancel={onCancel}
+        afterClose={afterClose}
+        onOk={onSubmit}
+        confirmLoading={saving}
+        okText={submitText}
+        cancelText="Hủy"
+        okButtonProps={{ className: primaryButtonClassName }}
+        cancelButtonProps={{ disabled: saving, className: modalButtonClassName }}
+        classNames={modalClassNames}
+        className="max-[600px]:mx-auto! max-[600px]:my-2.5! max-[600px]:max-w-[calc(100vw-20px)]! [&_.ant-modal-close]:top-2.25! [&_.ant-modal-close]:right-2.25! [&_.ant-modal-close]:size-9! [&_.ant-modal-close]:text-[15px]! [&_.ant-modal-close]:text-[#6a7994]!"
+    >
+        {children}
+    </Modal>
+);
 
 const Profile = () => {
     const [profile, setProfile] = useState(null);
@@ -319,45 +435,52 @@ const Profile = () => {
         }
     };
 
+    const heading = (
+        <Flex vertical gap={0} className="w-full! min-w-0!">
+            <Title level={1} className="m-0! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[22px]! leading-6.875! font-bold! text-[#0f1c2e]!">
+                Hồ sơ cá nhân
+            </Title>
+            <Paragraph className="mb-0! mt-1! text-[13px]! leading-5.25! text-[#6a7994]!">
+                Quản lý hồ sơ của bạn
+            </Paragraph>
+        </Flex>
+    );
+
     if (loading) {
         return (
-            <div className="expert-profile-page">
-                <div className="expert-profile-heading">
-                    <Title level={2}>Hồ sơ cá nhân</Title>
-                    <Text type="secondary">Quản lý hồ sơ của bạn</Text>
-                </div>
-                <Card className="expert-profile-card">
-                    <Skeleton active avatar paragraph={{ rows: 8 }} />
-                </Card>
-            </div>
+            <Flex vertical gap={0} className="w-full! min-w-0!">
+                {heading}
+                <Loading className="min-h-90! w-full!" tip="Đang tải hồ sơ cá nhân" />
+            </Flex>
         );
     }
 
     if (loadError || !profile) {
         return (
-            <div className="expert-profile-page">
+            <Flex vertical gap={0} className="w-full! min-w-0!">
+                {heading}
                 <Alert
+                    className="mt-5!"
                     type="error"
                     showIcon
                     message="Không thể tải hồ sơ"
                     description={loadError}
                     action={<Button onClick={loadProfile}>Thử lại</Button>}
                 />
-            </div>
+            </Flex>
         );
     }
 
     return (
-        <div className="expert-profile-page">
-            <div className="expert-profile-heading">
-                <Title level={2}>Hồ sơ cá nhân</Title>
-                <Text type="secondary">Quản lý hồ sơ của bạn</Text>
-            </div>
-
-            <div className="expert-profile-grid">
-                <div className="expert-profile-card-column">
-                    <Card className="expert-profile-card" variant="borderless">
-                        <div className="expert-profile-identity">
+        <Flex vertical gap={0} className="w-full! min-w-0!">
+            {heading}
+            <Row gutter={[16, 16]} align="top" className="mt-5!">
+                <Col xs={24} lg={9} xl={8}>
+                    <Card
+                        className={`${cardClassName} [&>.ant-card-body]:p-5! max-[650px]:[&>.ant-card-body]:px-4!`}
+                        variant="borderless"
+                    >
+                        <Flex vertical align="center" gap={8}>
                             <Upload
                                 accept={AVATAR_RULES.acceptedMimeTypes.join(',')}
                                 beforeUpload={beforeAvatarUpload}
@@ -365,45 +488,55 @@ const Profile = () => {
                                 disabled={uploadingAvatar}
                                 maxCount={1}
                                 showUploadList={false}
+                                className="inline-block! size-18! [&_.ant-upload]:inline-block! [&_.ant-upload]:size-18!"
                             >
-                                <button
-                                    type="button"
-                                    className="expert-avatar-upload"
+                                <Button
+                                    type="text"
+                                    className="group relative! block! size-18! min-w-18! overflow-hidden! rounded-full! border-0! bg-transparent! p-0! disabled:cursor-wait!"
                                     disabled={uploadingAvatar}
                                     aria-label="Thay đổi ảnh đại diện"
                                 >
                                     <Avatar
                                         size={72}
                                         src={profile.avatarUrl}
-                                        className="expert-profile-avatar"
+                                        className="flex! items-center! justify-center! bg-[rgba(15,155,142,0.15)]! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[24px]! font-bold! text-[#119c98]!"
                                     >
                                         {getInitials(profile)}
                                     </Avatar>
-                                    <span className="expert-avatar-upload-overlay">
-                                        {uploadingAvatar ? <LoadingOutlined /> : <CameraOutlined />}
-                                        <span>
-                                            {uploadingAvatar
-                                                ? `${avatarUploadProgress}%`
-                                                : 'Đổi ảnh'}
-                                        </span>
-                                    </span>
-                                </button>
+                                    <Flex
+                                        vertical
+                                        align="center"
+                                        justify="center"
+                                        gap={2}
+                                        className="absolute! inset-0! rounded-full! bg-[rgba(15,28,46,0.58)]! text-white! opacity-0! transition-opacity duration-200 group-hover:opacity-100! group-focus-visible:opacity-100! group-disabled:opacity-100!"
+                                    >
+                                        {uploadingAvatar ? (
+                                            <Spin size="small" className="text-white! [&_.ant-spin-dot-item]:bg-white!" />
+                                        ) : <CameraOutlined className="text-[16px]" />}
+                                        <Text className="text-[11px]! font-semibold! leading-3.5! text-white!">
+                                            {uploadingAvatar ? `${avatarUploadProgress}%` : 'Đổi ảnh'}
+                                        </Text>
+                                    </Flex>
+                                </Button>
                             </Upload>
-                            <Title level={3} className="expert-profile-name">
+                            <Title
+                                level={3}
+                                ellipsis={{ tooltip: profile.fullName || profile.email }}
+                                className="m-0! max-w-full! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[16px]! font-semibold! leading-6! text-[rgba(15,28,46,0.88)]!"
+                            >
                                 {profile.fullName || profile.email}
                             </Title>
-                            <Tag color="cyan" className="expert-role-tag">
+                            <Tag
+                                color="cyan"
+                                className="m-0! h-5! rounded-full! border-[#b5f5ec]! bg-[#e6fffb]! px-2! py-0! text-[11px]! leading-4.5! text-[#0f9b8e]!"
+                            >
                                 {roleLabel}
                             </Tag>
-                        </div>
+                        </Flex>
 
-                        <div className="expert-profile-details">
-                            <ProfileInfoRow
-                                icon={<MailOutlined />}
-                                label="EMAIL"
-                                value={profile.email}
-                                locked
-                            />
+                        <Divider className="mt-5! mb-3.75! border-[#e5e8f0]!" />
+                        <Flex vertical gap={13}>
+                            <ProfileInfoRow icon={<MailOutlined />} label="EMAIL" value={profile.email} locked />
                             <ProfileInfoRow
                                 icon={<PhoneOutlined />}
                                 label="SỐ ĐIỆN THOẠI"
@@ -412,252 +545,177 @@ const Profile = () => {
                             <ProfileInfoRow
                                 icon={<TeamOutlined />}
                                 label="CHỦ TRANG TRẠI PHỤ TRÁCH"
-                                value={
-                                    profile.managedByOwner?.fullName ||
-                                    profile.managedByOwner?.email ||
-                                    'Chưa phân công'
-                                }
+                                value={profile.managedByOwner?.fullName || profile.managedByOwner?.email || 'Chưa phân công'}
                             />
                             <ProfileInfoRow
                                 icon={<CalendarOutlined />}
                                 label="THAM GIA HỆ THỐNG TỪ"
                                 value={formatJoinedAt(profile.activatedAt || profile.createdAt)}
                             />
-                        </div>
-
-                        <div className="expert-profile-actions">
-                            <Button icon={<EditOutlined />} onClick={openEditModal}>
+                        </Flex>
+                        <Divider className="my-4! border-[#e5e8f0]!" />
+                        <Flex vertical gap={16}>
+                            <Button className={actionClassName} icon={<EditOutlined />} onClick={openEditModal}>
                                 Chỉnh sửa hồ sơ
                             </Button>
-                            <Button icon={<LockOutlined />} onClick={openPasswordModal}>
+                            <Button className={actionClassName} icon={<LockOutlined />} onClick={openPasswordModal}>
                                 Đổi mật khẩu
                             </Button>
-                        </div>
+                        </Flex>
                     </Card>
-                </div>
-
-                <div className="expert-profile-side">
-                    <div className="expert-stat-grid">
-                        <ExpertStatCard
-                            tone="teal"
-                            icon={<ExperimentOutlined />}
-                            label="VỤ NUÔI THAM GIA"
-                            value={displayKpi(seasonsParticipated)}
-                            subtitle="Tổng số vụ được phân công"
+                </Col>
+                <Col xs={24} lg={15} xl={16}>
+                    <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12}>
+                            <ExpertStatCard
+                                tone="teal" icon={<ExperimentOutlined />} label="VỤ NUÔI THAM GIA"
+                                value={displayKpi(seasonsParticipated)} subtitle="Tổng số vụ được phân công"
+                            />
+                        </Col>
+                        <Col xs={24} sm={12}>
+                            <ExpertStatCard
+                                tone="blue" icon={<AlertOutlined />} label="CA BỆNH ĐƯỢC GIAO"
+                                value={displayKpi(diseaseCasesHandled)} subtitle="Tổng số ca tiếp nhận"
+                            />
+                        </Col>
+                        <Col xs={24} sm={12}>
+                            <ExpertStatCard
+                                tone="teal" icon={<CheckCircleOutlined />} label="CA ĐÃ GIẢI QUYẾT"
+                                value={displayKpi(diseaseCasesResolved)}
+                                subtitle={Number.isFinite(diseaseCasesResolved) && Number.isFinite(diseaseCasesHandled)
+                                    ? `${diseaseCasesResolved}/${diseaseCasesHandled} ca` : 'Chưa có dữ liệu'}
+                            />
+                        </Col>
+                        <Col xs={24} sm={12}>
+                            <ExpertStatCard
+                                tone="amber" icon={<ClockCircleOutlined />} label="THỜI GIAN XỬ LÝ TB"
+                                value={displayKpi(avgResolutionHours, ' giờ')} subtitle="Trung bình mỗi ca giải quyết"
+                            />
+                        </Col>
+                    </Row>
+                    <Card
+                        className={`${cardClassName} mt-4! min-h-28.25! [&>.ant-card-body]:px-5! [&>.ant-card-body]:py-4!`}
+                        variant="borderless"
+                    >
+                        <Flex align="center" justify="space-between" gap={8}>
+                            <Flex align="center" gap={8} className="min-w-0! flex-1!">
+                                <TrophyOutlined className="shrink-0 text-[14px] text-[#d9860b]" />
+                                <Text
+                                    ellipsis
+                                    className="min-w-0! text-[12px]! font-bold! tracking-[0.04em]! text-[#3a4a63]!"
+                                >
+                                    TỶ LỆ GIẢI QUYẾT CA BỆNH
+                                </Text>
+                            </Flex>
+                            <Text className="shrink-0! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[24px]! font-extrabold! leading-7.25! text-[#0f9b8e]!">
+                                {resolutionRate === null ? '—' : `${resolutionRate}%`}
+                            </Text>
+                        </Flex>
+                        <Progress
+                            percent={resolutionRate || 0}
+                            showInfo={false}
+                            size={{ height: 10 }}
+                            strokeColor={{ from: '#79cbca', to: '#0f9b8e', direction: 'to right' }}
+                            trailColor="#e5e8f0"
+                            className="mt-3! mb-0! block! leading-none! [&_.ant-progress-inner]:block!"
+                            aria-label="Tỷ lệ giải quyết ca bệnh"
                         />
-                        <ExpertStatCard
-                            tone="blue"
-                            icon={<AlertOutlined />}
-                            label="CA BỆNH ĐƯỢC GIAO"
-                            value={displayKpi(diseaseCasesHandled)}
-                            subtitle="Tổng số ca tiếp nhận"
-                        />
-                        <ExpertStatCard
-                            tone="teal"
-                            icon={<CheckCircleOutlined />}
-                            label="CA ĐÃ GIẢI QUYẾT"
-                            value={displayKpi(diseaseCasesResolved)}
-                            subtitle={
-                                Number.isFinite(diseaseCasesResolved) &&
-                                Number.isFinite(diseaseCasesHandled)
-                                    ? `${diseaseCasesResolved}/${diseaseCasesHandled} ca`
-                                    : 'Chưa có dữ liệu'
-                            }
-                        />
-                        <ExpertStatCard
-                            tone="amber"
-                            icon={<ClockCircleOutlined />}
-                            label="THỜI GIAN XỬ LÝ TB"
-                            value={displayKpi(avgResolutionHours, ' giờ')}
-                            subtitle="Trung bình mỗi ca giải quyết"
-                        />
-                    </div>
-
-                    <Card className="expert-progress-card" variant="borderless">
-                        <div className="expert-progress-heading">
-                            <span className="expert-progress-title">
-                                <TrophyOutlined />
-                                TỶ LỆ GIẢI QUYẾT CA BỆNH
-                            </span>
-                            <strong>{resolutionRate === null ? '—' : `${resolutionRate}%`}</strong>
-                        </div>
-                        <div className="expert-progress-track" aria-hidden="true">
-                            <span style={{ width: `${resolutionRate || 0}%` }} />
-                        </div>
-                        <div className="expert-progress-caption">
-                            <span>
-                                {Number.isFinite(diseaseCasesResolved)
-                                    ? `${diseaseCasesResolved} ca đã giải quyết`
-                                    : 'Chưa có dữ liệu'}
-                            </span>
-                            <span>
-                                {Number.isFinite(diseaseCasesHandled)
-                                    ? `${diseaseCasesHandled} ca tổng cộng`
-                                    : 'Chưa có dữ liệu'}
-                            </span>
-                        </div>
+                        <Flex align="center" justify="space-between" gap={8} className="mt-2.25!">
+                            <Text className="text-[11px]! leading-4.25! text-[#6a7994]!">
+                                {Number.isFinite(diseaseCasesResolved) ? `${diseaseCasesResolved} ca đã giải quyết` : 'Chưa có dữ liệu'}
+                            </Text>
+                            <Text className="text-[11px]! leading-4.25! text-[#6a7994]!">
+                                {Number.isFinite(diseaseCasesHandled) ? `${diseaseCasesHandled} ca tổng cộng` : 'Chưa có dữ liệu'}
+                            </Text>
+                        </Flex>
                     </Card>
-                </div>
-            </div>
+                </Col>
+            </Row>
 
-            <Modal
-                className="expert-profile-modal"
-                title="Chỉnh sửa hồ sơ"
-                open={editOpen}
-                width={460}
-                centered
-                onCancel={() => setEditOpen(false)}
-                afterClose={() => editForm.resetFields()}
-                footer={[
-                    <Button
-                        key="cancel"
-                        disabled={savingProfile}
-                        onClick={() => setEditOpen(false)}
-                    >
-                        Hủy
-                    </Button>,
-                    <Button
-                        key="save"
-                        className="btn-grad profile-primary-action"
-                        loading={savingProfile}
-                        onClick={submitProfile}
-                    >
-                        Lưu thay đổi
-                    </Button>,
-                ]}
+            <ProfileModal
+                title="Chỉnh sửa hồ sơ" open={editOpen} saving={savingProfile}
+                onCancel={() => setEditOpen(false)} afterClose={() => editForm.resetFields()}
+                onSubmit={submitProfile} submitText="Lưu thay đổi"
             >
-                {editServerError ? (
-                    <Alert
-                        className="profile-modal-alert"
-                        type="error"
-                        showIcon
-                        message={editServerError}
-                    />
-                ) : null}
-                <Form form={editForm} layout="vertical" className="expert-edit-form">
+                {editServerError && (
+                    <Alert className="mb-4!" type="error" showIcon message={editServerError} />
+                )}
+                <Form form={editForm} layout="vertical" className={`${formClassName} pt-2!`}>
                     <Form.Item
-                        label="Họ và tên"
-                        name="fullName"
-                        required
+                        label="Họ và tên" name="fullName" required
                         rules={[{ validator: fieldValidator(validateFullName) }]}
                     >
                         <Input
-                            prefix={<UserOutlined />}
-                            placeholder="Họ và tên đầy đủ"
-                            maxLength={PROFILE_RULES.fullNameMaxLength}
-                            autoFocus
+                            prefix={<UserOutlined />} placeholder="Họ và tên đầy đủ"
+                            maxLength={PROFILE_RULES.fullNameMaxLength} autoFocus
                         />
                     </Form.Item>
                     <Form.Item
-                        label="Số điện thoại"
-                        name="phone"
+                        label="Số điện thoại" name="phone"
                         rules={[{ validator: fieldValidator(validateVietnamesePhone) }]}
                     >
-                        <Input
-                            prefix={<PhoneOutlined />}
-                            placeholder="09xx xxx xxx"
-                            maxLength={20}
-                        />
+                        <Input prefix={<PhoneOutlined />} placeholder="09xx xxx xxx" maxLength={20} />
                     </Form.Item>
                 </Form>
-            </Modal>
+            </ProfileModal>
 
-            <Modal
-                className="expert-profile-modal"
-                title="Đổi mật khẩu"
-                open={passwordOpen}
-                width={460}
-                centered
-                onCancel={() => setPasswordOpen(false)}
-                afterClose={() => passwordForm.resetFields()}
-                footer={[
-                    <Button
-                        key="cancel"
-                        disabled={savingPassword}
-                        onClick={() => setPasswordOpen(false)}
-                    >
-                        Hủy
-                    </Button>,
-                    <Button
-                        key="save"
-                        className="btn-grad profile-primary-action"
-                        loading={savingPassword}
-                        onClick={submitPassword}
-                    >
-                        Xác nhận đổi mật khẩu
-                    </Button>,
-                ]}
+            <ProfileModal
+                title="Đổi mật khẩu" open={passwordOpen} saving={savingPassword}
+                onCancel={() => setPasswordOpen(false)} afterClose={() => passwordForm.resetFields()}
+                onSubmit={submitPassword} submitText="Xác nhận đổi mật khẩu"
             >
-                {passwordServerError ? (
-                    <Alert
-                        className="profile-modal-alert"
-                        type="error"
-                        showIcon
-                        message={passwordServerError}
-                    />
-                ) : null}
-                <Form form={passwordForm} layout="vertical" className="expert-password-form">
+                {passwordServerError && (
+                    <Alert className="mb-4!" type="error" showIcon message={passwordServerError} />
+                )}
+                <Form form={passwordForm} layout="vertical" className={`${formClassName} pt-4!`}>
                     <Form.Item
-                        label="Mật khẩu hiện tại"
-                        name="currentPassword"
-                        required
+                        label="Mật khẩu hiện tại" name="currentPassword" required
                         rules={[{ validator: fieldValidator(validateCurrentPassword) }]}
                     >
                         <Input.Password
-                            prefix={<LockOutlined />}
-                            placeholder="Nhập mật khẩu hiện tại"
+                            prefix={<LockOutlined />} placeholder="Nhập mật khẩu hiện tại"
                             autoComplete="current-password"
                         />
                     </Form.Item>
                     <Form.Item
-                        label="Mật khẩu mới"
-                        name="newPassword"
-                        required
+                        label="Mật khẩu mới" name="newPassword" required
                         rules={[
                             () => ({
                                 validator: (_, value) => {
                                     const error = validatePassword(value);
-                                    return error
-                                        ? Promise.reject(new Error(error))
-                                        : Promise.resolve();
+                                    return error ? Promise.reject(new Error(error)) : Promise.resolve();
                                 },
                             }),
                         ]}
                     >
                         <Input.Password
-                            prefix={<LockOutlined />}
-                            placeholder="Tối thiểu 6 ký tự"
+                            prefix={<LockOutlined />} placeholder="Tối thiểu 6 ký tự"
                             autoComplete="new-password"
                         />
                     </Form.Item>
                     <PasswordStrength password={newPassword} />
                     <Form.Item
-                        label="Xác nhận mật khẩu mới"
-                        name="confirmPassword"
-                        required
+                        label="Xác nhận mật khẩu mới" name="confirmPassword" required
                         dependencies={['newPassword']}
+                        className={newPassword ? 'min-h-26.25! pt-4!' : ''}
                         rules={[
                             { required: true, message: 'Vui lòng xác nhận mật khẩu mới.' },
                             ({ getFieldValue }) => ({
                                 validator: (_, value) =>
                                     !value || getFieldValue('newPassword') === value
                                         ? Promise.resolve()
-                                        : Promise.reject(
-                                              new Error('Mật khẩu nhập lại không khớp.'),
-                                          ),
+                                        : Promise.reject(new Error('Mật khẩu nhập lại không khớp.')),
                             }),
                         ]}
                     >
                         <Input.Password
-                            prefix={<LockOutlined />}
-                            placeholder="Nhập lại mật khẩu mới"
-                            autoComplete="new-password"
-                            onPressEnter={submitPassword}
+                            prefix={<LockOutlined />} placeholder="Nhập lại mật khẩu mới"
+                            autoComplete="new-password" onPressEnter={submitPassword}
                         />
                     </Form.Item>
                 </Form>
-            </Modal>
-        </div>
+            </ProfileModal>
+        </Flex>
     );
 };
 
