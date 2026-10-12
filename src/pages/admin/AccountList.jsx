@@ -422,18 +422,7 @@ const AccountDetailDrawer = ({
                                     <Tooltip title="Sửa email rồi gửi lại lời mời">
                                         <Button
                                             size="small"
-                                            style={{
-                                                width: 26,
-                                                height: 26,
-                                                minWidth: 26,
-                                                padding: 0,
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                borderRadius: 6,
-                                                borderColor: '#e2e8f0',
-                                                backgroundColor: '#f8fafc',
-                                            }}
+                                            className="portal-icon"
                                             icon={<EditOutlined style={{ color: '#1677ff', fontSize: 13 }} />}
                                             onClick={handleStartEditEmail}
                                         />

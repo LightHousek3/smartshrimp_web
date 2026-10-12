@@ -515,8 +515,42 @@ input:focus-visible {
     box-shadow: none;
 }
 
+/* Shared icon frame, extracted from the account email edit button. */
+.portal-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.portal-icon.ant-btn-circle {
+    border-radius: 50%;
+}
+
+.portal-icon.ant-btn {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    padding: 0;
+    background-color: #f8fafc;
+}
+
+.portal-stat-icon.ant-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(29, 122, 214, 0.12);
+    color: #1d7ad6;
+    font-size: 22px;
+}
+
 .account-primary-button.ant-btn {
     border: 0;
+    color: #fff;
     background: linear-gradient(90deg, #77a1d3, #79cbca);
     box-shadow: none;
     font-weight: 600;
@@ -524,6 +558,7 @@ input:focus-visible {
 
 .account-primary-button.ant-btn:not(:disabled):hover,
 .account-primary-button.ant-btn:not(:disabled):focus-visible {
+    color: #fff;
     background: linear-gradient(90deg, #5f91cc, #57bdbd);
 }
 
@@ -782,6 +817,9 @@ input:focus-visible {
 
 .account-detail-drawer .ant-drawer-footer .ant-btn {
     min-height: 36px;
+}
+
+.account-detail-drawer .ant-drawer-footer .ant-btn:not(.ant-btn-primary):not(.account-primary-button) {
     border-color: #d7dee8;
     color: #3a4a63;
 }
