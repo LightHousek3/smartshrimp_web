@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, App, Avatar, Button, Card, ConfigProvider, Descriptions, Drawer, Empty, Form, Input, Progress, Select, Skeleton, Space, Statistic, Switch, Table, Tag, Tooltip, Upload } from 'antd';
 import { EditOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons';
+import { adminStyles } from './adminStyles';
 import { ragDocumentAPI as api } from '../../apis';
 import { RAG_DOCUMENT_CATEGORIES, RAG_DOCUMENT_RULES } from '../../constants/ragDocument';
 import { validateRagDocument } from '../../utils/ragDocumentUtils';
@@ -12,8 +13,7 @@ const STATES = {
     PROCESSING: ['Đang xử lý', 'processing'], READY: ['Sẵn sàng', 'success'],
     FAILED: ['Xử lý thất bại', 'error'], DELETING: ['Đang dọn file', 'processing'], DELETE_FAILED: ['Dọn file chưa hoàn tất', 'error'],
 };
-const Status = ({ value, errorCode }) => <Tag className="rounded-full text-[10px] leading-[18px] [&_img]:mr-[7px]" color={STATES[value]?.[1]}
-    style={value === 'READY' ? { color: '#0f9b8e', backgroundColor: '#e6f7f4', borderColor: '#b5e5de' } : undefined}
+const Status = ({ value, errorCode }) => <Tag className={`rounded-full! text-[10px]! leading-[18px]! [&_img]:mr-[7px] ${value === 'READY' ? 'border-[#b5e5de]! bg-[#e6f7f4]! text-[#0f9b8e]!' : ''}`} color={STATES[value]?.[1]}
     icon={value === 'READY' ? <Icon name="imgIconReact13" /> : value === 'FAILED' ? <Icon name="imgIconReact17" /> : undefined}>{value === 'FAILED' && errorCode === 'RAG_SOURCE_MISSING' ? 'Mất file gốc' : STATES[value]?.[0] || value}</Tag>;
 const date = (value) => value ? new Date(value).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(',', '') : '—';
 const size = (value) => `${(value / 1024 / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MiB`;
@@ -169,10 +169,10 @@ export default function RagDocuments() {
         } catch { /* The action displays the backend error and keeps the editor open. */ }
     };
     const categories = RAG_DOCUMENT_CATEGORIES.map((value) => ({ label: value, value }));
-    const columnFilterProps = { filterMultiple: true, filterDropdownProps: { rootClassName: 'account-table-filter-dropdown' } };
+    const columnFilterProps = { filterMultiple: true, filterDropdownProps: { rootClassName: adminStyles.filterDropdown } };
     const columns = [
         { title: 'Tên tài liệu', key: 'title', width: 300, fixed: 'left', render: (_, row) => <div className="flex min-w-0 items-center gap-2.5 [&>div]:min-w-0">
-            <Avatar className="account-avatar-small" size={36} icon={<span className="inline-flex items-center justify-center"><Icon name="imgIconReact18" /></span>} /><div>
+            <Avatar className={adminStyles.avatar} size={36} icon={<span className="inline-flex items-center justify-center"><Icon name="imgIconReact18" /></span>} /><div>
                 <button type="button" className="block max-w-full cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[13px] font-semibold leading-[21px] text-[#0f1c2e] hover:text-[#1d7ad6]" onClick={() => openDetail(row)}>{row.title}</button>
                 <div className="mt-0.5 truncate text-[11px] leading-[18px] text-[#6a7994]" title={row.originalFilename}>{row.originalFilename}</div>
             </div></div> },
@@ -194,8 +194,8 @@ export default function RagDocuments() {
             render: (_, row) => row.uploader?.fullName || 'Admin' },
         { title: 'Ngày tải', dataIndex: 'createdAt', width: 170, render: date },
         { title: 'Hành động', key: 'actions', width: 100, fixed: 'right', render: (_, row) => <Space size={6} className="flex">
-            <Tooltip title="Xem chi tiết"><Button className="portal-icon" shape="circle" size="small" aria-label={`Xem ${row.title}`} disabled={!!pendingAction} onClick={() => openDetail(row)} icon={<Icon name="imgIconReact14" />} /></Tooltip>
-            <Tooltip title="Tải file gốc"><Button className="portal-icon" shape="circle" size="small" aria-label={`Tải xuống ${row.title}`} disabled={!!pendingAction || ['DELETING', 'DELETE_FAILED', 'UPLOADING'].includes(row.status)} onClick={() => download(row)} icon={<Icon name="detail-imgIconReact20" />} /></Tooltip>
+            <Tooltip title="Xem chi tiết"><Button className={adminStyles.iconButton} shape="circle" size="small" aria-label={`Xem ${row.title}`} disabled={!!pendingAction} onClick={() => openDetail(row)} icon={<Icon name="imgIconReact14" />} /></Tooltip>
+            <Tooltip title="Tải file gốc"><Button className={adminStyles.iconButton} shape="circle" size="small" aria-label={`Tải xuống ${row.title}`} disabled={!!pendingAction || ['DELETING', 'DELETE_FAILED', 'UPLOADING'].includes(row.status)} onClick={() => download(row)} icon={<Icon name="detail-imgIconReact20" />} /></Tooltip>
         </Space> },
     ];
     const count = meta.counts || {};
@@ -207,29 +207,29 @@ export default function RagDocuments() {
     ];
 
     return <ConfigProvider theme={{ token: { fontFamily: "'Plus Jakarta Sans', 'Segoe UI', sans-serif", fontSize: 13, borderRadius: 10, controlHeight: 36, colorPrimary: '#1d7ad6', colorText: '#0f1c2e', colorTextSecondary: '#6a7994', colorBorder: '#e5e8f0' } }}>
-        <section className="account-page text-[13px] text-[#0f1c2e]" aria-labelledby="rag-heading">
+        <section className="flex min-w-0 flex-col text-[13px] text-[#0f1c2e]" aria-labelledby="rag-heading">
             <header className="flex items-end justify-between gap-5 max-[600px]:flex-wrap max-[600px]:items-start"><div><h1 id="rag-heading" className="m-0 font-[Sora] text-[22px] leading-7 font-semibold max-[600px]:text-xl">Kho tài liệu AI</h1><p className="m-0 mt-1 text-[#6a7994]">Quản lý nguồn tri thức phục vụ chatbot SmartShrimp.</p></div>
-                <Button className="account-primary-button" type="primary" icon={<Icon name="imgIconReact4" />} onClick={() => openUpload()}>Thêm tài liệu</Button></header>
-            <div className="mt-5 mb-4 grid grid-cols-2 gap-3 [&_.ant-card-body]:p-4 [&_.ant-statistic-content]:flex [&_.ant-statistic-content]:items-center [&_.ant-statistic-content]:text-[22px] [&_.ant-statistic-content-prefix]:mr-2">{statistics.map(([title, value, icon]) => <Card key={title}><Statistic title={title} value={value} prefix={<Avatar className="portal-stat-icon" size={44} icon={<span className="inline-flex items-center justify-center">{icon === 'processing' ? <SyncOutlined style={{ fontSize: 17 }} spin={value > 0} /> : <Icon name={icon} />}</span>} />} /></Card>)}</div>
+                <Button className={adminStyles.primaryButton} type="primary" icon={<Icon name="imgIconReact4" />} onClick={() => openUpload()}>Thêm tài liệu</Button></header>
+            <div className="mt-5 mb-4 grid grid-cols-2 gap-3 [&_.ant-card-body]:p-4 [&_.ant-statistic-content]:flex [&_.ant-statistic-content]:items-center [&_.ant-statistic-content]:text-[22px] [&_.ant-statistic-content-prefix]:mr-2">{statistics.map(([title, value, icon]) => <Card key={title}><Statistic title={title} value={value} prefix={<Avatar className="inline-flex! shrink-0! items-center! justify-center! rounded-full! border-0! bg-[rgba(29,122,214,0.12)]! text-[22px]! text-[#1d7ad6]!" size={44} icon={<span className="inline-flex items-center justify-center">{icon === 'processing' ? <SyncOutlined className="text-[17px]" spin={value > 0} /> : <Icon name={icon} />}</span>} />} /></Card>)}</div>
             {error && <Alert type="error" showIcon message="Không thể tải tài liệu" description={error} action={<Button onClick={reload}>Thử lại</Button>} />}
-            <div className="account-table-shell mt-4"><div className="flex flex-wrap items-center gap-2 border-b border-[#eef1f7] px-4 py-3">
-                <Input className="account-search max-[600px]:w-full" allowClear={{ clearIcon: <span className="inline-block h-2.5 w-2.5 overflow-hidden [&_img]:origin-top-left [&_img]:scale-[.3125] [&_img]:align-top"><Icon name="imgIconReact10" /></span> }} prefix={<Icon name="imgIconReact9" />} placeholder="Tìm tên tài liệu…" aria-label="Tìm tên tài liệu" value={query} onChange={(event) => setQuery(event.target.value)} />
-                <Select className="account-filter-select" allowClear placeholder="Danh mục" aria-label="Lọc danh mục" value={category ?? ''} options={[{ label: 'Tất cả', value: '' }, ...categories]} onChange={(value) => { setCategory(value || undefined); setPage(1); }} suffixIcon={<Icon name="imgIconReact11" />} />
-                <Select className="account-filter-select" allowClear placeholder="Trạng thái" aria-label="Lọc trạng thái" value={status ?? ''} options={[{ label: 'Tất cả', value: '' }, ...Object.entries(STATES).map(([value, [label]]) => ({ label, value }))]} onChange={(value) => { setStatus(value || undefined); setPage(1); }} suffixIcon={<Icon name="imgIconReact11" />} />
+            <div className={`${adminStyles.tableShell} mt-4`}><div className="flex flex-wrap items-center gap-2 border-b border-[#eef1f7] px-4 py-3">
+                <Input className={`${adminStyles.search} max-[600px]:w-full`} allowClear={{ clearIcon: <span className="inline-block h-2.5 w-2.5 overflow-hidden [&_img]:origin-top-left [&_img]:scale-[.3125] [&_img]:align-top"><Icon name="imgIconReact10" /></span> }} prefix={<Icon name="imgIconReact9" />} placeholder="Tìm tên tài liệu…" aria-label="Tìm tên tài liệu" value={query} onChange={(event) => setQuery(event.target.value)} />
+                <Select className={adminStyles.filter} allowClear placeholder="Danh mục" aria-label="Lọc danh mục" value={category ?? ''} options={[{ label: 'Tất cả', value: '' }, ...categories]} onChange={(value) => { setCategory(value || undefined); setPage(1); }} suffixIcon={<Icon name="imgIconReact11" />} />
+                <Select className={adminStyles.filter} allowClear placeholder="Trạng thái" aria-label="Lọc trạng thái" value={status ?? ''} options={[{ label: 'Tất cả', value: '' }, ...Object.entries(STATES).map(([value, [label]]) => ({ label, value }))]} onChange={(value) => { setStatus(value || undefined); setPage(1); }} suffixIcon={<Icon name="imgIconReact11" />} />
                 <Tooltip title="Làm mới"><Button className="shrink-0" aria-label="Làm mới danh sách" icon={<Icon name="imgIconReact12" />} onClick={reload} loading={loading} /></Tooltip>
             </div><Table rowKey="id" columns={columns} dataSource={rows} loading={loading} scroll={{ x: 1132 }}
                 onChange={(pagination, filters, _sorter, extra) => {
                     setHasColumnFilters(Object.values(filters).some((values) => values?.length && !values.includes('*')));
                     if (extra.action === 'paginate') setPage(pagination.current);
                 }}
-                locale={{ filterReset: 'Reset', filterConfirm: 'OK', emptyText: <Empty description={search || category || status || hasColumnFilters ? 'Không tìm thấy tài liệu phù hợp.' : 'Chưa có tài liệu.'}>{!search && !category && !status && !hasColumnFilters && <Button type="primary" className="account-primary-button" onClick={() => openUpload()}>Thêm tài liệu</Button>}</Empty> }}
+                locale={{ filterReset: 'Reset', filterConfirm: 'OK', emptyText: <Empty description={search || category || status || hasColumnFilters ? 'Không tìm thấy tài liệu phù hợp.' : 'Chưa có tài liệu.'}>{!search && !category && !status && !hasColumnFilters && <Button type="primary" className={adminStyles.primaryButton} onClick={() => openUpload()}>Thêm tài liệu</Button>}</Empty> }}
                 pagination={{ current: page, pageSize: 10, total: meta.totalResults || 0, showSizeChanger: false, showTotal: (total, range) => `${range[0]}–${range[1]} / ${total} tài liệu`,
                     itemRender: (_, type, original) => type === 'prev' || type === 'next' ? <button type="button" className="ant-pagination-item-link" aria-label={type === 'prev' ? 'Trang trước' : 'Trang sau'}><Icon name={type === 'prev' ? 'imgIconReact19' : 'imgIconReact20'} /></button> : original,
                 }} /></div>
         </section>
         <Drawer title={reuploadTarget ? 'Tải lại file gốc' : 'Thêm tài liệu kiến thức'} open={uploadOpen} width={520} onClose={() => { if (!uploading) setUploadOpen(false); }} maskClosable={!uploading} keyboard={!uploading}
-            closeIcon={<Icon name="upload-imgIconReact19" />} className="account-detail-drawer"
-            footer={<Space><Button disabled={uploading} onClick={() => setUploadOpen(false)}>Hủy</Button><Button type="primary" className="account-primary-button" icon={<Icon name="upload-imgIconReact22" />} loading={uploading} onClick={() => form.submit()}>{uploadSession ? 'Xác nhận lại' : 'Tải lên'}</Button></Space>}>
+            closeIcon={<Icon name="upload-imgIconReact19" />} className={adminStyles.drawer} rootClassName={adminStyles.drawerRoot}
+            footer={<Space><Button disabled={uploading} onClick={() => setUploadOpen(false)}>Hủy</Button><Button type="primary" className={adminStyles.primaryButton} icon={<Icon name="upload-imgIconReact22" />} loading={uploading} onClick={() => form.submit()}>{uploadSession ? 'Xác nhận lại' : 'Tải lên'}</Button></Space>}>
             <p className="text-[#6a7994] m-0 mb-4 leading-[21px]">{reuploadTarget ? `Chọn lại file gốc của “${reuploadTarget.title}”. Nội dung và định dạng phải khớp bản ban đầu; tên file có thể khác. Tài liệu sẽ được xử lý lại sau khi tải lên.` : 'Tải tài liệu để AI có thể tham khảo khi trả lời câu hỏi.'}</p>
             <Form form={form} layout="vertical" onFinish={submit} disabled={uploading || !!uploadSession} requiredMark={false}>
                 <Form.Item label="Tài liệu" validateStatus={fileError ? 'error' : undefined} help={fileError}>
@@ -248,11 +248,11 @@ export default function RagDocuments() {
                 {uploadError && <Alert type="error" showIcon message={uploadError} description={uploadSession ? 'File đã tải lên. Chọn Xác nhận lại để tiếp tục với tài liệu này.' : 'Kiểm tra kết nối rồi thử lại.'} />}
             </Form>
         </Drawer>
-        <Drawer title={detail?.title || 'Chi tiết tài liệu'} width={620} open={!!selectedId} onClose={() => { setSelectedId(null); setDetail(null); setEditing(false); }} closeIcon={<Icon name="detail-imgIconReact19" />} className="account-detail-drawer"
+        <Drawer title={detail?.title || 'Chi tiết tài liệu'} width={620} open={!!selectedId} onClose={() => { setSelectedId(null); setDetail(null); setEditing(false); }} closeIcon={<Icon name="detail-imgIconReact19" />} className={adminStyles.drawer} rootClassName={adminStyles.drawerRoot}
             extra={detail && <Button icon={<Icon name="detail-imgIconReact20" />} disabled={!!pendingAction || ['UPLOADING', 'DELETING', 'DELETE_FAILED'].includes(detail.status)} onClick={() => download(detail)}>Tải file</Button>}>
             {!detail ? <Skeleton active /> : <>
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#eef1f7] p-4"><span className="text-[#6a7994]">Trạng thái: <Status value={detail.status} errorCode={detail.errorCode} /></span><Space>Cho phép AI dùng <Switch checked={detail.isActive && detail.status === 'READY'} disabled={detail.status !== 'READY' || !!pendingAction} onChange={(value) => toggle(detail, value)} aria-label="Cho phép AI dùng tài liệu" /></Space></div>
-                <Descriptions className="account-descriptions" bordered size="small" column={2} items={[
+                <Descriptions className={adminStyles.descriptions} bordered size="small" column={2} items={[
                     { key: 'file', label: 'Tên file', children: detail.originalFilename }, { key: 'size', label: 'Dung lượng', children: size(detail.fileSize) },
                     { key: 'category', label: 'Danh mục', children: detail.category || '—' }, { key: 'uploader', label: 'Người tải lên', children: detail.uploader?.fullName || 'Admin' },
                     { key: 'created', label: 'Ngày tạo', children: date(detail.createdAt) }, { key: 'indexed', label: 'Index xong', children: date(detail.indexedAt) },
@@ -262,13 +262,13 @@ export default function RagDocuments() {
                     <Form.Item name="title" label="Tên tài liệu" rules={[{ required: true, whitespace: true }, { max: 255 }]}><Input maxLength={255} /></Form.Item>
                     <Form.Item name="category" label="Danh mục" getValueFromEvent={(value) => value ?? null}><Select allowClear options={categories} placeholder="Chọn danh mục" /></Form.Item>
                     <Form.Item name="description" label="Mô tả"><Input.TextArea maxLength={1000} rows={4} /></Form.Item>
-                    <Space><Button onClick={() => setEditing(false)}>Hủy</Button><Button htmlType="submit" type="primary" className="account-primary-button" loading={!!pendingAction}>Lưu thay đổi</Button></Space>
+                    <Space><Button onClick={() => setEditing(false)}>Hủy</Button><Button htmlType="submit" type="primary" className={adminStyles.primaryButton} loading={!!pendingAction}>Lưu thay đổi</Button></Space>
                 </Form> : <div className="mt-5 text-[#3a4a63] [&>div]:flex [&>div]:items-center [&>div]:justify-between [&>p]:mt-2 [&>p]:whitespace-pre-wrap [&>p]:break-words [&>p]:leading-[21px]"><div><strong>Mô tả</strong><Button size="small" type="text" icon={<EditOutlined />} disabled={busy(detail) || detail.status === 'DELETE_FAILED'} onClick={() => { editForm.setFieldsValue(detail); setEditing(true); }}>Chỉnh sửa</Button></div><p>{detail.description || 'Chưa có mô tả.'}</p></div>}
                 {detail.errorMessage && <Alert type="error" showIcon message={detail.errorMessage} description={detail.errorCode === 'RAG_SOURCE_MISSING' ? 'Thử lại xử lý không thể khôi phục file đã mất. Hãy tải lại file gốc để tiếp tục.' : undefined} />}
                 {['PENDING', 'PROCESSING'].includes(detail.status) && <Alert type="info" showIcon message="AI đang chuẩn bị tài liệu. Trạng thái sẽ tự cập nhật." />}
                 {detail.status === 'FAILED' && <div className="mt-6 border-t border-[#eef1f7] pt-5">{detail.errorCode === 'RAG_SOURCE_MISSING'
-                    ? <Button type="primary" className="account-primary-button" icon={<Icon name="upload-imgIconReact22" />} disabled={!!pendingAction || uploading} onClick={() => openUpload(detail)}>Tải lại file gốc</Button>
-                    : <Button type="primary" className="account-primary-button" icon={<ReloadOutlined />} loading={!!pendingAction} onClick={() => retry(detail)}>Thử lại xử lý</Button>}</div>}
+                    ? <Button type="primary" className={adminStyles.primaryButton} icon={<Icon name="upload-imgIconReact22" />} disabled={!!pendingAction || uploading} onClick={() => openUpload(detail)}>Tải lại file gốc</Button>
+                    : <Button type="primary" className={adminStyles.primaryButton} icon={<ReloadOutlined />} loading={!!pendingAction} onClick={() => retry(detail)}>Thử lại xử lý</Button>}</div>}
             </>}
         </Drawer>
     </ConfigProvider>;
