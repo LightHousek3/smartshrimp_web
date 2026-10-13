@@ -32,6 +32,7 @@ import {
     SendOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { adminStyles } from './adminStyles';
 import { adminAccountAPI } from '../../apis';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -112,7 +113,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 const TABLE_FILTER_DROPDOWN_PROPS = {
-    rootClassName: 'account-table-filter-dropdown',
+    rootClassName: adminStyles.filterDropdown,
 };
 
 const isManagedStaffRole = (role) =>
@@ -158,13 +159,13 @@ const getErrorMessage = (error, fallback) => {
 };
 
 const RoleTag = ({ role }) => (
-    <Tag className="account-tag" color={ROLE_COLORS[role] || 'default'}>
+    <Tag className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!" color={ROLE_COLORS[role] || 'default'}>
         {ROLE_LABELS[role] || role}
     </Tag>
 );
 
 const StatusTag = ({ status }) => (
-    <Tag className="account-tag" color={STATUS_COLORS[status] || 'default'}>
+    <Tag className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!" color={STATUS_COLORS[status] || 'default'}>
         {STATUS_LABELS[status] || status}
     </Tag>
 );
@@ -300,12 +301,12 @@ const AccountDetailDrawer = ({
     };
 
     const drawerTitle = account ? (
-        <Flex align="center" gap={12} className="account-drawer-title">
-            <Avatar className="account-avatar-small" size={40} src={account.avatarUrl || undefined}>
+        <Flex align="center" gap={12}>
+            <Avatar className={adminStyles.avatar} size={40} src={account.avatarUrl || undefined}>
                 {getInitial(account)}
             </Avatar>
-            <div className="account-drawer-heading">
-                <Text strong className={!account.fullName ? 'pending-account-name' : ''}>
+            <div className="flex min-w-0 flex-col gap-1 [&>.ant-typography]:m-0! [&>.ant-typography]:text-[15px]! [&>.ant-typography]:text-[#0f1c2e]">
+                <Text strong className={!account.fullName ? 'font-normal! text-[#6a7994]! italic' : ''}>
                     {account.fullName || 'Chưa kích hoạt'}
                 </Text>
                 <Space size={4} wrap>
@@ -320,7 +321,8 @@ const AccountDetailDrawer = ({
 
     return (
         <Drawer
-            className="account-detail-drawer"
+            className={adminStyles.drawer}
+            rootClassName={adminStyles.drawerRoot}
             title={drawerTitle}
             open={open}
             onClose={onClose}
@@ -353,11 +355,11 @@ const AccountDetailDrawer = ({
 
             {!loading && !error && account && (
                 <>
-                    <div className="account-email-block">
+                    <div className="mb-[18px] flex flex-col gap-[7px] [&>.ant-typography-secondary]:text-xs!">
                         <Text type="secondary">Email</Text>
                         {isEditingEmail ? (
                             <div>
-                                <Flex align="center" gap={8} style={{ width: '100%' }}>
+                                <Flex align="center" gap={8} className="w-full">
                                     <Input
                                         value={editEmail}
                                         onChange={(e) => {
@@ -370,44 +372,26 @@ const AccountDetailDrawer = ({
                                         placeholder="user@example.com"
                                         maxLength={320}
                                         autoFocus
-                                        style={{
-                                            flex: 1,
-                                            height: 32,
-                                            borderRadius: 6,
-                                            fontFamily: 'Consolas, monospace',
-                                            fontSize: 13,
-                                        }}
+                                        className="h-8! flex-1 rounded-md! font-[Consolas,monospace] text-[13px]!"
                                     />
                                     <Button
                                         type="primary"
                                         icon={<CheckOutlined />}
                                         loading={updatingEmail}
                                         onClick={handleSaveEmail}
-                                        style={{
-                                            width: 32,
-                                            height: 32,
-                                            minWidth: 32,
-                                            padding: 0,
-                                            borderRadius: 6,
-                                        }}
+                                        className="h-8! min-w-8! w-8! rounded-md! p-0!"
                                     />
                                     <Button
                                         icon={<CloseOutlined />}
                                         disabled={updatingEmail}
                                         onClick={handleCancelEditEmail}
-                                        style={{
-                                            width: 32,
-                                            height: 32,
-                                            minWidth: 32,
-                                            padding: 0,
-                                            borderRadius: 6,
-                                        }}
+                                        className="h-8! min-w-8! w-8! rounded-md! p-0!"
                                     />
                                 </Flex>
                                 {emailError && (
                                     <Text
                                         type="danger"
-                                        style={{ fontSize: 12, marginTop: 4, display: 'block' }}
+                                        className="mt-1 block text-xs!"
                                     >
                                         {emailError}
                                     </Text>
@@ -415,15 +399,15 @@ const AccountDetailDrawer = ({
                             </div>
                         ) : (
                             <Flex align="center" gap={8}>
-                                <Text className="account-email">
+                                <Text className="font-[Consolas,monospace] text-[13px]! text-[#0f1c2e]!">
                                     {account.email}
                                 </Text>
                                 {account.status === ACCOUNT_STATUSES.PENDING_ACTIVATION && (
                                     <Tooltip title="Sửa email rồi gửi lại lời mời">
                                         <Button
                                             size="small"
-                                            className="portal-icon"
-                                            icon={<EditOutlined style={{ color: '#1677ff', fontSize: 13 }} />}
+                                            className={adminStyles.iconButton}
+                                            icon={<EditOutlined className="text-[13px] text-[#1677ff]" />}
                                             onClick={handleStartEditEmail}
                                         />
                                     </Tooltip>
@@ -432,7 +416,7 @@ const AccountDetailDrawer = ({
                         )}
                     </div>
 
-                    <Descriptions className="account-descriptions" column={1} size="small" colon={false}>
+                    <Descriptions className={adminStyles.descriptions} column={1} size="small" colon={false}>
                         <Descriptions.Item label="ID">{account.id}</Descriptions.Item>
                         <Descriptions.Item label="Số điện thoại">
                             {account.phone || '—'}
@@ -460,7 +444,7 @@ const AccountDetailDrawer = ({
 
                     {account.statusReason && (
                         <Alert
-                            className="account-status-reason"
+                            className="mt-[18px]"
                             type={account.status === ACCOUNT_STATUSES.BLOCKED ? 'error' : 'info'}
                             showIcon
                             message="Lý do thay đổi trạng thái"
@@ -470,13 +454,13 @@ const AccountDetailDrawer = ({
 
                     {account.status === ACCOUNT_STATUSES.PENDING_ACTIVATION && (
                         <>
-                            <Divider className="account-drawer-divider" />
-                            <div className="activation-resend-panel">
+                            <Divider className="mt-[18px]! mb-4!" />
+                            <div className="flex flex-col gap-[11px] [&>.ant-typography]:m-0! [&>.ant-typography]:text-xs! [&>.ant-typography]:leading-[1.55]! [&>.ant-typography]:text-[#6a7994]!">
                                 <Text type="secondary">
                                     Tài khoản chờ kích hoạt. Bạn có thể sửa email và gửi lại lời mời.
                                 </Text>
                                 <Button
-                                    className="account-primary-button"
+                                    className={adminStyles.primaryButton}
                                     type="primary"
                                     block
                                     icon={
@@ -549,7 +533,7 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
 
     return (
         <Modal
-            className="change-status-modal"
+            className={adminStyles.modal}
             title="Thay đổi trạng thái tài khoản"
             open={open}
             onCancel={handleClose}
@@ -562,7 +546,7 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
                         Hủy
                     </Button>
                     <Button
-                        className="account-primary-button"
+                        className={adminStyles.primaryButton}
                         type="primary"
                         loading={submitting}
                         onClick={handleSubmit}
@@ -574,7 +558,7 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
         >
             {account && (
                 <>
-                    <div className="status-account-summary">
+                    <div className="mt-3.5 mb-4 flex flex-col gap-2 rounded-lg bg-[#f7f9fc] px-3.5 py-3 [&_.ant-typography]:m-0! [&_.ant-typography]:text-xs!">
                         <div>
                             <Text type="secondary">Tài khoản: </Text>
                             <Text strong>{account.fullName || account.email}</Text>
@@ -590,17 +574,16 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
                         form={form}
                         layout="vertical"
                         initialValues={{ status: options[0] }}
-                        className="change-status-form"
                     >
                         <Form.Item
                             name="status"
                             label="Trạng thái mới"
                             rules={[{ required: true, message: 'Vui lòng chọn trạng thái mới.' }]}
                         >
-                            <Radio.Group className="status-radio-group">
+                            <Radio.Group className="flex! w-full flex-col gap-2">
                                 {options.map((nextStatus) => (
                                     <Radio
-                                        className="status-radio-option"
+                                        className="m-0! min-h-11 w-full items-center! rounded-lg border border-[#e0e6ef] px-[13px] py-[9px] [&.ant-radio-wrapper-checked]:border-[#78afe0] [&.ant-radio-wrapper-checked]:bg-[#f5faff] [&_.ant-radio+span]:inline-flex [&_.ant-radio+span]:items-center [&_.ant-radio+span]:gap-2"
                                         key={nextStatus}
                                         value={nextStatus}
                                     >
@@ -614,7 +597,7 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
                         </Form.Item>
                         <Form.Item
                             name="reason"
-                            className="change-status-reason-item"
+                            className="mb-[22px]!"
                             label="Lý do thay đổi"
                             rules={[
                                 { required: true, whitespace: true, message: 'Vui lòng nhập lý do.' },
@@ -718,7 +701,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
 
     return (
         <Modal
-            className="create-account-modal"
+            className={adminStyles.modal}
             title="Tạo tài khoản mới"
             open={open}
             onCancel={handleClose}
@@ -731,7 +714,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                         Hủy
                     </Button>
                     <Button
-                        className="account-primary-button"
+                        className={adminStyles.primaryButton}
                         type="primary"
                         icon={<SendOutlined />}
                         loading={submitting}
@@ -747,7 +730,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                 layout="vertical"
                 requiredMark
                 onFinish={handleSubmit}
-                className="create-account-form"
+                className="mt-3.5 [&_.ant-input]:min-h-[38px] [&_.ant-input]:rounded-lg! [&_.ant-select-selector]:min-h-[38px] [&_.ant-select-selector]:rounded-lg! [&_.ant-select-selection-item]:leading-9! [&_.ant-select-selection-placeholder]:leading-9! [&_.ant-form-item-extra_.ant-btn-link]:h-auto [&_.ant-form-item-extra_.ant-btn-link]:px-0 [&_.ant-form-item-extra_.ant-btn-link]:pt-1 [&_.ant-form-item-extra_.ant-btn-link]:pb-0 [&_.ant-form-item-extra_.ant-btn-link]:text-left [&_.ant-form-item-extra_.ant-btn-link]:whitespace-normal [&_.ant-form-item-extra_.ant-btn-link]:text-[#c13c52]"
             >
                 <Form.Item
                     name="email"
@@ -797,7 +780,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                             }
                             options={ownerOptions}
                             optionRender={(option) => (
-                                <div className="owner-option">
+                                <div className="flex min-w-0 flex-col gap-px py-[3px] [&_.ant-typography]:m-0! [&_.ant-typography]:text-xs! [&_.ant-typography]:leading-[1.4]!">
                                     <Text strong>{option.data.owner.fullName || 'Chưa cập nhật tên'}</Text>
                                     <Text type="secondary">{option.data.owner.email}</Text>
                                 </div>
@@ -999,18 +982,18 @@ const AccountList = () => {
                 sortOrder: identitySortOrder,
                 sortDirections: ['ascend', 'descend'],
                 render: (_, account) => (
-                    <Flex align="center" gap={10} className="account-identity">
+                    <Flex align="center" gap={10} className="min-w-0">
                         <Avatar
-                            className="account-avatar-small"
+                            className={adminStyles.avatar}
                             size={34}
                             src={account.avatarUrl || undefined}
                         >
                             {getInitial(account)}
                         </Avatar>
-                        <div className="account-identity-copy">
+                        <div className="flex min-w-0 flex-col [&>.ant-typography]:m-0! [&>.ant-typography]:max-w-[205px] [&>.ant-typography]:truncate [&>.ant-typography:not(.ant-typography-secondary)]:text-[13px]! [&>.ant-typography]:leading-[1.45]! [&>.ant-typography-secondary]:font-[Consolas,monospace] [&>.ant-typography-secondary]:text-[11px]! [&>.ant-typography-secondary]:text-[#6a7994]!">
                             <Text
                                 strong={Boolean(account.fullName)}
-                                className={!account.fullName ? 'pending-account-name' : ''}
+                                className={!account.fullName ? 'font-normal! text-[#6a7994]! italic' : ''}
                             >
                                 {account.fullName || 'Chưa kích hoạt'}
                             </Text>
@@ -1055,7 +1038,7 @@ const AccountList = () => {
                 width: 170,
                 render: (_, account) => (
                     <Text
-                        className="account-owner-name"
+                        className="m-0! text-xs! text-[#52647d]! tabular-nums"
                         type={!account.managedByOwner ? 'secondary' : undefined}
                     >
                         {account.managedByOwner?.fullName || '—'}
@@ -1068,7 +1051,7 @@ const AccountList = () => {
                 key: 'phone',
                 width: 130,
                 render: (value) => (
-                    <Text className="account-date" type={!value ? 'secondary' : undefined}>
+                    <Text className="m-0! text-xs! text-[#52647d]! tabular-nums" type={!value ? 'secondary' : undefined}>
                         {value || '—'}
                     </Text>
                 ),
@@ -1077,7 +1060,7 @@ const AccountList = () => {
                 title: 'Đăng nhập gần nhất',
                 dataIndex: 'lastLoginAt',
                 width: 175,
-                render: (value) => <Text className="account-date">{formatDateTime(value)}</Text>,
+                render: (value) => <Text className="m-0! text-xs! text-[#52647d]! tabular-nums">{formatDateTime(value)}</Text>,
             },
             {
                 title: '',
@@ -1153,8 +1136,8 @@ const AccountList = () => {
     const pendingTotal = summary.pending;
 
     return (
-        <section className="account-page">
-            <Flex className="account-page-header" justify="space-between" align="flex-start" gap={16}>
+        <section className="flex min-w-0 flex-col">
+            <Flex className="mb-[18px] max-[900px]:items-center! max-[600px]:items-start! [&_.ant-typography]:m-0! [&_h3.ant-typography]:font-[Sora,Plus_Jakarta_Sans,sans-serif]! [&_h3.ant-typography]:text-[22px]! [&_h3.ant-typography]:leading-[1.35]! [&_h3.ant-typography]:text-[#0f1c2e]! [&_.ant-typography-secondary]:text-[13px]! max-[600px]:[&_h3.ant-typography]:text-[19px]! max-[600px]:[&_.ant-typography-secondary]:block max-[600px]:[&_.ant-typography-secondary]:mt-0.5! max-[600px]:[&_.ant-typography-secondary]:text-xs!" justify="space-between" align="flex-start" gap={16}>
                 <div>
                     <Title level={3}>Quản lý tài khoản</Title>
                     <Text type="secondary">
@@ -1162,14 +1145,14 @@ const AccountList = () => {
                         {pendingTotal > 0 && (
                             <>
                                 {' · '}
-                                <Badge className="pending-count" count={pendingTotal} size="small" />{' '}
+                                <Badge className="[&_.ant-badge-count]:bg-[#d98314]! [&_.ant-badge-count]:shadow-none!" count={pendingTotal} size="small" />{' '}
                                 chờ kích hoạt
                             </>
                         )}
                     </Text>
                 </div>
                 <Button
-                    className="account-primary-button create-account-button"
+                    className={`${adminStyles.primaryButton} min-h-[38px]! px-4! max-[600px]:w-10! max-[600px]:min-w-10! max-[600px]:px-0! max-[600px]:[&_.ant-btn-icon]:me-0! max-[600px]:[&>span:not(.ant-btn-icon)]:hidden`}
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setCreateOpen(true)}
@@ -1178,9 +1161,9 @@ const AccountList = () => {
                 </Button>
             </Flex>
 
-            <Flex className="account-filters" gap={10} wrap="wrap">
+            <Flex className="mb-4" gap={10} wrap="wrap">
                 <Input
-                    className="account-search"
+                    className={adminStyles.search}
                     prefix={<SearchOutlined />}
                     placeholder="Tìm tên, email, số điện thoại"
                     value={searchInput}
@@ -1189,14 +1172,14 @@ const AccountList = () => {
                     maxLength={255}
                 />
                 <Select
-                    className="account-filter-select"
+                    className={adminStyles.filter}
                     value={role}
                     onChange={setRole}
                     options={ROLE_FILTER_OPTIONS}
                     aria-label="Lọc theo vai trò"
                 />
                 <Select
-                    className="account-filter-select account-status-filter"
+                    className={adminStyles.statusFilter}
                     value={status}
                     onChange={setStatus}
                     options={STATUS_FILTER_OPTIONS}
@@ -1206,7 +1189,7 @@ const AccountList = () => {
 
             {error && (
                 <Alert
-                    className="account-list-alert"
+                    className="mb-3.5"
                     type="error"
                     showIcon
                     message={error}
@@ -1218,7 +1201,7 @@ const AccountList = () => {
                 />
             )}
 
-            <div className="account-table-shell">
+            <div className={`${adminStyles.tableShell} [&_.ant-table-tbody>tr]:cursor-pointer`}>
                 <Table
                     dataSource={accounts}
                     columns={columns}
