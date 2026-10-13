@@ -23,7 +23,7 @@ const expertPageClassName = `
     max-[650px]:px-3 max-[650px]:pt-20
 `;
 
-const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction }) => {
+const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction, brandLogo = BRAND_LOGO_URL, logoutIcon = <LogoutOutlined />, className = '' }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const { account, logout } = useAuth();
@@ -61,7 +61,7 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
         || (location.pathname.startsWith('/expert/treatments') ? 'Phác đồ điều trị' : '');
 
     return (
-        <div className="portal-layout">
+        <div className={`portal-layout ${className}`}>
             <button
                 type="button"
                 className="mobile-menu-button"
@@ -88,7 +88,7 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                 </button>
 
                 <div className="sidebar-brand">
-                    <img src={BRAND_LOGO_URL} alt="SmartShrimp" className="system-logo" />
+                    <img src={brandLogo} alt="SmartShrimp" className="system-logo" />
                 </div>
 
                 <div className="portal-label">
@@ -147,7 +147,7 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
 
                     <Button
                         className="logout-button"
-                        icon={<LogoutOutlined />}
+                        icon={logoutIcon}
                         loading={loggingOut}
                         onClick={handleLogout}
                     >

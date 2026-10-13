@@ -9,7 +9,7 @@ import {
     ProtectedRoute,
     PublicRoute,
 } from './components';
-import { AccountList, Dashboard } from './pages/admin';
+import { AccountList, Dashboard, RagDocuments } from './pages/admin';
 import {
     EmptyExpertPage,
     ExpertDashboard,
@@ -75,6 +75,7 @@ function App() {
                             >
                                 <Route index element={<Dashboard />} />
                                 <Route path="accounts" element={<AccountList />} />
+                                <Route path="rag/documents" element={<RagDocuments />} />
                             </Route>
 
                             <Route
