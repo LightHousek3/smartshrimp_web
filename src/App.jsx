@@ -14,6 +14,7 @@ import {
     EmptyExpertPage,
     ExpertDashboard,
     ExpertSeasonList,
+    ExpertSeasonDetail,
     Notifications,
     Profile,
 } from './pages/expert';
@@ -93,7 +94,8 @@ function App() {
                                 <Route path="operations/*" element={<EmptyExpertPage />} />
                                 <Route path="inventory/*" element={<EmptyExpertPage />} />
                                 <Route path="protocols/*" element={<EmptyExpertPage />} />
-                                <Route path="seasons/*" element={<ExpertSeasonList />} />
+                                <Route path="seasons" element={<ExpertSeasonList />} />
+                                <Route path="seasons/:seasonId" element={<ExpertSeasonDetail />} />
                                 <Route path="disease-cases/*" element={<EmptyExpertPage />} />
                                 <Route path="treatments/*" element={<EmptyExpertPage />} />
                                 <Route path="profile" element={<Profile />} />

@@ -96,6 +96,19 @@ const expertSeasonAPI = {
      * Fetch assigned seasons with query filters and optional cancellation.
      */
     getAssignedSeasons: (params, signal) => apiClient.get('/expert/seasons', { params, signal }),
+    getSeason: (seasonId, signal) => apiClient.get(`/expert/seasons/${seasonId}`, { signal }),
+};
+
+const expertProductionProtocolAPI = {
+    list: (seasonId, params, signal) => apiClient.get(`/expert/seasons/${seasonId}/production-protocols`, { params, signal }),
+    detail: (seasonId, protocolId, signal) => apiClient.get(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, { signal }),
+    create: (seasonId, body) => apiClient.post(`/expert/seasons/${seasonId}/production-protocols`, body),
+    update: (seasonId, protocolId, body) => apiClient.patch(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, body),
+    cancel: (seasonId, protocolId, body) => apiClient.post(`/expert/seasons/${seasonId}/production-protocols/${protocolId}/cancel`, body),
+    submit: (seasonId, protocolId, body) => apiClient.post(`/expert/seasons/${seasonId}/production-protocols/${protocolId}/submit`, body),
+    templates: (seasonId, params, signal) => apiClient.get(`/expert/seasons/${seasonId}/production-protocol-templates`, { params, signal }),
+    templateDetail: (seasonId, templateId, signal) => apiClient.get(`/expert/seasons/${seasonId}/production-protocol-templates/${templateId}`, { signal }),
+    products: (seasonId, params, signal) => apiClient.get(`/expert/seasons/${seasonId}/products`, { params, signal }),
 };
 
 // Admin account management API
@@ -326,4 +339,4 @@ const ragDocumentAPI = {
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
-export { adminAccountAPI, authAPI, cloudinaryAPI, expertDashboardAPI, expertSeasonAPI, notificationAPI, profileAPI, ragDocumentAPI, uploadCloudinaryDocument };
+export { adminAccountAPI, authAPI, cloudinaryAPI, expertDashboardAPI, expertSeasonAPI, expertProductionProtocolAPI, notificationAPI, profileAPI, ragDocumentAPI, uploadCloudinaryDocument };

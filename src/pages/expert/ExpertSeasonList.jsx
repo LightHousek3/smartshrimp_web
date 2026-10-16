@@ -14,6 +14,7 @@ import {
     Typography,
 } from 'antd';
 import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { Link, useNavigate } from 'react-router-dom';
 import { expertSeasonAPI } from '../../apis';
 import Loading from '../../components/Loading';
 
@@ -156,6 +157,7 @@ const SeasonPill = ({ tone, children, dot = true }) => (
 );
 
 const ExpertSeasonList = () => {
+    const navigate = useNavigate();
     const [filters, setFilters] = useState(initialFilters);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
@@ -359,13 +361,10 @@ const ExpertSeasonList = () => {
                     width: 100,
                     align: 'center',
                     render: (_, season) => (
-                        <Button
-                            type="text"
-                            disabled
-                            className="size-6.75! min-w-6.75! rounded-full! p-0! text-[#8796ae]! opacity-100!"
-                            icon={<EyeOutlined className="text-[13px]" />}
+                        <Link to={`/expert/seasons/${season.id}`}
+                            className="inline-flex size-7 items-center justify-center rounded-full text-[#1d7ad6] hover:bg-blue-50 focus-visible:outline-2"
                             aria-label={`Xem ${season.name}`}
-                        />
+                        ><EyeOutlined className="text-[13px]" /></Link>
                     ),
                 },
             ].map((column, _index, allColumns) => ({
@@ -476,6 +475,20 @@ const ExpertSeasonList = () => {
                                 dataSource={state.rows}
                                 columns={columns}
                                 rowKey="id"
+                                onRow={(season) => ({
+                                    tabIndex: 0,
+                                    'aria-label': `Xem chi tiết vụ ${season.name}`,
+                                    className: 'cursor-pointer focus-visible:outline-2 focus-visible:outline-[#1d7ad6] focus-visible:-outline-offset-2',
+                                    onClick: (event) => {
+                                        if (event.defaultPrevented || event.target.closest('a, button, input, select, textarea, [role="button"]')) return;
+                                        navigate(`/expert/seasons/${season.id}`);
+                                    },
+                                    onKeyDown: (event) => {
+                                        if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+                                        event.preventDefault();
+                                        navigate(`/expert/seasons/${season.id}`);
+                                    },
+                                })}
                                 tableLayout="fixed"
                                 showSorterTooltip={false}
                                 pagination={{
