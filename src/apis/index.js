@@ -235,6 +235,8 @@ const uploadCloudinaryDocument = async (file, upload, { signal, onProgress } = {
     for (const key of ['public_id', 'timestamp', 'type', 'overwrite', 'api_key', 'signature']) {
         body.append(key, String(upload.fields[key]));
     }
+    // Older backend instances may still issue intents without an asset folder.
+    if (upload.fields.asset_folder) body.append('asset_folder', upload.fields.asset_folder);
     const { data } = await cloudinaryDocumentClient.post(upload.url, body, {
         signal, timeout: RAG_DOCUMENT_RULES.uploadTimeoutMs,
         onUploadProgress: ({ loaded, total }) => {
