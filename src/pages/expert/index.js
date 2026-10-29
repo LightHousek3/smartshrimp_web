@@ -4,3 +4,5 @@ export { default as ExpertSeasonList } from './ExpertSeasonList';
 export { default as ExpertSeasonDetail } from './ExpertSeasonDetail';
 export { default as Notifications } from './Notifications';
 export { default as Profile } from './Profile';
+
+export { default as ExpertProtocolTemplateList } from './ExpertProtocolTemplateList';

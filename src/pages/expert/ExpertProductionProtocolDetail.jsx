@@ -1,7 +1,7 @@
 import { Alert, Badge, Button, ConfigProvider, Drawer, Empty, Space, Tag, Timeline, Tooltip, Typography } from 'antd';
 import { EditOutlined, ExperimentOutlined, SendOutlined } from '@ant-design/icons';
 import { DOSE_LABELS, OPERATION_COLORS, OPERATION_LABELS, PROTOCOL_PRIMARY_BUTTON, PROTOCOL_STATUS_COLORS, PROTOCOL_STATUS_LABELS, PROTOCOL_THEME, UNIT_LABELS } from '../../constants/productionProtocol';
-import { expertStyle as styles } from './expertStyle';
+import { expertStyle as styles } from '../../constants/expertStyle';
 
 const dateText = (value) => value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
 const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, submitBusy = false }) => <ConfigProvider theme={PROTOCOL_THEME}>
