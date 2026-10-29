@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, App, Badge, Button, ConfigProvider, Drawer, Empty, Flex, Form, Input, InputNumber, Pagination, Select, Space, Tag, TimePicker, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { ClockCircleOutlined, CopyOutlined, DeleteOutlined, DownOutlined, EditOutlined, ExperimentOutlined, PlusOutlined, SaveOutlined, SendOutlined, UpOutlined } from '@ant-design/icons';
-import { expertProductionProtocolAPI as api } from '../../apis';
-import { allowedDoseBases, DOSE_LABELS, OPERATION_COLORS, OPERATION_LABELS, PROTOCOL_PRIMARY_BUTTON, PROTOCOL_THEME, UNIT_LABELS, protocolError } from '../../constants/productionProtocol';
-import { cloneGroup, emptyItem, emptyMeal, emptyStage, protocolPayload, protocolToForm, stageOverlapError, templateToForm } from '../../utils/productionProtocolUtils';
-import { expertStyle as styles } from './expertStyle';
+import { expertProductionProtocolAPI as api } from '../apis';
+import { allowedDoseBases, DOSE_LABELS, OPERATION_COLORS, OPERATION_LABELS, PROTOCOL_PRIMARY_BUTTON, PROTOCOL_THEME, UNIT_LABELS, protocolError } from '../constants/productionProtocol';
+import { cloneGroup, emptyItem, emptyMeal, emptyStage, protocolPayload, protocolToForm, stageOverlapError, templateToForm } from '../utils/productionProtocolUtils';
+import { expertStyle as styles } from '../constants/expertStyle';
 
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 const required = [{ required: true, message: 'Vui lòng nhập trường này.' }];
@@ -105,7 +105,7 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
         const timer = setTimeout(() => {
             setTemplates((value) => ({ ...value, loading: true, error: null }));
             api.templates(seasonId, { search: templateSearch, page: templatePage, limit: 50 }, controller.signal)
-                .then((response) => { if (!controller.signal.aborted) setTemplates({ rows: response.data.data, total: response.data.meta.totalResults, loading: false }); })
+                .then((response) => { if (!controller.signal.aborted) setTemplates({ rows: response.data.data, total: response.data.meta.totalResults, applicationMessage: response.data.meta.applicationMessage, loading: false }); })
                 .catch((err) => { if (!controller.signal.aborted) setTemplates((value) => ({ ...value, loading: false, error: protocolError(err) })); });
         }, 250);
         return () => { clearTimeout(timer); controller.abort(); };
@@ -179,8 +179,8 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                 <div className={styles.rollingInfo}><Typography.Paragraph>Lịch cuộn do hệ thống quản lý</Typography.Paragraph><Typography.Text className="text-xs!">Sau khi chủ trại duyệt, hệ thống sinh lịch cho KTV và kiểm tra dữ liệu đầu vào; không giữ chỗ hay trừ kho trước.</Typography.Text></div>
             </div>
             <div className={styles.formSecondary}>
-                <Form.Item label="Nạp từ phác đồ mẫu (tùy chọn)" tooltip="Chỉ hiện mẫu của trang trại này và đúng loài tôm"><Select showSearch allowClear filterOption={false} value={templateId || undefined}
-                    loading={templates.loading || templateLoading} placeholder="Chọn mẫu để điền nhanh" options={templates.rows.map((row) => ({ value: row.id, label: row.title }))}
+                <Form.Item label="Nạp từ phác đồ mẫu (tùy chọn)" tooltip="Chỉ hiện mẫu của trang trại này và đúng loài tôm" extra={templates.applicationMessage}><Select showSearch allowClear filterOption={false} value={templateId || undefined}
+                    loading={templates.loading || templateLoading} placeholder="Chọn mẫu để điền nhanh" options={templates.rows.map((row) => ({ value: row.id, label: row.title, disabled: row.canApply === false }))}
                     onSearch={(value) => { setTemplateSearch(value); setTemplatePage(1); }} onChange={loadTemplate}
                     popupRender={(menu) => <>{menu}<Pagination size="small" current={templatePage} total={templates.total || 0} pageSize={50} showSizeChanger={false} onChange={setTemplatePage} /></>} />
                     {templates.error && <Typography.Text type="danger">{templates.error} <Button type="link" size="small" onClick={() => setTemplateRetry((value) => value + 1)}>Thử lại</Button></Typography.Text>}

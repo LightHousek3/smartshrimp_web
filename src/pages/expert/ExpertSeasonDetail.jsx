@@ -6,8 +6,8 @@ import { expertProductionProtocolAPI as api, expertSeasonAPI } from '../../apis'
 import Loading from '../../components/Loading';
 import { PROTOCOL_PRIMARY_BUTTON, PROTOCOL_STATUS_COLORS, PROTOCOL_STATUS_LABELS, PROTOCOL_THEME, SEASON_STATUS_LABELS, protocolError } from '../../constants/productionProtocol';
 import ExpertProductionProtocolDetail from './ExpertProductionProtocolDetail';
-import ExpertProductionProtocolForm from './ExpertProductionProtocolForm';
-import { expertStyle as styles } from './expertStyle';
+import ExpertProductionProtocolForm from '../../components/ExpertProductionProtocolForm';
+import { expertStyle as styles } from '../../constants/expertStyle';
 
 const dateText = (value) => {
     if (!value) return '—';
