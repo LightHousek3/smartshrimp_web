@@ -110,9 +110,10 @@ const MaterialRow = ({
     onDelete,
     onInstructions,
 }) => {
+    const applicationDays = environment ? [] : getApplicationDays(item, startDay, endDay);
     const bases = getMaterialDoseBases(
         item.product,
-        environment ? item.firstDay : startDay,
+        environment ? item.firstDay : (applicationDays[0] ?? item.firstDay ?? startDay),
         environment
     );
     const units = getMaterialDoseUnits(item.product);
@@ -125,7 +126,7 @@ const MaterialRow = ({
         ) > 0.000001;
     // Additive daily growth models early feed ramps, not label concentrations for other materials.
     const canIncrease =
-        !environment && item.product.category === 'FEED' && (item.lastDay ?? endDay) <= 29;
+        !environment && item.product.category === 'FEED' && (applicationDays.at(-1) ?? item.lastDay ?? endDay) <= 29;
     const linearDaily = item.linearDaily || (item.dailyDoseIncrement ?? 0) > 0;
     const environmentError = environment
         ? getEnvironmentRepeatError(item, { startDay, endDay })
