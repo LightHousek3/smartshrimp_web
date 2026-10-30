@@ -8,6 +8,12 @@ export const RAG_DOCUMENT_RULES = Object.freeze({
 });
 
 export const RAG_DOCUMENT_MESSAGES = Object.freeze({
+    sourceMissingStatus: 'Chưa thấy file gốc',
+    sourceMissing: 'Lần kiểm tra trước chưa tìm thấy file gốc trên Cloudinary.',
+    sourceMissingRecovery: 'Kiểm tra lại file gốc. Nếu file đã có và khớp bản ban đầu, hệ thống sẽ đưa tài liệu vào hàng đợi xử lý lại. Nếu file vẫn chưa có, hãy tải lại đúng file gốc.',
+    recheckSource: 'Kiểm tra lại file gốc',
+    reuploadSource: 'Tải lại file gốc',
+    retryProcessing: 'Thử lại xử lý',
     fileRequired: 'Vui lòng chọn một tài liệu để thêm vào kho kiến thức.',
     singleFile: 'Chỉ được tải lên một tài liệu mỗi lần.',
     invalidName: 'Tên tài liệu không hợp lệ hoặc vượt quá 500 ký tự.',

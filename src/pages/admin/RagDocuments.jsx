@@ -3,8 +3,8 @@ import { Alert, App, Avatar, Button, Card, ConfigProvider, Descriptions, Drawer,
 import { EditOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { adminStyles } from './adminStyles';
 import { ragDocumentAPI as api } from '../../apis';
-import { RAG_DOCUMENT_CATEGORIES, RAG_DOCUMENT_RULES } from '../../constants/ragDocument';
-import { validateRagDocument } from '../../utils/ragDocumentUtils';
+import { RAG_DOCUMENT_CATEGORIES, RAG_DOCUMENT_MESSAGES, RAG_DOCUMENT_RULES } from '../../constants/ragDocument';
+import { getRagDocumentRecovery, validateRagDocument } from '../../utils/ragDocumentUtils';
 
 const asset = (name) => `/assets/rag/${name.startsWith('upload-') || name.startsWith('detail-') ? '' : 'list/'}${name}.svg`;
 const Icon = ({ name, className = '' }) => <img className={`inline-block shrink-0 align-middle max-w-none ${className}`} src={asset(name)} alt="" aria-hidden="true" />;
@@ -14,7 +14,7 @@ const STATES = {
     FAILED: ['Xử lý thất bại', 'error'], DELETING: ['Đang dọn file', 'processing'], DELETE_FAILED: ['Dọn file chưa hoàn tất', 'error'],
 };
 const Status = ({ value, errorCode }) => <Tag className={`rounded-full! text-[10px]! leading-[18px]! [&_img]:mr-[7px] ${value === 'READY' ? 'border-[#b5e5de]! bg-[#e6f7f4]! text-[#0f9b8e]!' : ''}`} color={STATES[value]?.[1]}
-    icon={value === 'READY' ? <Icon name="imgIconReact13" /> : value === 'FAILED' ? <Icon name="imgIconReact17" /> : undefined}>{value === 'FAILED' && errorCode === 'RAG_SOURCE_MISSING' ? 'Mất file gốc' : STATES[value]?.[0] || value}</Tag>;
+    icon={value === 'READY' ? <Icon name="imgIconReact13" /> : value === 'FAILED' ? <Icon name="imgIconReact17" /> : undefined}>{value === 'FAILED' && errorCode === 'RAG_SOURCE_MISSING' ? RAG_DOCUMENT_MESSAGES.sourceMissingStatus : STATES[value]?.[0] || value}</Tag>;
 const date = (value) => value ? new Date(value).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(',', '') : '—';
 const size = (value) => `${(value / 1024 / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MiB`;
 const errorText = (error) => error?.response?.data?.message || error?.message || 'Không thể kết nối. Vui lòng thử lại.';
@@ -199,6 +199,7 @@ export default function RagDocuments() {
         </Space> },
     ];
     const count = meta.counts || {};
+    const recovery = getRagDocumentRecovery(detail);
     const statistics = [
         ['Tổng tài liệu', Object.values(count).reduce((total, value) => total + value, 0), 'imgIconReact5'],
         ['Sẵn sàng', count.READY || 0, 'imgIconReact6'],
@@ -264,11 +265,14 @@ export default function RagDocuments() {
                     <Form.Item name="description" label="Mô tả"><Input.TextArea maxLength={1000} rows={4} /></Form.Item>
                     <Space><Button onClick={() => setEditing(false)}>Hủy</Button><Button htmlType="submit" type="primary" className={adminStyles.primaryButton} loading={!!pendingAction}>Lưu thay đổi</Button></Space>
                 </Form> : <div className="mt-5 text-[#3a4a63] [&>div]:flex [&>div]:items-center [&>div]:justify-between [&>p]:mt-2 [&>p]:whitespace-pre-wrap [&>p]:break-words [&>p]:leading-[21px]"><div><strong>Mô tả</strong><Button size="small" type="text" icon={<EditOutlined />} disabled={busy(detail) || detail.status === 'DELETE_FAILED'} onClick={() => { editForm.setFieldsValue(detail); setEditing(true); }}>Chỉnh sửa</Button></div><p>{detail.description || 'Chưa có mô tả.'}</p></div>}
-                {detail.errorMessage && <Alert type="error" showIcon message={detail.errorMessage} description={detail.errorCode === 'RAG_SOURCE_MISSING' ? 'Thử lại xử lý không thể khôi phục file đã mất. Hãy tải lại file gốc để tiếp tục.' : undefined} />}
+                {detail.errorMessage && <Alert type="error" showIcon message={recovery.message} description={recovery.description} />}
                 {['PENDING', 'PROCESSING'].includes(detail.status) && <Alert type="info" showIcon message="AI đang chuẩn bị tài liệu. Trạng thái sẽ tự cập nhật." />}
-                {detail.status === 'FAILED' && <div className="mt-6 border-t border-[#eef1f7] pt-5">{detail.errorCode === 'RAG_SOURCE_MISSING'
-                    ? <Button type="primary" className={adminStyles.primaryButton} icon={<Icon name="upload-imgIconReact22" />} disabled={!!pendingAction || uploading} onClick={() => openUpload(detail)}>Tải lại file gốc</Button>
-                    : <Button type="primary" className={adminStyles.primaryButton} icon={<ReloadOutlined />} loading={!!pendingAction} onClick={() => retry(detail)}>Thử lại xử lý</Button>}</div>}
+                {recovery.canRetry && <div className="mt-6 border-t border-[#eef1f7] pt-5"><Space wrap>
+                    <Button type="primary" className={adminStyles.primaryButton} icon={<ReloadOutlined />} loading={pendingAction === detail.id}
+                        disabled={!!pendingAction || uploading} onClick={() => retry(detail)}>{recovery.retryLabel}</Button>
+                    {recovery.canReupload && <Button icon={<Icon name="upload-imgIconReact22" />} disabled={!!pendingAction || uploading}
+                        onClick={() => openUpload(detail)}>{RAG_DOCUMENT_MESSAGES.reuploadSource}</Button>}
+                </Space></div>}
             </>}
         </Drawer>
     </ConfigProvider>;

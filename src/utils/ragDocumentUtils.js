@@ -1,5 +1,18 @@
 import { RAG_DOCUMENT_MESSAGES, RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
 
+/** A previous missing-source error needs revalidation; it does not prove the asset is still absent. */
+export const getRagDocumentRecovery = (document) => {
+    const missing = document?.errorCode === 'RAG_SOURCE_MISSING';
+    const failed = document?.status === 'FAILED';
+    return {
+        canRetry: failed,
+        canReupload: failed && missing,
+        retryLabel: missing ? RAG_DOCUMENT_MESSAGES.recheckSource : RAG_DOCUMENT_MESSAGES.retryProcessing,
+        message: missing ? RAG_DOCUMENT_MESSAGES.sourceMissing : document?.errorMessage,
+        description: missing ? RAG_DOCUMENT_MESSAGES.sourceMissingRecovery : undefined,
+    };
+};
+
 /**
  * Validate the selected file's name, extension and size before uploading.
  * Return the first validation message, or an empty string when valid.
