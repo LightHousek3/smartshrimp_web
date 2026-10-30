@@ -1,10 +1,21 @@
 import { Alert, Badge, Button, ConfigProvider, Drawer, Empty, Space, Tag, Timeline, Tooltip, Typography } from 'antd';
 import { EditOutlined, ExperimentOutlined, SendOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import ProtocolMaterialDetail from '../../components/ProtocolMaterialDetail';
 import { DOSE_LABELS, OPERATION_COLORS, OPERATION_LABELS, PROTOCOL_PRIMARY_BUTTON, PROTOCOL_STATUS_COLORS, PROTOCOL_STATUS_LABELS, PROTOCOL_THEME, UNIT_LABELS } from '../../constants/productionProtocol';
 import { expertStyle as styles } from '../../constants/expertStyle';
 
 const dateText = (value) => value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
-const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, submitBusy = false }) => <ConfigProvider theme={PROTOCOL_THEME}>
+const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, submitBusy = false }) => {
+    const [material, setMaterial] = useState(null);
+    const inspect = (item, showProposal = false) => {
+        const proposal = item.recommendedProductDetails?.proposed;
+        const product = item.materialSnapshot ?? item.product;
+        setMaterial(proposal && (showProposal || !product) ? { ...proposal, category: proposal.category?.toUpperCase(), unit: proposal.unit?.toUpperCase(),
+            conversionUnit: proposal.conversionUnit?.toUpperCase(), manufacturerId: item.recommendedManufacturerId ?? proposal.manufacturerId }
+            : product ? { ...product, productCompliance: product.compliance ?? product.productCompliance } : null);
+    };
+    return <ConfigProvider theme={PROTOCOL_THEME}>
     <Drawer open width={880} className={styles.drawer} onClose={onClose} title={<Space wrap>
         <span className={styles.mono}>v{detail.versionNo}</span><span>{detail.title}</span>
         <Tag className={styles.pill} color={PROTOCOL_STATUS_COLORS[detail.status]}>{PROTOCOL_STATUS_LABELS[detail.status]}</Tag>
@@ -17,6 +28,7 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, sub
             <div><span>Loại:</span>Phác đồ nuôi</div><div><span>Sai lệch cho phép:</span>±{detail.allowedVariancePct}%</div><div><span>Sinh lịch trước:</span>{detail.rollingWindowDays} ngày</div>
             <div><span>Gửi duyệt:</span>{dateText(detail.submittedAt)}</div><div><span>Duyệt:</span>{dateText(detail.reviewedAt)}</div>
             <div><span>Phiên bản:</span>v{detail.versionNo}</div>
+            <div><span>Nguồn:</span>{detail.sourceTemplateSnapshot ? `${detail.sourceTemplateSnapshot.title} · v${detail.sourceTemplateVersionNo}` : detail.sourceTemplateId ? 'Mẫu cũ · chưa xác định phiên bản nguồn' : 'Tạo trực tiếp'}</div>
             <div className="col-span-full"><span>Ghi chú:</span>{detail.summary || '—'}</div>
         </div>
         <Typography.Paragraph className="mb-2! text-[11px]! font-semibold! tracking-wider! text-[#6a7994]!">LỊCH CỮ ĂN & XỬ LÝ</Typography.Paragraph>
@@ -30,9 +42,13 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, sub
                 <div className={styles.viewChips}>{meal.items.map((item) => <Tooltip key={item.id} title={<>{OPERATION_LABELS[item.operationType]} · Mỗi {item.repeatIntervalDays} ngày{item.instructions && ` · ${item.instructions}`}</>}>
                     <div className={styles.viewChip}><Badge className={styles.dot} color={OPERATION_COLORS[item.operationType]} />
                         <span className={`${styles.productAvatar} size-7! basis-7!`}><ExperimentOutlined /></span>
-                        <span>{item.product?.name || item.recommendedProductName}</span>
+                        <span>{item.materialSnapshot?.name || item.product?.name || item.recommendedProductName}</span>
                         <span className={styles.mono}>{item.doseValue} {UNIT_LABELS[item.doseUnit]}{item.doseBasis !== 'FIXED_QUANTITY' && ` ${DOSE_LABELS[item.doseBasis]}`}</span>
                         {item.repeatIntervalDays > 1 && <Tag color="cyan" className="m-0! rounded-md! border-0! text-[10px]!">Lặp mỗi {item.repeatIntervalDays} ngày</Tag>}
+                        {item.firstDayOffset != null && <Tag>DOC {item.firstDayOffset + 1}–{item.lastDayOffset + 1} · mốc lặp {item.recurrenceAnchorOffset + 1}</Tag>}
+                        {Number(item.dailyDoseIncrement) > 0 && <Tag color="blue">+{item.dailyDoseIncrement} {UNIT_LABELS[item.doseUnit]}/ngày từ DOC {item.doseAnchorOffset + 1}</Tag>}
+                        {(item.materialSnapshot || item.product) && <Button type="link" size="small" onClick={() => inspect(item)}>Hồ sơ vật tư</Button>}
+                        {item.recommendedProductDetails && <Button type="link" size="small" onClick={() => inspect(item, true)}>Đề xuất gốc</Button>}
                     </div>
                 </Tooltip>)}</div>
             </div>)}
@@ -44,6 +60,8 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, sub
                 {entry.reason && <Typography.Paragraph>{entry.reason}</Typography.Paragraph>}
             </> }))} /></>}
     </Drawer>
+    {material && <ProtocolMaterialDetail product={material} onClose={() => setMaterial(null)} />}
 </ConfigProvider>;
+};
 
 export default ExpertProductionProtocolDetail;

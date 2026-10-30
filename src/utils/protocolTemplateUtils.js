@@ -824,12 +824,14 @@ export const buildTemplateCreatePayload = (values, stages) => {
                 return {
                     time: meal.time,
                     items: meal.items.map((item) => {
+                        const applicationDays = getApplicationDays(item, stage.startDay, stage.endDay);
+                        const lastApplicationDay = applicationDays.at(-1) ?? item.lastDay ?? stage.endDay;
                         if (
                             (item.dailyDoseIncrement ?? 0) > 0 &&
-                            ((item.lastDay ?? stage.endDay) > 29 ||
+                            (lastApplicationDay > 29 ||
                                 item.doseValue +
                                     item.dailyDoseIncrement *
-                                        ((item.lastDay ?? stage.endDay) -
+                                        (lastApplicationDay -
                                             (item.firstDay ?? stage.startDay)) >
                                     9999999999)
                         )
@@ -876,7 +878,7 @@ export const buildTemplateCreatePayload = (values, stages) => {
                             throw new Error(
                                 'DOC bắt đầu và chu kỳ của vật tư trong cữ không hợp lệ.'
                             );
-                        return mapMaterial(item, firstDay);
+                        return mapMaterial(item, applicationDays[0] ?? firstDay);
                     }),
                 };
             }),
