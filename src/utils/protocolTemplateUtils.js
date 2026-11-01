@@ -13,6 +13,12 @@ const isInteger = (value, minimum) =>
     Number.isInteger(value) && value >= minimum;
 const isFarm = (farm) =>
     typeof farm?.id === 'string' && typeof farm?.name === 'string';
+const hasTemplateFarm = (row) =>
+    isFarm(row.farm) ||
+    (row.status === 'inactive' &&
+        row.farm?.id === null &&
+        typeof row.farm.name === 'string');
+
 /** Display small mass/volume quantities without rounding a valid dose to zero. */
 export const getDoseInputValues = (item, requestedUnit) => {
     let unit = requestedUnit ?? item.doseUnit;
@@ -207,7 +213,7 @@ const isTemplate = (row) =>
     typeof row.canDelete === 'boolean' &&
     (row.description === null || typeof row.description === 'string') &&
     [null, 'WHITELEG', 'BLACK_TIGER'].includes(row.shrimpType) &&
-    isFarm(row.farm) &&
+    hasTemplateFarm(row) &&
     isInteger(row.versionNo, 1) &&
     isInteger(row.usedSeasonCount, 0) &&
     Number.isFinite(row.allowedVariancePct) &&
@@ -357,7 +363,7 @@ export const parseTemplateEditor = (response) => {
         response?.success !== true ||
         typeof data?.id !== 'string' ||
         typeof data.title !== 'string' ||
-        !isFarm(data.farm) ||
+        !hasTemplateFarm(data) ||
         !isInteger(data.versionNo, 1) ||
         typeof data.farmLocked !== 'boolean' ||
         ![null, 'WHITELEG', 'BLACK_TIGER'].includes(data.shrimpType) ||

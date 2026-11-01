@@ -267,7 +267,7 @@ const getColumns = (
                                 )}
                             </Tooltip>
                         ))}
-                    {!row.canDelete && (
+                    {!row.canDelete && row.farm.id !== null && (
                         <Tooltip
                             title={
                                 row.status === 'active'

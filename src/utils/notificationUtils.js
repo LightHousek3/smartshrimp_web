@@ -70,7 +70,13 @@ const referencePath = (basePath, referenceId) => {
 export const getNotificationDestination = (notification) => {
     if (!notification) return null;
 
-    const { type, referenceId } = notification;
+    const { type, referenceType, referenceId } = notification;
+    if (type === 'SYSTEM' && referenceType === 'production_protocol_template') {
+        return {
+            path: referencePath('/expert/protocols', referenceId),
+            label: 'Xem phác đồ mẫu',
+        };
+    }
     if (TASK_TYPES.has(type)) {
         return { path: referencePath('/expert/tasks', referenceId), label: 'Xem nhiệm vụ' };
     }
