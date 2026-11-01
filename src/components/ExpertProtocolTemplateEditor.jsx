@@ -761,6 +761,20 @@ const ExpertProtocolTemplateEditor = ({ templateId, onClose, onSaved }) => {
         else onClose();
     };
     const changeFarm = (farmId) => {
+        // Detached templates can keep farm-independent recommendations.
+        if (
+            editData?.farm.id === null &&
+            stages.every(
+                (stage) =>
+                    stage.environment.every((item) => !item.product.id) &&
+                    stage.meals.every((meal) =>
+                        meal.items.every((item) => !item.product.id)
+                    )
+            )
+        ) {
+            form.setFieldValue('farmId', farmId);
+            return;
+        }
         if (
             !stages.some(
                 (stage) =>
@@ -1013,6 +1027,11 @@ const ExpertProtocolTemplateEditor = ({ templateId, onClose, onSaved }) => {
                                 </Flex>
                             }
                             name="farmId"
+                            extra={
+                                editData?.farm.id === null
+                                    ? 'Trang trại cũ đã xóa. Chọn trang trại mới để lưu mẫu.'
+                                    : undefined
+                            }
                             rules={[
                                 {
                                     required: true,
