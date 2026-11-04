@@ -33,6 +33,7 @@ export const uniqueTemplateProposals = (products) => {
         const snapshot = Object.fromEntries(
             [
                 'name',
+                'description',
                 'category',
                 'unit',
                 'conversionQuantity',
@@ -79,17 +80,20 @@ export const materialCategoryFits = (
 /** Provide route guidance locally; the backend still performs the authoritative safety check. */
 export const templateMaterialSelectionError = (
     product,
-    { environment = false, feedOnly = false } = {}
+    { environment = false, feedOnly = false, protocolLabel = 'phác đồ mẫu' } = {}
 ) => {
     if (product.unavailable)
         return 'Vật tư không còn khả dụng. Anh/chị vui lòng chọn lại.';
     if (['BANNED', 'TREATMENT_ONLY'].includes(product.safety?.status))
         return (
             product.safety.reason ||
-            'Vật tư này không được dùng trong phác đồ mẫu.'
+            `Vật tư này không được dùng trong ${protocolLabel}.`
         );
+    if (product.productCompliance?.complianceStatus === 'blocked')
+        return product.productCompliance.reviewNote ||
+            `Hồ sơ vật tư đã bị chặn; anh/chị chọn vật tư khác cho ${protocolLabel}.`;
     if (product.productCompliance?.containsAntibiotic === true)
-        return 'Vật tư chứa kháng sinh cần phác đồ điều trị riêng; anh/chị chọn vật tư khác cho phác đồ mẫu.';
+        return `Vật tư chứa kháng sinh cần phác đồ điều trị riêng; anh/chị chọn vật tư khác cho ${protocolLabel}.`;
     if (!materialCategoryFits(product.category, environment, feedOnly))
         return 'Nhóm vật tư chưa phù hợp với hoạt động đang chọn.';
     if (
