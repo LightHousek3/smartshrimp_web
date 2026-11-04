@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { App, Button, Form, Input } from 'antd';
 import { CheckOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/useAuth';
 import { BRAND_LOGO_URL, getRoleHomePath } from '../../constants/portal';
 
 const passwordByteLength = (value) => new TextEncoder().encode(value || '').length;
 
 const Login = () => {
+    const [searchParams] = useSearchParams();
     const [submitting, setSubmitting] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -45,6 +46,7 @@ const Login = () => {
 
                     <Form
                         name="smartshrimp-login"
+                        initialValues={{ email: (searchParams.get('email') || '').trim().toLowerCase() }}
                         layout="vertical"
                         autoComplete="on"
                         requiredMark={false}

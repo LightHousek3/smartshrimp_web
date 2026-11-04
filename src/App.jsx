@@ -53,7 +53,7 @@ function App() {
                             <Route
                                 path="/activate-account"
                                 element={
-                                    <PublicRoute>
+                                    <PublicRoute allowAuthenticated>
                                         <ActivateAccount />
                                     </PublicRoute>
                                 }
@@ -61,7 +61,7 @@ function App() {
                             <Route
                                 path="/forgot-password"
                                 element={
-                                    <PublicRoute>
+                                    <PublicRoute allowAuthenticated>
                                         <ForgotPassword />
                                     </PublicRoute>
                                 }

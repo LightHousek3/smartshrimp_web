@@ -1,12 +1,8 @@
-import { useEffect, useState } from 'react';
-import { App, Form } from 'antd';
+import { Form } from 'antd';
 import { CheckOutlined, SendOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../../apis';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     PROFILE_RULES,
-    normalizeFullName,
-    normalizeVietnamesePhone,
     validateFullName,
     validatePassword,
     validateVietnamesePhone,
@@ -21,10 +17,11 @@ import {
     VerificationPasswordInput,
     VerificationShell,
 } from '../../components';
-import { fieldValidator, getApiErrorMessage } from '../../utils/formUtils';
+import { fieldValidator } from '../../utils/formUtils';
+import { useVerificationFlow } from '../../hooks/useVerificationFlow';
+import { VerificationSuccess, VerificationGuidance } from '../../components/VerificationResult';
 
 const EMAIL_MAX_LENGTH = 320;
-const RESEND_DELAY_SECONDS = 60;
 const STEP_LABELS = ['Email', 'OTP', 'Hồ sơ'];
 const CARD_HEIGHTS = [480, 480, 675];
 
@@ -33,9 +30,6 @@ const ACTIVATION_STEPS = Object.freeze({
     OTP: 1,
     PROFILE: 2,
 });
-
-const isExpiredVerification = (message) =>
-    /phiên xác thực không hợp lệ|mã otp.*hết hạn|mã otp.*vô hiệu hóa/i.test(message);
 
 const EmailStep = ({ form, loading, onBack, onSubmit }) => (
     <>
@@ -52,7 +46,7 @@ const EmailStep = ({ form, loading, onBack, onSubmit }) => (
             <VerificationForm
                 form={form}
                 layout="vertical"
-                requiredMark={false}
+                requiredMark
                 disabled={loading}
                 onFinish={onSubmit}
             >
@@ -109,7 +103,7 @@ const ProfileStep = ({ email, form, loading, onSubmit }) => (
             <VerificationForm
                 form={form}
                 layout="vertical"
-                requiredMark={false}
+                requiredMark
                 disabled={loading}
                 onFinish={onSubmit}
             >
@@ -190,178 +184,27 @@ const ProfileStep = ({ email, form, loading, onSubmit }) => (
     </>
 );
 
-const ActivateAccount = () => {
-    const [step, setStep] = useState(ACTIVATION_STEPS.EMAIL);
-    const [email, setEmail] = useState('');
-    const [actionToken, setActionToken] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-    const [resendLoading, setResendLoading] = useState(false);
-    const [resendSeconds, setResendSeconds] = useState(0);
+const ActivateAccountFlow = () => {
     const [emailForm] = Form.useForm();
     const [otpForm] = Form.useForm();
-    const [profileForm] = Form.useForm();
+    const [detailsForm] = Form.useForm();
     const navigate = useNavigate();
-    const { message } = App.useApp();
-
-    useEffect(() => {
-        if (step !== ACTIVATION_STEPS.OTP || resendSeconds <= 0) return undefined;
-
-        const timer = window.setTimeout(
-            () => setResendSeconds((current) => Math.max(0, current - 1)),
-            1000,
-        );
-        return () => window.clearTimeout(timer);
-    }, [resendSeconds, step]);
-
-    const requestOtp = async ({ email: submittedEmail }) => {
-        const normalizedEmail = submittedEmail.trim().toLowerCase();
-        setSubmitting(true);
-
-        try {
-            const response = await authAPI.requestActivationOtp(normalizedEmail);
-            setEmail(normalizedEmail);
-            setActionToken('');
-            setResendSeconds(RESEND_DELAY_SECONDS);
-            otpForm.resetFields();
-            profileForm.resetFields();
-            setStep(ACTIVATION_STEPS.OTP);
-            message.success(response.data?.message || 'Nếu email hợp lệ, mã OTP đã được gửi.');
-        } catch (error) {
-            emailForm.setFields([
-                {
-                    name: 'email',
-                    errors: [
-                        getApiErrorMessage(error, 'Không thể gửi mã kích hoạt. Vui lòng thử lại.'),
-                    ],
-                },
-            ]);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const verifyOtp = async ({ code }) => {
-        setSubmitting(true);
-
-        try {
-            const response = await authAPI.verifyActivationOtp(email, code);
-            const verifiedActionToken = response.data?.data?.actionToken;
-            if (!verifiedActionToken) throw new Error('Phản hồi xác thực OTP không hợp lệ.');
-
-            setActionToken(verifiedActionToken);
-            profileForm.resetFields();
-            setStep(ACTIVATION_STEPS.PROFILE);
-        } catch (error) {
-            const errorMessage = getApiErrorMessage(
-                error,
-                'Không thể xác thực mã OTP. Vui lòng thử lại.',
-            );
-            otpForm.setFields([{ name: 'code', errors: [errorMessage] }]);
-            if (isExpiredVerification(errorMessage)) setResendSeconds(0);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const resendOtp = async () => {
-        setResendLoading(true);
-
-        try {
-            const response = await authAPI.requestActivationOtp(email);
-            otpForm.resetFields();
-            setResendSeconds(RESEND_DELAY_SECONDS);
-            message.success(response.data?.message || 'Nếu email hợp lệ, mã OTP đã được gửi.');
-        } catch (error) {
-            message.error(getApiErrorMessage(error, 'Không thể gửi lại mã OTP. Vui lòng thử lại.'));
-        } finally {
-            setResendLoading(false);
-        }
-    };
-
-    const backToEmail = () => {
-        setActionToken('');
-        setResendSeconds(0);
-        otpForm.resetFields();
-        profileForm.resetFields();
-        setStep(ACTIVATION_STEPS.EMAIL);
-    };
-
-    const completeActivation = async ({ fullName, phone, password }) => {
-        setSubmitting(true);
-
-        try {
-            const response = await authAPI.activateAccount({
-                actionToken,
-                fullName: normalizeFullName(fullName),
-                phone: phone ? normalizeVietnamesePhone(phone) : null,
-                password,
-            });
-
-            message.success(response.data?.message || 'Kích hoạt tài khoản thành công.');
-            navigate('/login', { replace: true });
-        } catch (error) {
-            const errorMessage = getApiErrorMessage(
-                error,
-                'Không thể hoàn tất kích hoạt tài khoản. Vui lòng thử lại.',
-            );
-
-            if (isExpiredVerification(errorMessage)) {
-                message.error(errorMessage);
-                setActionToken('');
-                setResendSeconds(0);
-                otpForm.resetFields();
-                profileForm.resetFields();
-                setStep(ACTIVATION_STEPS.OTP);
-            } else if (/họ và tên|fullname/i.test(errorMessage)) {
-                profileForm.setFields([{ name: 'fullName', errors: [errorMessage] }]);
-            } else if (/số điện thoại|phone/i.test(errorMessage)) {
-                profileForm.setFields([{ name: 'phone', errors: [errorMessage] }]);
-            } else if (/mật khẩu|password/i.test(errorMessage)) {
-                profileForm.setFields([{ name: 'password', errors: [errorMessage] }]);
-            } else {
-                message.error(errorMessage);
-            }
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    return (
-        <VerificationShell minHeight={CARD_HEIGHTS[step]}>
-            {step === ACTIVATION_STEPS.EMAIL ? (
-                <EmailStep
-                    form={emailForm}
-                    loading={submitting}
-                    onBack={() => navigate('/login')}
-                    onSubmit={requestOtp}
-                />
-            ) : null}
-
-            {step === ACTIVATION_STEPS.OTP ? (
-                <OtpVerificationStep
-                    email={email}
-                    form={otpForm}
-                    loading={submitting}
-                    resendLoading={resendLoading}
-                    resendSeconds={resendSeconds}
-                    onBack={backToEmail}
-                    onResend={resendOtp}
-                    onSubmit={verifyOtp}
-                    currentStep={ACTIVATION_STEPS.OTP}
-                    stepLabels={STEP_LABELS}
-                />
-            ) : null}
-
-            {step === ACTIVATION_STEPS.PROFILE ? (
-                <ProfileStep
-                    email={email}
-                    form={profileForm}
-                    loading={submitting}
-                    onSubmit={completeActivation}
-                />
-            ) : null}
-        </VerificationShell>
-    );
+    const flow = useVerificationFlow({ activation: true, emailForm, otpForm, detailsForm });
+    return <VerificationShell minHeight={CARD_HEIGHTS[flow.step] || 480}>
+        {flow.step === 0 && <EmailStep form={emailForm} loading={flow.submitting}
+            onBack={() => navigate('/login')} onSubmit={flow.requestOtp} />}
+        {flow.step === 1 && <OtpVerificationStep email={flow.email} form={otpForm}
+            loading={flow.submitting} resendLoading={flow.resendLoading} resendSeconds={flow.resendSeconds}
+            onBack={flow.backToEmail} onResend={flow.resendOtp} onSubmit={flow.verifyOtp}
+            currentStep={1} stepLabels={STEP_LABELS} />}
+        {flow.step === 2 && <ProfileStep email={flow.email} form={detailsForm} loading={flow.submitting}
+            onBack={flow.backToEmail} onSubmit={flow.complete} />}
+        {flow.step === 3 && <VerificationSuccess activation={true} email={flow.email} />}
+        <VerificationGuidance code={flow.errorCode} email={flow.email} />
+    </VerificationShell>;
 };
-
+const ActivateAccount = () => {
+    const location = useLocation();
+    return <ActivateAccountFlow key={location.search} />;
+};
 export default ActivateAccount;

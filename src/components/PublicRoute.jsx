@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/useAuth';
 import { getRoleHomePath } from '../constants/portal';
 import Loading from './Loading';
 
-const PublicRoute = ({ children }) => {
+const PublicRoute = ({ children, allowAuthenticated = false }) => {
     const { account, isAuthenticated, loading } = useAuth();
 
     if (loading) {
@@ -14,7 +14,7 @@ const PublicRoute = ({ children }) => {
         );
     }
 
-    if (isAuthenticated) {
+    if (isAuthenticated && !allowAuthenticated) {
         return <Navigate to={getRoleHomePath(account?.role)} replace />;
     }
 
