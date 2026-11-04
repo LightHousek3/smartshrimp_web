@@ -23,9 +23,16 @@ export const PROTOCOL_THEME = {
         controlHeight: 36, controlHeightSM: 27, fontSize: 13, lineHeight: 21 / 13 },
 };
 export const PROTOCOL_PRIMARY_BUTTON = 'border-0! bg-[linear-gradient(90deg,#77a1d3,#79cbca)]! font-semibold! text-white! shadow-none! enabled:hover:bg-[linear-gradient(90deg,#5f91cc,#57bdbd)]! enabled:focus-visible:bg-[linear-gradient(90deg,#5f91cc,#57bdbd)]!';
-export const allowedDoseBases = (operationType, offset) => {
-    if (offset >= 30) return Object.keys(DOSE_LABELS);
-    if (['FEEDING', 'MEDICINE'].includes(operationType)) return ['FIXED_QUANTITY'];
+export const allowedDoseBases = (operationType, offset, { contentVersion = 1, environment = false } = {}) => {
+    if (contentVersion === 2) {
+        if (operationType === 'OTHER') return ['FIXED_QUANTITY'];
+        if ((operationType === 'FEEDING' && environment) || (operationType === 'CHEMICAL' && !environment)) return [];
+        return ['FIXED_QUANTITY', ...(environment ? ['PER_M3_WATER']
+            : offset >= 29 ? ['PERCENT_BIOMASS', 'PER_KG_BIOMASS'] : [])];
+    }
+    if (['FEEDING', 'MEDICINE'].includes(operationType)) return offset >= 29
+        ? ['FIXED_QUANTITY', 'PERCENT_BIOMASS', 'PER_KG_BIOMASS'] : ['FIXED_QUANTITY'];
+    if (operationType === 'OTHER' && offset >= 30) return Object.keys(DOSE_LABELS);
     return ['FIXED_QUANTITY', 'PER_M3_WATER'];
 };
 export const protocolError = (error) => error.response?.data?.message || error.message || 'Không tải được dữ liệu. Vui lòng thử lại.';

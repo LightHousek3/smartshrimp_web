@@ -2,21 +2,42 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, App, Badge, Button, ConfigProvider, Drawer, Empty, Flex, Form, Input, InputNumber, Pagination, Select, Space, Tag, TimePicker, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { ClockCircleOutlined, CopyOutlined, DeleteOutlined, DownOutlined, EditOutlined, ExperimentOutlined, PlusOutlined, SaveOutlined, SendOutlined, UpOutlined } from '@ant-design/icons';
-import { expertProductionProtocolAPI as api } from '../apis';
+import { expertProductionProtocolAPI as api, expertProtocolTemplateAPI } from '../apis';
+import ExpertProtocolMaterialPicker from './ExpertProtocolMaterialPicker';
+import ProtocolMaterialDetail from './ProtocolMaterialDetail';
 import { allowedDoseBases, DOSE_LABELS, OPERATION_COLORS, OPERATION_LABELS, PROTOCOL_PRIMARY_BUTTON, PROTOCOL_THEME, UNIT_LABELS, protocolError } from '../constants/productionProtocol';
-import { cloneGroup, emptyItem, emptyMeal, emptyStage, protocolPayload, protocolToForm, stageOverlapError, templateToForm } from '../utils/productionProtocolUtils';
+import { cloneGroup, emptyItem, emptyMeal, emptyStage, expectedHarvestDoc, productionMaterialDoseUnit, productionMaterialOptions, protocolHarvestCoverageError, protocolPayload, protocolToForm, stageOverlapError, templateToForm } from '../utils/productionProtocolUtils';
+import { getMaterialDoseUnits } from '../utils/protocolTemplateUtils';
 import { expertStyle as styles } from '../constants/expertStyle';
 
 const options = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 const required = [{ required: true, message: 'Vui lòng nhập trường này.' }];
 const Action = ({ title, ...props }) => <Tooltip title={title}><Button size="small" type="text" shape="circle" aria-label={title} {...props} /></Tooltip>;
 
-const ItemEditor = ({ field, index, item, prefix, offset, form, productOptions, products, catalog, onSearch, onPage, remove, move, count, busy }) => {
+const ItemEditor = ({ field, index, item, prefix, offset, endDoc, environment, contentVersion, preserveProposal, farm, manufacturers, onMaterialSelected, form, products, catalog, onSearch, onPage, remove, move, count, busy }) => {
+    const [picker, setPicker] = useState(false);
+    const [showMaterial, setShowMaterial] = useState(false);
     const [expanded, setExpanded] = useState(() => {
         const entry = item || form.getFieldValue(prefix);
         return !entry?.productId && !entry?.recommendedProductName;
     });
-    const doseOptions = allowedDoseBases(item?.operationType, offset).map((value) => ({ value, label: DOSE_LABELS[value] }));
+    const doseBases = (operation) => allowedDoseBases(operation, (item?.firstDoc ?? offset + 1) - 1, { contentVersion, environment });
+    const doseOptions = doseBases(item?.operationType).map((value) => ({ value, label: DOSE_LABELS[value] }));
+    const proposed = item?.recommendedProductDetails?.proposed;
+    const proposalLocked = preserveProposal && Boolean(proposed);
+    const material = proposed ? { ...proposed, category: proposed.category?.toUpperCase(), unit: proposed.unit?.toUpperCase(),
+        conversionUnit: proposed.conversionUnit?.toUpperCase(), manufacturerId: item?.recommendedManufacturerId ?? proposed.manufacturerId }
+        : item?.materialSnapshot ? { ...item.materialSnapshot, productCompliance: item.materialSnapshot.compliance }
+            : products.get(item?.productId);
+    const selectedProduct = products.get(item?.productId);
+    const dosingMaterial = selectedProduct
+        ? { ...(item?.materialSnapshot?.id === selectedProduct.id ? item.materialSnapshot : {}), ...selectedProduct }
+        : material;
+    const unitOptions = contentVersion === 2 && dosingMaterial ? getMaterialDoseUnits(dosingMaterial) : options(UNIT_LABELS);
+    const productOptions = productionMaterialOptions([...products.values()], { contentVersion, environment }).map(option => {
+        const incompatible = proposalLocked && products.get(option.value)?.category !== proposed.category?.toUpperCase();
+        return incompatible ? { ...option, disabled: true, title: 'Đề xuất đã gửi duyệt được giữ để đối chiếu. Chỉ chọn catalog cùng loại.' } : option;
+    });
     return <div className={styles.item}>
         <div className={styles.itemRow}>
             <Badge className={styles.dot} color={OPERATION_COLORS[item?.operationType]} />
@@ -24,7 +45,7 @@ const ItemEditor = ({ field, index, item, prefix, offset, form, productOptions, 
             <div className={styles.itemName}><strong>{products.get(item?.productId)?.name || item?.recommendedProductName || 'Chọn vật tư / hoạt động'}</strong>
                 <small>{OPERATION_LABELS[item?.operationType]}</small></div>
             <Form.Item name={[field.name, 'doseValue']} rules={required}><InputNumber size="small" stringMode min="0.0001" aria-label={`Liều hạng mục ${index + 1}`} /></Form.Item>
-            <Form.Item name={[field.name, 'doseUnit']} rules={required}><Select size="small" className={styles.itemUnit} options={options(UNIT_LABELS)} aria-label={`Đơn vị hạng mục ${index + 1}`} /></Form.Item>
+            <Form.Item name={[field.name, 'doseUnit']} rules={required}><Select size="small" className={styles.itemUnit} options={unitOptions} aria-label={`Đơn vị hạng mục ${index + 1}`} /></Form.Item>
             <Form.Item name={[field.name, 'doseBasis']} rules={required}><Select size="small" className={styles.itemBasis} options={doseOptions} aria-label={`Cơ sở liều hạng mục ${index + 1}`} /></Form.Item>
             <Space size={0} className={styles.actions}>
                 <Action title={`Sửa chi tiết hạng mục ${index + 1}`} icon={<EditOutlined />} onClick={() => setExpanded((value) => !value)} disabled={busy} />
@@ -35,8 +56,8 @@ const ItemEditor = ({ field, index, item, prefix, offset, form, productOptions, 
         <Form.Item hidden name={[field.name, 'recommendedCategory']}><Input /></Form.Item>
         <div className={`${styles.itemAdvanced} ${!expanded ? 'hidden!' : ''}`} hidden={!expanded}>
             <Form.Item label="Hoạt động" name={[field.name, 'operationType']} rules={required}>
-                <Select options={options(OPERATION_LABELS)} onChange={(value) => {
-                    const allowed = allowedDoseBases(value, offset);
+                <Select disabled={busy || proposalLocked} options={options(OPERATION_LABELS)} onChange={(value) => {
+                    const allowed = doseBases(value);
                     if (!allowed.includes(form.getFieldValue([...prefix, 'doseBasis']))) form.setFieldValue([...prefix, 'doseBasis'], allowed[0]);
                 }} /></Form.Item>
             <Form.Item label="Vật tư trang trại" name={[field.name, 'productId']}>
@@ -44,13 +65,36 @@ const ItemEditor = ({ field, index, item, prefix, offset, form, productOptions, 
                     placeholder="Chọn vật tư (tùy chọn)" onSearch={onSearch} onChange={(id) => {
                         const product = products.get(id);
                         if (product) {
-                            form.setFieldValue([...prefix, 'recommendedProductName'], product.name);
-                            form.setFieldValue([...prefix, 'doseUnit'], product.unit);
+                            const operationType = product.category === 'FEED' ? 'FEEDING' : product.category;
+                            form.setFieldValue([...prefix, 'operationType'], operationType);
+                            const allowed = doseBases(operationType);
+                            if (!allowed.includes(form.getFieldValue([...prefix, 'doseBasis'])))
+                                form.setFieldValue([...prefix, 'doseBasis'], allowed[0]);
+                            form.setFieldValue([...prefix, 'recommendedProductName'], proposalLocked ? proposed.name : product.name);
+                            form.setFieldValue([...prefix, 'doseUnit'], productionMaterialDoseUnit(product, contentVersion));
                             form.setFieldValue([...prefix, 'recommendedCategory'], product.category);
+                            if (!proposalLocked) {
+                                form.setFieldValue([...prefix, 'recommendedProductDetails'], null);
+                                form.setFieldValue([...prefix, 'recommendedManufacturerId'], null);
+                            }
                         }
                     }} popupRender={(menu) => <>{menu}<Pagination size="small" current={catalog.page} total={catalog.total} pageSize={50} showSizeChanger={false} onChange={onPage} /></>} />
             </Form.Item>
-            <Form.Item label="Tên vật tư gợi ý" name={[field.name, 'recommendedProductName']}><Input maxLength={255} placeholder="Nhập tên nếu chưa chọn vật tư" /></Form.Item>
+            <Form.Item label="Tên vật tư gợi ý" name={[field.name, 'recommendedProductName']}><Input disabled={Boolean(proposed)} maxLength={255} placeholder="Nhập tên nếu chưa chọn vật tư" /></Form.Item>
+            {contentVersion === 2 && <>
+                <Space wrap className="col-span-full">
+                    <Button size="small" disabled={busy || proposalLocked} onClick={() => setPicker(true)}>Chọn vật tư / lập đề xuất đầy đủ</Button>
+                    {material && <Button size="small" onClick={() => setShowMaterial(true)}>Xem hồ sơ vật tư</Button>}
+                    {proposed && <Typography.Text type="secondary">{proposalLocked
+                        ? 'Đề xuất đã gửi duyệt được giữ để đối chiếu. Chỉ chọn catalog cùng loại.'
+                        : 'Chọn vật tư mới sẽ thay đề xuất trong bản nháp này.'}</Typography.Text>}
+                </Space>
+                <Form.Item label="Áp dụng từ DOC" name={[field.name, 'firstDoc']}><InputNumber min={offset + 1} max={endDoc} precision={0} placeholder={String(offset + 1)} /></Form.Item>
+                <Form.Item label="Đến DOC" name={[field.name, 'lastDoc']}><InputNumber min={item?.firstDoc ?? offset + 1} max={endDoc} precision={0} placeholder={String(endDoc)} /></Form.Item>
+                <Form.Item label="Tăng liều mỗi ngày" tooltip="Chỉ thức ăn liều cố định hằng ngày đến DOC 29; liều tính theo mốc liều gốc." name={[field.name, 'dailyDoseIncrement']}><InputNumber stringMode min="0" precision={4} placeholder="0" /></Form.Item>
+                <Form.Item label="DOC mốc chu kỳ" name={[field.name, 'recurrenceAnchorDoc']}><InputNumber min={1} max={item?.firstDoc ?? offset + 1} precision={0} placeholder={String(item?.firstDoc ?? offset + 1)} /></Form.Item>
+                <Form.Item label="DOC mốc liều gốc" name={[field.name, 'doseAnchorDoc']}><InputNumber min={1} max={item?.firstDoc ?? offset + 1} precision={0} placeholder={String(item?.firstDoc ?? offset + 1)} /></Form.Item>
+            </>}
             <Form.Item label="Lặp mỗi (ngày)" name={[field.name, 'repeatIntervalDays']} rules={required}><InputNumber min={1} max={30} precision={0} /></Form.Item>
             <Form.Item label="Hướng dẫn" name={[field.name, 'instructions']}><Input.TextArea rows={2} maxLength={4000} /></Form.Item>
             <Space className={styles.actions}>
@@ -58,6 +102,22 @@ const ItemEditor = ({ field, index, item, prefix, offset, form, productOptions, 
                 <Action title="Đưa hạng mục xuống" icon={<DownOutlined />} disabled={index === count - 1 || busy} onClick={() => move(index, index + 1)} />
             </Space>
         </div>
+        {picker && <ExpertProtocolMaterialPicker farm={farm} manufacturers={manufacturers} environment={environment}
+            feedOnly={item?.operationType === 'FEEDING'} initialRecommendation={material && proposed ? material : undefined}
+            onClose={() => setPicker(false)} onSelect={(product) => {
+                const operationType = product.category === 'FEED' ? 'FEEDING' : product.category;
+                form.setFieldValue([...prefix, 'productId'], product.id ?? null);
+                form.setFieldValue([...prefix, 'recommendedProductName'], product.name);
+                form.setFieldValue([...prefix, 'recommendedCategory'], product.category);
+                form.setFieldValue([...prefix, 'operationType'], operationType);
+                const allowed = doseBases(operationType);
+                if (!allowed.includes(item?.doseBasis)) form.setFieldValue([...prefix, 'doseBasis'], allowed[0]);
+                form.setFieldValue([...prefix, 'doseUnit'], productionMaterialDoseUnit(product, contentVersion));
+                form.setFieldValue([...prefix, 'recommendedProductDetails'], product.id ? null : { proposed: product });
+                form.setFieldValue([...prefix, 'recommendedManufacturerId'], product.id ? null : product.manufacturerId ?? null);
+                onMaterialSelected(product); setPicker(false);
+            }} />}
+        {showMaterial && material && <ProtocolMaterialDetail product={material} manufacturers={manufacturers} onClose={() => setShowMaterial(false)} />}
     </div>;
 };
 
@@ -76,6 +136,10 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
     const [templatePage, setTemplatePage] = useState(1);
     const [templateId, setTemplateId] = useState(detail?.sourceTemplateId || null);
     const [templateLoading, setTemplateLoading] = useState(false);
+    const [templateVersionNo, setTemplateVersionNo] = useState(detail?.sourceTemplateVersionNo);
+    const [referencePostCount, setReferencePostCount] = useState(detail?.sourceTemplateSnapshot?.referencePostCount);
+    const [materialOptions, setMaterialOptions] = useState({ manufacturers: [] });
+    const [materialRetry, setMaterialRetry] = useState(0);
     const locked = busy || templateLoading;
     const [templateRetry, setTemplateRetry] = useState(0);
     const dirty = useRef(false);
@@ -84,10 +148,22 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
     const templateRequest = useRef(null);
     const stages = Form.useWatch('stages', form) || [];
     const overlapError = stageOverlapError(stages);
+    const minimumEndDoc = expectedHarvestDoc(season);
+    const harvestError = protocolHarvestCoverageError(stages, season);
     const initial = protocolToForm(detail);
+    if (!detail) initial.contentVersion = season.authoringVersion ?? 1;
+    const contentVersion = Form.useWatch('contentVersion', form) ?? initial.contentVersion;
     const itemCount = stages.reduce((sum, stage) => sum + (stage?.meals || []).reduce((n, meal) => n + (meal?.items?.length || 0), 0), 0);
 
     useEffect(() => { mounted.current = true; return () => { mounted.current = false; templateRequest.current?.abort(); }; }, []);
+    useEffect(() => {
+        if (contentVersion !== 2) return;
+        const controller = new AbortController();
+        expertProtocolTemplateAPI.getCreationOptions(controller.signal)
+            .then(value => { if (!controller.signal.aborted) setMaterialOptions(value); })
+            .catch(err => { if (!controller.signal.aborted) setMaterialOptions({ manufacturers: [], error: protocolError(err) }); });
+        return () => controller.abort();
+    }, [contentVersion, materialRetry]);
     useEffect(() => {
         const controller = new AbortController();
         const timer = setTimeout(() => {
@@ -114,7 +190,6 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
     const existingProducts = initial.stages.flatMap((stage) => stage.meals.flatMap((meal) => meal.items.map((item) => item.product))).filter(Boolean);
     const selectedIds = new Set(stages.flatMap((stage) => (stage?.meals || []).flatMap((meal) => (meal?.items || []).map((item) => item.productId))).filter(Boolean));
     const products = new Map([...existingProducts, ...catalog.cache.filter((product) => selectedIds.has(product.id)), ...catalog.rows].map((product) => [product.id, product]));
-    const productOptions = [...products.values()].map((product) => ({ value: product.id, label: product.name, disabled: product.status !== 'ACTIVE' }));
     const requestClose = () => {
         if (saving.current || locked) return;
         if (!dirty.current) return onClose();
@@ -122,7 +197,7 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
             okText: 'Bỏ thay đổi', cancelText: 'Tiếp tục sửa', onOk: onClose });
     };
     const loadTemplate = (id) => {
-        if (!id) { setTemplateId(null); dirty.current = true; return; }
+        if (!id) { setTemplateId(null); setTemplateVersionNo(undefined); setReferencePostCount(undefined); dirty.current = true; return; }
         const load = async () => {
             templateRequest.current?.abort();
             const controller = new AbortController();
@@ -137,6 +212,8 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                 form.setFieldsValue(headers);
                 form.setFieldValue('stages', templateStages);
                 setTemplateId(id); dirty.current = true;
+                setTemplateVersionNo(response.data.data.templateVersionNo);
+                setReferencePostCount(response.data.data.referencePostCount);
             } catch (err) { if (!controller.signal.aborted && mounted.current) setError(protocolError(err)); }
             finally { if (!controller.signal.aborted && mounted.current) setTemplateLoading(false); }
         };
@@ -147,8 +224,9 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
         if (saving.current || templateLoading) return;
         saving.current = true; setBusy(true); setError(null); setConflict(false);
         try {
-            const values = await form.validateFields();
-            const body = { ...protocolPayload(values, detail?.revision), templateId, submitForApproval };
+            await form.validateFields();
+            const body = { ...protocolPayload(form.getFieldsValue(true), detail?.revision, season), templateId,
+                ...(templateId && templateVersionNo != null && { templateVersionNo }), submitForApproval };
             const response = detail ? await api.update(seasonId, detail.id, body) : await api.create(seasonId, body);
             if (!mounted.current) return;
             dirty.current = false; message.success(response.data.message); onSaved(response.data.data);
@@ -167,11 +245,12 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
         footer={<Flex justify="space-between" align="center" wrap gap={12}>
             <Space size={16} className="text-xs! text-[#6a7994]!"><span>{stages.length} giai đoạn</span><span>{itemCount} hạng mục</span></Space>
             <Space wrap><Button disabled={locked} onClick={requestClose}>Hủy</Button>
-                <Button icon={<SaveOutlined />} loading={busy} disabled={locked || Boolean(overlapError)} onClick={() => save(false)}>Lưu nháp</Button>
-                <Button type="primary" className={PROTOCOL_PRIMARY_BUTTON} icon={<SendOutlined />} loading={busy} disabled={locked || Boolean(overlapError)} onClick={() => save(true)}>Lưu & gửi duyệt</Button></Space>
+                <Button icon={<SaveOutlined />} loading={busy} disabled={locked || Boolean(overlapError || harvestError)} onClick={() => save(false)}>Lưu nháp</Button>
+                <Button type="primary" className={PROTOCOL_PRIMARY_BUTTON} icon={<SendOutlined />} loading={busy} disabled={locked || Boolean(overlapError || harvestError)} onClick={() => save(true)}>Lưu & gửi duyệt</Button></Space>
         </Flex>}>
         {error && <Alert className="mb-4!" type="error" showIcon message={error} action={conflict && <Button size="small" onClick={reload}>Tải dữ liệu mới</Button>} />}
         {catalog.error && <Alert className="mb-4!" type="warning" message={catalog.error} action={<Button size="small" onClick={() => setCatalogRetry((value) => value + 1)}>Tải lại vật tư</Button>} />}
+        {materialOptions.error && <Alert className="mb-4!" type="warning" message={materialOptions.error} action={<Button size="small" onClick={() => setMaterialRetry(value => value + 1)}>Tải lại nhà sản xuất</Button>} />}
         <Form form={form} layout="vertical" initialValues={initial} disabled={locked} onValuesChange={() => { dirty.current = true; }}>
             <div className={styles.formTop}>
                 <Form.Item label="Tên phác đồ" name="title" rules={required}><Input maxLength={500} placeholder="VD: Phác đồ nuôi A1 — v1" autoFocus /></Form.Item>
@@ -180,7 +259,7 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
             </div>
             <div className={styles.formSecondary}>
                 <Form.Item label="Nạp từ phác đồ mẫu (tùy chọn)" tooltip="Chỉ hiện mẫu của trang trại này và đúng loài tôm" extra={templates.applicationMessage}><Select showSearch allowClear filterOption={false} value={templateId || undefined}
-                    loading={templates.loading || templateLoading} placeholder="Chọn mẫu để điền nhanh" options={templates.rows.map((row) => ({ value: row.id, label: row.title, disabled: row.canApply === false }))}
+                    loading={templates.loading || templateLoading} placeholder="Chọn mẫu để điền nhanh" options={templates.rows.map((row) => ({ value: row.id, label: row.title, title: row.applicationMessage || undefined, disabled: row.canApply === false }))}
                     onSearch={(value) => { setTemplateSearch(value); setTemplatePage(1); }} onChange={loadTemplate}
                     popupRender={(menu) => <>{menu}<Pagination size="small" current={templatePage} total={templates.total || 0} pageSize={50} showSizeChanger={false} onChange={setTemplatePage} /></>} />
                     {templates.error && <Typography.Text type="danger">{templates.error} <Button type="link" size="small" onClick={() => setTemplateRetry((value) => value + 1)}>Thử lại</Button></Typography.Text>}
@@ -188,7 +267,15 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                 <Form.Item label="Ghi chú cho chủ trại (tùy chọn)" name="summary"><Input maxLength={4000} placeholder="Mục tiêu, lý do điều chỉnh…" /></Form.Item>
             </div>
             <Form.Item hidden name="rollingWindowDays"><InputNumber /></Form.Item>
+            <Form.Item hidden name="contentVersion"><InputNumber /></Form.Item>
+            {contentVersion === 1 && season.authoringVersion === 2 && <Button className="mb-4!" onClick={() => {
+                form.setFieldValue('contentVersion', 2); dirty.current = true;
+            }}>Bổ sung hồ sơ vật tư và ngày áp dụng riêng</Button>}
+            {referencePostCount != null && <Alert className="mb-4!" type="info" showIcon message={`Mẫu tham chiếu ${Number(referencePostCount).toLocaleString('vi-VN')} post · Vụ thả ${season.initialQuantity == null ? 'chưa xác định' : Number(season.initialQuantity).toLocaleString('vi-VN')} con.`}
+                description="Liều được giữ nguyên khi nạp mẫu. Hãy đối chiếu quy mô và chỉnh từng liều trước khi gửi duyệt; hệ thống không tự nhân liều theo post." />}
             {season.approvedProductionProtocol && <Alert type="info" showIcon className="mb-4! rounded-[14px]!" message="Phiên bản này sẽ thay thế phác đồ đang áp dụng khi được duyệt." />}
+            {minimumEndDoc != null && <Alert type={harvestError && stages.length ? 'error' : 'info'} showIcon className="mb-4!"
+                message={harvestError || `Phác đồ đã đạt mốc dự kiến thu hoạch của vụ nuôi: DOC ${minimumEndDoc}.`} />}
             {overlapError && <Alert type="error" showIcon role="alert" className="mb-4!" message={overlapError} />}
             <Form.List name="stages">{(stageFields, stageActions) => <>
                 {!stageFields.length && <div className={`${styles.formEmpty} mb-4`}><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có giai đoạn nào" /></div>}
@@ -227,7 +314,11 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                                 <div><Form.List name={[mealField.name, 'items']}>{(fields, actions) => <>
                                     {fields.map((field, index) => <ItemEditor key={field.key} field={field} index={index} item={meal?.items?.[field.name]}
                                         prefix={['stages', stageField.name, 'meals', mealField.name, 'items', field.name]} offset={(stages[stageIndex]?.startDoc || 1) - 1}
-                                        form={form} productOptions={productOptions} products={products} catalog={{ ...catalog, page: productPage }}
+                                        endDoc={stages[stageIndex]?.endDoc} environment={meal?.mealNumber == null} contentVersion={contentVersion}
+                                        preserveProposal={Boolean(detail?.submittedAt) || detail?.status === 'REJECTED'}
+                                        farm={season.pond.farm} manufacturers={materialOptions.manufacturers ?? []}
+                                        onMaterialSelected={product => { dirty.current = true; if (product.id) setCatalog(current => ({ ...current, cache: [...current.cache.filter(row => row.id !== product.id), product] })); }}
+                                        form={form} products={products} catalog={{ ...catalog, page: productPage }}
                                         onSearch={(value) => { setSearch(value); setProductPage(1); }} onPage={setProductPage} remove={actions.remove} move={actions.move} count={fields.length} busy={locked} />)}
                                     <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => actions.add({ ...emptyItem(), operationType: meal?.mealNumber == null ? 'CHEMICAL' : fields.length ? 'MEDICINE' : 'FEEDING' })}>
                                         {meal?.mealNumber == null ? 'Thêm xử lý môi trường' : 'Thêm thức ăn / thuốc / bổ sung'}</Button>
