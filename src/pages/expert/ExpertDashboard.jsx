@@ -8,7 +8,7 @@ import {
     MedicineBoxOutlined,
     UnorderedListOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { expertDashboardAPI } from '../../apis';
 import Loading from '../../components/Loading';
 import { formatDate } from '../../utils/dateUtils';
@@ -148,7 +148,9 @@ const SeasonCard = ({ season }) => (
     </article>
 );
 
-const RecentCases = ({ cases }) => (
+const RecentCases = ({ cases }) => {
+    const navigate = useNavigate();
+    return (
     <section
         className={`${panelClassName} mt-6 overflow-hidden`}
         aria-labelledby="recent-cases-title"
@@ -186,11 +188,21 @@ const RecentCases = ({ cases }) => (
                     </thead>
                     <tbody>
                         {cases.map((item) => (
-                            <tr key={item.id}>
+                            <tr
+                                key={item.id}
+                                className="cursor-pointer hover:bg-[#f8fafc] transition-colors"
+                                onClick={() => navigate(`/expert/disease-cases/${item.id}`)}
+                            >
                                 <td
                                     className={`${tableCellClassName} text-[13px] font-semibold text-[#0f1c2e]`}
                                 >
-                                    {item.title}
+                                    <Link
+                                        to={`/expert/disease-cases/${item.id}`}
+                                        className="text-[#0f1c2e] hover:text-[#1d7ad6] transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {item.title}
+                                    </Link>
                                 </td>
                                 <td className={`${tableCellClassName} text-[#3a4a63]`}>
                                     {item.farm.name}
@@ -230,7 +242,8 @@ const RecentCases = ({ cases }) => (
             </div>
         )}
     </section>
-);
+    );
+};
 
 const ExpertDashboard = () => {
     const [revision, setRevision] = useState(0);

@@ -164,6 +164,36 @@ const expertProductionProtocolAPI = {
         }),
 };
 
+
+const expertDiseaseCaseAPI = {
+    /**
+     * GET /expert/disease-cases
+     * List assigned disease cases with query filters.
+     */
+    list: (params, signal) => apiClient.get('/expert/disease-cases', { params, signal }),
+    /**
+     * GET /expert/disease-cases/:caseId
+     * Get detail of a disease case.
+     */
+    detail: (caseId, signal) => apiClient.get(`/expert/disease-cases/${caseId}`, { signal }),
+    /**
+     * POST /expert/disease-cases/:caseId/responses
+     * Send response to disease case.
+     */
+    respond: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/responses`, body),
+    /**
+     * POST /expert/disease-cases/:caseId/resolve
+     * Mark disease case as resolved.
+     */
+    resolve: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/resolve`, body),
+    /**
+     * POST /expert/disease-cases/:caseId/protocols/:protocolId/abort
+     * Emergency abort a treatment protocol.
+     */
+    abortProtocol: (caseId, protocolId, body) =>
+        apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
+};
+
 // Admin account management API
 const adminAccountAPI = {
     /**
@@ -607,6 +637,7 @@ export {
     expertDashboardAPI,
     expertSeasonAPI,
     expertProductionProtocolAPI,
+    expertDiseaseCaseAPI,
     notificationAPI,
     profileAPI,
     ragDocumentAPI,
