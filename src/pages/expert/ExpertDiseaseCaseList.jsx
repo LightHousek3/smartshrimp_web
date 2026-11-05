@@ -243,12 +243,11 @@ const ExpertDiseaseCaseList = () => {
 
     useEffect(() => {
         const controller = new AbortController();
-        const isActionQueue = filters.status === 'action';
         const params = {
             page: filters.page,
             limit: filters.limit,
-            ...(filters.status && !isActionQueue ? { status: filters.status } : {}),
-            ...(filters.severity?.length === 1 ? { severity: filters.severity[0] } : {}),
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.severity?.length > 0 ? { severity: filters.severity.join(',') } : {}),
             ...(filters.farmId ? { farmId: filters.farmId } : {}),
             ...(filters.search ? { search: filters.search } : {}),
         };
@@ -258,15 +257,8 @@ const ExpertDiseaseCaseList = () => {
             .then((response) => {
                 if (controller.signal.aborted) return;
                 if (response.data?.success) {
-                    let items = response.data.data || [];
-                    if (isActionQueue) {
-                        items = items.filter((c) => c.needsResponse);
-                    }
-                    if (filters.severity?.length > 1) {
-                        items = items.filter((c) => filters.severity.includes(c.severity));
-                    }
-                    setCases(items);
-                    setTotal(response.data.meta?.total || items.length);
+                    setCases(response.data.data || []);
+                    setTotal(response.data.meta?.total || 0);
                 }
             })
             .catch((error) => {
@@ -401,16 +393,18 @@ const ExpertDiseaseCaseList = () => {
                 width: 48,
                 align: 'center',
                 render: (_, record) => (
-                    <span
+                    <button
+                        type="button"
                         onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/expert/disease-cases/${record.id}`);
                         }}
-                        className="inline-flex size-7 items-center justify-center rounded-full text-[#1d7ad6] hover:bg-blue-50 focus-visible:outline-2 cursor-pointer transition-colors"
+                        className="inline-flex size-7 items-center justify-center rounded-full text-[#1d7ad6] hover:bg-blue-50 focus-visible:outline-2 cursor-pointer transition-colors border-0 bg-transparent p-0"
                         title="Xem chi tiết"
+                        aria-label={`Xem chi tiết ca bệnh ${record.title || record.id}`}
                     >
                         <EyeOutlined className="text-[13px]" />
-                    </span>
+                    </button>
                 ),
             },
         ],

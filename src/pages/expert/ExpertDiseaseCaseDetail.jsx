@@ -18,13 +18,12 @@ import {
 } from 'antd';
 import {
     ArrowLeftOutlined,
+    PaperClipOutlined,
     ArrowRightOutlined,
     CheckCircleFilled,
     CheckCircleOutlined,
     ClockCircleOutlined,
     ExclamationCircleFilled,
-    EyeOutlined,
-    InfoCircleOutlined,
     LoadingOutlined,
     PlusOutlined,
     RobotOutlined,
@@ -36,10 +35,7 @@ import { expertDiseaseCaseAPI } from '../../apis';
 import Loading from '../../components/Loading';
 import { PROTOCOL_THEME } from '../../constants/productionProtocol';
 import { NOTIFICATION_CHANGED_EVENT } from '../../utils/notificationUtils';
-import ExpertProductionProtocolDetail from './ExpertProductionProtocolDetail';
 import {
-    ActionIcon,
-    Actions,
     CaseTag,
     HealthTag,
     Label,
@@ -98,16 +94,8 @@ const ExpertDiseaseCaseDetail = () => {
     const [resolving, setResolving] = useState(false);
     const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
 
-    // Emergency Abort Modal state
-    const [isAbortModalOpen, setIsAbortModalOpen] = useState(false);
-    const [protocolToAbort, setProtocolToAbort] = useState(null);
-    const [abortReason, setAbortReason] = useState('');
-    const [aborting, setAborting] = useState(false);
-
-    // Protocol Detail Drawer state
-    const [selectedDrawerProtocol, setSelectedDrawerProtocol] = useState(null);
-
     const [caseData, setCaseData] = useState(null);
+    const [fetchError, setFetchError] = useState(null);
     const [activeTab, setActiveTab] = useState('thread');
 
     // Response form state
@@ -189,12 +177,15 @@ const ExpertDiseaseCaseDetail = () => {
                 if (!isMounted || controller.signal.aborted) return;
                 if (res.data?.success) {
                     setCaseData(res.data.data);
+                    setFetchError(null);
                 }
             })
             .catch((error) => {
                 if (!isMounted || controller.signal.aborted) return;
                 console.error('Lỗi lấy chi tiết ca bệnh:', error);
-                message.error(error.response?.data?.message || 'Không thể tải chi tiết ca bệnh');
+                const errMsg = error.response?.data?.message || 'Không thể tải chi tiết ca bệnh';
+                setFetchError(errMsg);
+                message.error(errMsg);
             })
             .finally(() => {
                 if (isMounted && !controller.signal.aborted) {
@@ -205,14 +196,14 @@ const ExpertDiseaseCaseDetail = () => {
         // Silent background polling every 4 seconds for real-time sync with KTV
         const timer = setInterval(() => {
             if (!document.hidden && isMounted) {
-                fetchDetail(true);
+                fetchDetail(true, controller.signal);
             }
         }, 4000);
 
         // Instant wakeup via socket notification event
         const handleNotificationEvent = () => {
             if (isMounted) {
-                fetchDetail(true);
+                fetchDetail(true, controller.signal);
             }
         };
         window.addEventListener(NOTIFICATION_CHANGED_EVENT, handleNotificationEvent);
@@ -350,35 +341,7 @@ const ExpertDiseaseCaseDetail = () => {
         }
     };
 
-    const handleConfirmAbortProtocol = async () => {
-        if (!protocolToAbort) return;
-        if (!abortReason.trim() || abortReason.trim().length < 5) {
-            message.warning('Vui lòng nhập lý do lâm sàng để dừng (tối thiểu 5 ký tự)');
-            return;
-        }
-
-        try {
-            setAborting(true);
-            const res = await expertDiseaseCaseAPI.abortProtocol(caseId, protocolToAbort.id, {
-                reason: abortReason.trim(),
-            });
-
-            if (res.data?.success) {
-                message.success('Đã dừng khẩn cấp phác đồ điều trị thành công');
-                setIsAbortModalOpen(false);
-                setProtocolToAbort(null);
-                setAbortReason('');
-                await fetchDetail(true);
-            }
-        } catch (error) {
-            console.error('Lỗi dừng khẩn cấp phác đồ:', error);
-            message.error(error.response?.data?.message || 'Không thể dừng phác đồ điều trị');
-        } finally {
-            setAborting(false);
-        }
-    };
-
-    if (loading) {
+    if (loading || (caseData && caseData.id !== caseId)) {
         return (
             <div className="py-20 flex justify-center">
                 <Loading tip="Đang tải chi tiết ca bệnh" />
@@ -389,10 +352,17 @@ const ExpertDiseaseCaseDetail = () => {
     if (!caseData) {
         return (
             <div className="py-16 text-center">
-                <Empty description="Không tìm thấy thông tin ca bệnh" />
-                <Button className="mt-4" onClick={() => navigate('/expert/disease-cases')}>
-                    Về danh sách
-                </Button>
+                <Empty description={fetchError || 'Không tìm thấy thông tin ca bệnh'} />
+                <div className="mt-4 flex justify-center gap-3">
+                    {fetchError && (
+                        <Button type="default" onClick={() => fetchDetail(false)}>
+                            Thử lại
+                        </Button>
+                    )}
+                    <Button type="primary" onClick={() => navigate('/expert/disease-cases')}>
+                        Về danh sách
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -408,11 +378,15 @@ const ExpertDiseaseCaseDetail = () => {
     const runningTreatment = protocols.find(
         (p) => p.status === 'APPROVED' && (!p.metrics || p.metrics.completedCount < p.metrics.totalSchedules)
     );
-    const pendingTreatment = protocols.find((p) => p.status === 'PENDING_APPROVAL');
+    const pendingTreatment = protocols.find(
+        (p) => p.status === 'PENDING_APPROVAL' || p.status === 'DRAFT'
+    );
     const resolveBlock = runningTreatment
         ? 'Phác đồ điều trị đang chạy — chờ hoàn tất hoặc dừng khẩn cấp trước khi đóng ca.'
         : pendingTreatment
-          ? 'Còn phác đồ điều trị đang chờ chủ trại duyệt.'
+          ? (pendingTreatment.status === 'DRAFT'
+                ? 'Còn phác đồ điều trị đang soạn thảo.'
+                : 'Còn phác đồ điều trị đang chờ chủ trại duyệt.')
           : null;
 
     const approvedProtocol = protocols.find((p) => p.status === 'APPROVED');
@@ -503,6 +477,39 @@ const ExpertDiseaseCaseDetail = () => {
                                         <div className="text-[13px] text-[#0f1c2e] leading-relaxed whitespace-pre-wrap">
                                             {r.message}
                                         </div>
+                                        {Array.isArray(r.attachments) && r.attachments.length > 0 && (
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {r.attachments.map((att, aIdx) => {
+                                                    const url = typeof att === 'string' ? att : att.url || att.filePath || att.link;
+                                                    const name = typeof att === 'string' ? `Đính kèm ${aIdx + 1}` : att.fileName || att.name || `Đính kèm ${aIdx + 1}`;
+                                                    const isImg = url && (/\.(jpg|jpeg|png|webp|gif)$/i.test(url) || att.fileType?.startsWith('image/'));
+                                                    if (isImg) {
+                                                        return (
+                                                            <Image
+                                                                key={aIdx}
+                                                                src={url}
+                                                                alt={name}
+                                                                width={60}
+                                                                height={60}
+                                                                className="rounded-lg object-cover border border-[#e5e8f0]"
+                                                            />
+                                                        );
+                                                    }
+                                                    return (
+                                                        <a
+                                                            key={aIdx}
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#f1f5f9] text-[11px] text-[#1d7ad6] hover:underline"
+                                                        >
+                                                            <PaperClipOutlined className="text-[12px]" />
+                                                            <span className="truncate max-w-[150px]">{name}</span>
+                                                        </a>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -541,6 +548,7 @@ const ExpertDiseaseCaseDetail = () => {
                                 value={responseMessage}
                                 onChange={(e) => setResponseMessage(e.target.value)}
                                 onKeyDown={handleKeyDown}
+                                maxLength={500}
                                 placeholder={
                                     responseType === 'REQUEST_INFO'
                                         ? 'Nêu rõ thông tin cần KTV bổ sung: ảnh cận, chỉ số nước theo giờ, số tôm chết… (Nhấn Ctrl + Enter để gửi)'
@@ -550,7 +558,7 @@ const ExpertDiseaseCaseDetail = () => {
                                 }
                             />
 
-                            <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center justify-between mt-2.5">
                                 {responseType === 'EXPERT_INSTRUCTION' && caseData.status !== 'IN_TREATMENT' ? (
                                     <Checkbox
                                         checked={switchToMonitoring}
@@ -565,15 +573,25 @@ const ExpertDiseaseCaseDetail = () => {
                                         Nhấn <kbd className="px-1.5 py-0.5 rounded bg-[#f1f5f9] border border-[#e2e8f0] font-mono text-[10px]">Ctrl + Enter</kbd> để gửi
                                     </span>
                                 )}
-                                <Button
-                                    type="primary"
-                                    icon={<SendOutlined />}
-                                    disabled={!responseMessage.trim()}
-                                    loading={submitting}
-                                    onClick={handleSendResponse}
-                                >
-                                    Gửi
-                                </Button>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-[11.5px] font-mono ${responseMessage.length >= 500 ? 'text-[#d43b57] font-semibold' : 'text-[#8796ae]'}`}>
+                                        {responseMessage.length}/500
+                                    </span>
+                                    <Button
+                                        type="primary"
+                                        icon={<SendOutlined />}
+                                        disabled={!responseMessage.trim()}
+                                        loading={submitting}
+                                        onClick={handleSendResponse}
+                                        className={
+                                            !responseMessage.trim()
+                                                ? 'h-9! rounded-xl! px-4!'
+                                                : 'h-9! rounded-xl! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-white! shadow-none! hover:opacity-90! transition-opacity'
+                                        }
+                                    >
+                                        Gửi
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -596,13 +614,35 @@ const ExpertDiseaseCaseDetail = () => {
                             )}
                         </div>
                         {!isResolved && (
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => navigate(`/expert/seasons/${caseData.seasonId}?tab=protocols&diseaseCaseId=${caseId}`)}
-                            >
-                                Tạo phác đồ điều trị
-                            </Button>
+                            pendingTreatment ? (
+                                <Tooltip
+                                    title={
+                                        pendingTreatment.status === 'DRAFT'
+                                            ? 'Ca bệnh đang có phác đồ đang soạn thảo'
+                                            : 'Ca bệnh đang có phác đồ chờ duyệt'
+                                    }
+                                >
+                                    <span>
+                                        <Button
+                                            type="primary"
+                                            icon={<PlusOutlined />}
+                                            disabled
+                                            className="h-9! rounded-xl! px-4! text-[13px]! font-medium!"
+                                        >
+                                            Tạo phác đồ điều trị
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+                            ) : (
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => message.info('Chức năng tạo phác đồ điều trị thuộc phân hệ Phác đồ điều trị')}
+                                    className="h-9! rounded-xl! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-[13px]! font-medium! text-white! shadow-none! hover:opacity-90! transition-opacity"
+                                >
+                                    Tạo phác đồ điều trị
+                                </Button>
+                            )
                         )}
                     </div>
 
@@ -621,8 +661,7 @@ const ExpertDiseaseCaseDetail = () => {
                                 return (
                                     <div
                                         key={p.id}
-                                        onClick={() => setSelectedDrawerProtocol(p)}
-                                        className={`group grid grid-cols-[48px_1fr_auto] gap-3 items-center rounded-xl border px-3 py-2.5 cursor-pointer transition-colors hover:border-[#3f97e8] ${
+                                        className={`grid grid-cols-[48px_1fr] gap-3 items-center rounded-xl border px-3.5 py-3 ${
                                             isApproved
                                                 ? 'border-[#0f9b8e]/40 bg-[#e2f6f3]/40'
                                                 : 'border-[#e5e8f0] bg-white'
@@ -663,26 +702,6 @@ const ExpertDiseaseCaseDetail = () => {
                                                 </div>
                                             )}
                                         </div>
-
-                                        <Actions>
-                                            <ActionIcon
-                                                icon={<EyeOutlined />}
-                                                title="Xem chi tiết"
-                                                onClick={() => setSelectedDrawerProtocol(p)}
-                                            />
-                                            {isApproved && !isResolved && (
-                                                <ActionIcon
-                                                    icon={<StopOutlined />}
-                                                    title="Dừng khẩn cấp"
-                                                    danger
-                                                    onClick={() => {
-                                                        setProtocolToAbort(p);
-                                                        setAbortReason('');
-                                                        setIsAbortModalOpen(true);
-                                                    }}
-                                                />
-                                            )}
-                                        </Actions>
                                     </div>
                                 );
                             })}
@@ -760,7 +779,11 @@ const ExpertDiseaseCaseDetail = () => {
                                     icon={<CheckCircleOutlined />}
                                     disabled={Boolean(resolveBlock)}
                                     onClick={() => setIsResolveModalOpen(true)}
-                                    className={resolveBlock ? '' : '!bg-[#0f9b8e] hover:!bg-[#0b7a70] text-white border-0 font-semibold'}
+                                    className={
+                                        resolveBlock
+                                            ? 'h-9! rounded-xl! px-4! text-[13px]! font-medium!'
+                                            : 'h-9! rounded-xl! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-[13px]! font-medium! text-white! shadow-none! hover:opacity-90! transition-opacity'
+                                    }
                                 >
                                     Đánh dấu đã giải quyết
                                 </Button>
@@ -824,7 +847,7 @@ const ExpertDiseaseCaseDetail = () => {
                         {/* Panel 2: SnapshotPanel */}
                         <SnapshotPanel
                             c={caseData}
-                            current={caseData.latestWaterLog}
+                            current={caseData.latestMetrics?.water || caseData.latestWaterLog}
                         />
 
                         {/* Panel 3: Ảnh đính kèm */}
@@ -860,75 +883,6 @@ const ExpertDiseaseCaseDetail = () => {
                     summary={resolutionSummary}
                     setSummary={setResolutionSummary}
                 />
-
-                {/* Modal Dừng khẩn cấp phác đồ điều trị */}
-                <Modal
-                    open={isAbortModalOpen}
-                    title={
-                        <div className="flex items-center gap-2">
-                            <StopOutlined className="text-[#dc2626]" />
-                            <span className="font-['Sora',sans-serif] text-base font-bold text-[#991b1b]">
-                                Dừng khẩn cấp phác đồ điều trị?
-                            </span>
-                        </div>
-                    }
-                    onCancel={() => {
-                        setIsAbortModalOpen(false);
-                        setProtocolToAbort(null);
-                        setAbortReason('');
-                    }}
-                    onOk={handleConfirmAbortProtocol}
-                    okText="Dừng ngay"
-                    cancelText="Hủy"
-                    confirmLoading={aborting}
-                    okButtonProps={{ danger: true, className: '!bg-[#dc2626] hover:!bg-[#b91c1c] text-white' }}
-                >
-                    <div className="space-y-3 pt-1">
-                        <div className="p-3 bg-[#f0f9ff] border border-[#bae6fd] rounded-xl text-xs text-[#0369a1] space-y-1">
-                            <div className="font-semibold flex items-center gap-1.5">
-                                <InfoCircleOutlined /> Dừng khẩn cấp phác đồ điều trị
-                            </div>
-                            <div className="text-[11px] leading-relaxed text-[#0284c7]">
-                                Việc hủy lịch chưa thực hiện, ghi lịch sử bền vững và gửi thông báo KTV/chủ trại được thực hiện trong cùng transaction.
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2.5">
-                            <div className="p-3 bg-[#e2f6f3] border border-[#a7f3d0] rounded-xl text-center">
-                                <div className="text-[11px] text-[#0b7a70] font-medium">Lịch đã hoàn tất — giữ nguyên</div>
-                                <div className="text-xl font-bold text-[#0b7a70] mt-0.5 font-mono">
-                                    {protocolToAbort?.metrics?.completedCount ?? 38}
-                                </div>
-                            </div>
-                            <div className="p-3 bg-[#fbe6ea] border border-[#fca5a5] rounded-xl text-center">
-                                <div className="text-[11px] text-[#b02a44] font-medium">Lịch chưa thực hiện — sẽ hủy</div>
-                                <div className="text-xl font-bold text-[#b02a44] mt-0.5 font-mono">
-                                    {protocolToAbort?.metrics?.plannedCount ?? 54}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label>Lý do lâm sàng để dừng (bắt buộc)</Label>
-                            <Input.TextArea
-                                rows={3}
-                                value={abortReason}
-                                onChange={(e) => setAbortReason(e.target.value)}
-                                placeholder="VD: Tôm phản ứng thuốc, chết tăng sau cữ 2…"
-                                maxLength={500}
-                                showCount
-                            />
-                        </div>
-                    </div>
-                </Modal>
-
-                {/* Drawer Chi tiết phác đồ điều trị */}
-                {selectedDrawerProtocol && (
-                    <ExpertProductionProtocolDetail
-                        detail={selectedDrawerProtocol}
-                        onClose={() => setSelectedDrawerProtocol(null)}
-                    />
-                )}
             </div>
         </ConfigProvider>
     );
@@ -992,17 +946,27 @@ function SnapshotPanel({ c, current }) {
         },
     ];
 
-    const healthStatus = health.healthStatus || health.health_status || 'warning';
-    const avgWeight = health.avgWeightG || health.avg_weight_g || 10.9;
-    const biomass = health.estimatedBiomassKg || health.estimated_biomass_kg || 3880;
-    const mortality = health.mortality7d || health.mortality_7d || 1800;
+    const healthStatus = health.healthStatus || health.health_status || null;
+    const avgWeight = health.avgWeightG ?? health.avg_weight_g ?? null;
+    const biomass = health.estimatedBiomassKg ?? health.estimated_biomass_kg ?? null;
+    const mortality = health.mortality7d ?? health.mortality_7d ?? null;
+
+    const healthMetricsParts = [
+        avgWeight != null ? `${avgWeight} g` : null,
+        biomass != null ? `${biomass} kg` : null,
+        mortality != null ? `chết 7d ${mortality}` : null,
+    ].filter(Boolean);
 
     return (
         <Panel title="Ảnh chụp dữ liệu khi báo ca">
             <div className="flex items-center justify-between mb-2.5">
-                <HealthTag s={healthStatus} />
+                {healthStatus ? (
+                    <HealthTag s={healthStatus} />
+                ) : (
+                    <span className="text-[12px] text-[#8796ae]">Chưa có đánh giá sức khỏe</span>
+                )}
                 <span className="text-[12px] text-[#6a7994] font-mono">
-                    {avgWeight} g · {biomass} kg · chết 7d {mortality}
+                    {healthMetricsParts.length > 0 ? healthMetricsParts.join(' · ') : 'Chưa có số liệu tôm'}
                 </span>
             </div>
             <table className="w-full text-[12px]">
@@ -1015,21 +979,24 @@ function SnapshotPanel({ c, current }) {
                 </thead>
                 <tbody>
                     {rows.map((r) => {
-                        const a = water[r.k] ?? water[r.fallbackK] ?? 0;
-                        const b = current ? (current[r.k] ?? current[r.fallbackK]) : undefined;
-                        const aBad = r.bad(Number(a));
-                        const bBad = b != null && r.bad(Number(b));
+                        const aVal = water[r.k] ?? water[r.fallbackK];
+                        const hasA = aVal != null && aVal !== '';
+                        const aBad = hasA && r.bad(Number(aVal));
+
+                        const bVal = current ? (current[r.k] ?? current[r.fallbackK]) : undefined;
+                        const hasB = bVal != null && bVal !== '';
+                        const bBad = hasB && r.bad(Number(bVal));
 
                         return (
                             <tr key={r.label} className="border-t border-[#eef1f7]">
                                 <td className="py-1.5 text-[#3a4a63]">{r.label}</td>
                                 <td className={`py-1.5 text-right font-mono ${aBad ? 'text-[#d43b57] font-semibold' : ''}`}>
                                     {aBad && <ExclamationCircleFilled className="mr-1 text-[10px]" />}
-                                    {a} {r.unit}
+                                    {hasA ? `${aVal} ${r.unit}`.trim() : '—'}
                                 </td>
-                                {current && b != null && (
-                                    <td className={`py-1.5 text-right font-mono ${bBad ? 'text-[#d43b57] font-semibold' : 'text-[#0f9b8e]'}`}>
-                                        {b}
+                                {current && (
+                                    <td className={`py-1.5 text-right font-mono ${hasB ? (bBad ? 'text-[#d43b57] font-semibold' : 'text-[#0f9b8e]') : ''}`}>
+                                        {hasB ? bVal : '—'}
                                     </td>
                                 )}
                             </tr>
@@ -1062,17 +1029,31 @@ function ResolveModal({
             okText="Đóng ca"
             cancelText="Hủy"
             confirmLoading={resolving}
-            okButtonProps={{ disabled: !summary.trim() }}
+            okButtonProps={{
+                disabled: !summary.trim(),
+                className: !summary.trim()
+                    ? 'rounded-xl! h-9! px-4!'
+                    : 'rounded-xl! h-9! px-4! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! text-white! shadow-none! hover:opacity-90!',
+            }}
+            cancelButtonProps={{
+                className: 'rounded-xl! h-9! px-4!',
+            }}
             onOk={onConfirm}
         >
             <p className="text-[13px] text-[#6a7994] mt-0 mb-3">
                 Ca đã đóng không thể mở lại; nếu tái phát KTV tạo ca mới liên kết ca này.
             </p>
-            <Label>Kết luận & kết quả xử lý (bắt buộc)</Label>
+            <div className="flex items-center justify-between mb-1">
+                <Label>Kết luận & kết quả xử lý (bắt buộc)</Label>
+                <span className={`text-[11.5px] font-mono ${summary.length >= 500 ? 'text-[#d43b57] font-semibold' : 'text-[#8796ae]'}`}>
+                    {summary.length}/500
+                </span>
+            </div>
             <Input.TextArea
                 rows={4}
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
+                maxLength={500}
                 placeholder="Nguyên nhân, biện pháp đã áp dụng, kết quả, khuyến nghị phòng ngừa…"
             />
         </Modal>
