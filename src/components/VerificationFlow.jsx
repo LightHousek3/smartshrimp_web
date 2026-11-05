@@ -15,7 +15,7 @@ const STRENGTH_STYLES = Object.freeze({
 const FIELD_INPUT_CLASS = 'h-[43px]! rounded-xl! px-3.5! text-[14px]! text-[#0f1c2e]! shadow-none!';
 
 const AUTH_FORM_CLASS =
-    '[&_.ant-form-item-label]:pb-1.5! [&_.ant-form-item-label>label]:h-[18px]! [&_.ant-form-item-label>label]:text-[12px]! [&_.ant-form-item-label>label]:font-semibold! [&_.ant-form-item-label>label]:text-[#3a4a63]! [&_.ant-form-item-explain-error]:text-[11px]! [&_.ant-form-item-explain-error]:leading-[16px]! [&_.ant-form-item-extra]:min-h-0! [&_.ant-form-item-extra]:pt-1! [&_.ant-form-item-extra]:text-[11px]! [&_.ant-form-item-extra]:leading-[17px]! [&_.ant-form-item-extra]:text-[#6a7994]!';
+    '[&_.ant-form-item-label]:pb-1.5! [&_.ant-form-item-label>label]:h-auto! [&_.ant-form-item-label>label]:text-[12.5px]! [&_.ant-form-item-label>label]:font-semibold! [&_.ant-form-item-label>label]:text-[#3a4a63]! [&_.ant-form-item-explain-error]:text-[11px]! [&_.ant-form-item-explain-error]:leading-[16px]! [&_.ant-form-item-extra]:min-h-0! [&_.ant-form-item-extra]:pt-1! [&_.ant-form-item-extra]:text-[11px]! [&_.ant-form-item-extra]:leading-[17px]! [&_.ant-form-item-extra]:text-[#6a7994]!';
 
 export const VerificationForm = ({ className = '', ...props }) => (
     <Form {...props} className={`${AUTH_FORM_CLASS} ${className}`} />
@@ -43,7 +43,7 @@ const FlowProgress = ({ current, labels }) => (
 );
 
 export const VerificationShell = ({ children, minHeight = 480 }) => (
-    <main className="min-h-dvh overflow-y-auto bg-[linear-gradient(to_top,#fff1eb_0%,#ace0f9_100%)] px-4">
+    <main className="min-h-dvh overflow-y-auto bg-[linear-gradient(to_top,#fff1eb_0%,#ace0f9_100%)] px-4 font-sans">
         <section className="mx-auto flex min-h-dvh w-full items-center justify-center">
             <Card
                 variant="borderless"
@@ -88,7 +88,7 @@ export const FlowHeader = ({
 
         <Title
             level={1}
-            className="mb-0! font-['Sora']! text-[22px]! leading-8.25! font-extrabold! tracking-[-0.55px]! text-[#0f1c2e]!"
+            className="mb-0! font-display! text-[22px]! leading-8.25! font-bold! tracking-normal! text-[#0f1c2e]!"
         >
             {title}
         </Title>

@@ -47,7 +47,8 @@ const settleRefreshQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-const refreshIgnoredPaths = ['/auth/login', '/auth/refresh-token', '/auth/logout'];
+const refreshIgnoredPaths = ['/auth/login', '/auth/refresh-token', '/auth/logout',
+    '/auth/activation/', '/auth/forgot-password/'];
 
 const shouldRefresh = (error, request) =>
     Boolean(

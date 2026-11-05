@@ -141,7 +141,7 @@ const OtpInput = ({
                 <span
                     key={index}
                     aria-hidden="true"
-                    className={`pointer-events-none flex h-12 min-w-0 items-center justify-center rounded-xl border bg-white font-['JetBrains_Mono'] text-[20px] font-bold leading-none text-[#0f1c2e] transition ${
+                    className={`pointer-events-none flex h-12 min-w-0 items-center justify-center rounded-xl border bg-white font-sans text-[20px] font-bold leading-none text-[#0f1c2e] transition ${
                         isFocused && index === activeIndex
                             ? 'border-[#6daed4] ring-3 ring-[#6daed4]/15'
                             : 'border-[#e5e8f0]'
