@@ -1,9 +1,9 @@
 export const PROTOCOL_STATUS_LABELS = {
     DRAFT: 'Bản nháp', REJECTED: 'Bị từ chối', PENDING_APPROVAL: 'Chờ duyệt',
-    APPROVED: 'Đang áp dụng', SUPERSEDED: 'Đã thay thế', CANCELLED: 'Đã hủy',
+    APPROVED: 'Đang áp dụng', SUPERSEDED: 'Đã thay thế', CANCELLED: 'Đã hủy', ABORTED: 'Dừng khẩn cấp',
 };
 export const PROTOCOL_STATUS_COLORS = {
-    DRAFT: 'default', REJECTED: 'error', PENDING_APPROVAL: 'warning', APPROVED: 'success',
+    DRAFT: 'default', REJECTED: 'error', PENDING_APPROVAL: 'warning', APPROVED: 'success', ABORTED: 'error',
 };
 export const SEASON_STATUS_LABELS = {
     PLANNING: 'Chuẩn bị', ACTIVE: 'Đang nuôi', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy',

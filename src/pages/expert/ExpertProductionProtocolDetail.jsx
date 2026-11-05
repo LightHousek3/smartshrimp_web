@@ -24,13 +24,40 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, sub
         {detail.availableActions.submit && <Button type="primary" className={PROTOCOL_PRIMARY_BUTTON} icon={<SendOutlined />} loading={submitBusy} onClick={onSubmit}>Gửi duyệt</Button>}
     </Space>}>
         {detail.rejectionReason && <Alert type="error" showIcon className="mb-4! rounded-[14px]! p-5!" message="Chủ trại từ chối" description={detail.rejectionReason} />}
+        {detail.status === 'ABORTED' && (
+            <Alert
+                type="error"
+                showIcon
+                className="mb-4! rounded-[14px]! p-4! border-[#fecdd3]! bg-[#fff1f2]! text-[#9f1239]!"
+                message={<span className="font-bold">Dừng khẩn cấp lúc {dateText(detail.abortedAt)}</span>}
+                description={detail.abortReason || 'Chuyên gia đã dừng khẩn cấp phác đồ.'}
+            />
+        )}
         <div className={styles.viewMeta}>
-            <div><span>Loại:</span>Phác đồ nuôi</div><div><span>Sai lệch cho phép:</span>±{detail.allowedVariancePct}%</div><div><span>Sinh lịch trước:</span>{detail.rollingWindowDays} ngày</div>
+            <div><span>Loại:</span>{detail.protocolType === "TREATMENT" || detail.diseaseCaseId ? "Phác đồ điều trị" : "Phác đồ nuôi"}</div><div><span>Sai lệch cho phép:</span>±{detail.allowedVariancePct}%</div><div><span>Sinh lịch trước:</span>{detail.rollingWindowDays} ngày</div>
             <div><span>Gửi duyệt:</span>{dateText(detail.submittedAt)}</div><div><span>Duyệt:</span>{dateText(detail.reviewedAt)}</div>
             <div><span>Phiên bản:</span>v{detail.versionNo}</div>
             <div><span>Nguồn:</span>{detail.sourceTemplateSnapshot ? `${detail.sourceTemplateSnapshot.title} · v${detail.sourceTemplateVersionNo}` : detail.sourceTemplateId ? 'Mẫu cũ · chưa xác định phiên bản nguồn' : 'Tạo trực tiếp'}</div>
             <div className="col-span-full"><span>Ghi chú:</span>{detail.summary || '—'}</div>
         </div>
+        {detail.metrics && (
+            <div className="mb-5 p-3.5 bg-[#f8fafc] border border-[#eef2f6] rounded-xl">
+                <div className="flex justify-between items-center text-xs mb-1.5">
+                    <span className="font-bold text-[11px] uppercase tracking-wider text-[#6a7994]">Tiến độ thực hiện</span>
+                    <span className="font-mono font-bold text-[#0f1c2e]">
+                        {detail.metrics.completedCount || 0}/{detail.metrics.totalSchedules || (detail.metrics.completedCount + detail.metrics.plannedCount + detail.metrics.cancelledCount) || 0} lịch
+                    </span>
+                </div>
+                <div className="w-full bg-[#e2e8f0] h-2 rounded-full overflow-hidden">
+                    <div
+                        className="bg-[#0284c7] h-full rounded-full transition-all"
+                        style={{
+                            width: `${Math.min(100, Math.round(((detail.metrics.completedCount || 0) / ((detail.metrics.totalSchedules || (detail.metrics.completedCount + detail.metrics.plannedCount + detail.metrics.cancelledCount)) || 1)) * 100))}%`
+                        }}
+                    />
+                </div>
+            </div>
+        )}
         <Typography.Paragraph className="mb-2! text-[11px]! font-semibold! tracking-wider! text-[#6a7994]!">LỊCH CỮ ĂN & XỬ LÝ</Typography.Paragraph>
         {!detail.stages.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Phác đồ chưa có giai đoạn" />}
         {detail.stages.map((stage, stageIndex) => <section className={styles.stage} key={stage.id}>
