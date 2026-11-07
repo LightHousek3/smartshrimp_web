@@ -260,13 +260,7 @@ export function PageHeader({ eyebrow, title, description, extra, className = '' 
     );
 }
 
-export function Panel({
-    title,
-    extra,
-    children,
-    className = '',
-    pad = true,
-}) {
+export function Panel({ title, extra, children, className = '', pad = true }) {
     return (
         <section
             className={`bg-white rounded-[14px] border border-[#e5e8f0] shadow-[0_1px_2px_rgba(15,28,46,0.04)] ${className}`}
