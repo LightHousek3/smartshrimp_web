@@ -259,11 +259,10 @@ const ExpertSeasonList = () => {
                             <Text
                                 className={secondaryTextClassName}
                                 ellipsis={{
-                                    tooltip: `${season.farm.name}${season.farm.address ? ` — ${season.farm.address}` : ''}`,
+                                    tooltip: season.farm.name,
                                 }}
                             >
                                 {season.farm.name}
-                                {season.farm.address ? ` — ${season.farm.address}` : ''}
                             </Text>
                         </Flex>
                     ),
@@ -361,10 +360,13 @@ const ExpertSeasonList = () => {
                     width: 100,
                     align: 'center',
                     render: (_, season) => (
-                        <Link to={`/expert/seasons/${season.id}`}
+                        <Link
+                            to={`/expert/seasons/${season.id}`}
                             className="inline-flex size-7 items-center justify-center rounded-full text-[#1d7ad6] hover:bg-blue-50 focus-visible:outline-2"
                             aria-label={`Xem ${season.name}`}
-                        ><EyeOutlined className="text-[13px]" /></Link>
+                        >
+                            <EyeOutlined className="text-[13px]" />
+                        </Link>
                     ),
                 },
             ].map((column, _index, allColumns) => ({
@@ -381,7 +383,10 @@ const ExpertSeasonList = () => {
         <ConfigProvider theme={seasonTheme}>
             <Flex vertical gap={0} className="w-full! min-w-0!">
                 <Flex vertical gap={0} className="w-full! min-w-0!">
-                    <Title level={1} className="m-0! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[22px]! leading-6.875! font-bold! text-[#0f1c2e]!">
+                    <Title
+                        level={1}
+                        className="m-0! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[22px]! leading-6.875! font-bold! text-[#0f1c2e]!"
+                    >
                         Vụ nuôi được phân công
                     </Title>
                     <Paragraph className="mb-0! mt-1! text-[13px]! leading-5.25! text-[#6a7994]!">
@@ -478,13 +483,24 @@ const ExpertSeasonList = () => {
                                 onRow={(season) => ({
                                     tabIndex: 0,
                                     'aria-label': `Xem chi tiết vụ ${season.name}`,
-                                    className: 'cursor-pointer focus-visible:outline-2 focus-visible:outline-[#1d7ad6] focus-visible:-outline-offset-2',
+                                    className:
+                                        'cursor-pointer focus-visible:outline-2 focus-visible:outline-[#1d7ad6] focus-visible:-outline-offset-2',
                                     onClick: (event) => {
-                                        if (event.defaultPrevented || event.target.closest('a, button, input, select, textarea, [role="button"]')) return;
+                                        if (
+                                            event.defaultPrevented ||
+                                            event.target.closest(
+                                                'a, button, input, select, textarea, [role="button"]',
+                                            )
+                                        )
+                                            return;
                                         navigate(`/expert/seasons/${season.id}`);
                                     },
                                     onKeyDown: (event) => {
-                                        if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+                                        if (
+                                            event.target !== event.currentTarget ||
+                                            !['Enter', ' '].includes(event.key)
+                                        )
+                                            return;
                                         event.preventDefault();
                                         navigate(`/expert/seasons/${season.id}`);
                                     },

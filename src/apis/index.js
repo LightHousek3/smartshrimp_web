@@ -114,6 +114,9 @@ const expertSeasonAPI = {
         apiClient.get('/expert/seasons', { params, signal }),
     getSeason: (seasonId, signal) =>
         apiClient.get(`/expert/seasons/${seasonId}`, { signal }),
+    /** GET /expert/seasons/:seasonId/metrics — focused detail-tab data, cancellable on navigation. */
+    getMetrics: (seasonId, signal) =>
+        apiClient.get(`/expert/seasons/${seasonId}/metrics`, { signal }),
 };
 
 const expertProductionProtocolAPI = {
