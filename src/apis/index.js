@@ -631,8 +631,20 @@ const expertProtocolTemplateAPI = {
     },
 };
 
+const adminDashboardAPI = {
+    /**
+     * GET /admin/dashboard
+     * Fetch system overview KPI, 7-day metrics, and account status breakdown
+     */
+    getOverview: async (signal) => {
+        const response = await apiClient.get('/admin/dashboard', { signal });
+        return response.data?.data || {};
+    },
+};
+
 /* ─── Exports ───────────────────────────────────────────────── */
 export {
+    adminDashboardAPI,
     expertProtocolTemplateAPI,
     adminAccountAPI,
     authAPI,

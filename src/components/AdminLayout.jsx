@@ -8,7 +8,7 @@ const sidebarIcon = (name, size = 17) => <span
 
 const adminMenuItems = [
     { path: '/admin', label: 'Tổng quan', icon: sidebarIcon('imgIconReact') },
-    { path: '/admin/accounts', label: 'Tài khoản', icon: sidebarIcon('imgIconReact1') },
+    { path: '/admin/accounts', label: 'Tài khoản', icon: sidebarIcon('imgIconReact1'), badge: 2, badgeColor: '#d98314' },
     { path: '/admin/rag/documents', label: 'Kho tài liệu AI', icon: sidebarIcon('imgIconReact2') },
 ];
 
