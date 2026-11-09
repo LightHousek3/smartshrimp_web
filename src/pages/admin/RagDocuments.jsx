@@ -241,7 +241,7 @@ export default function RagDocuments() {
                 </Form.Item>
                 {!reuploadTarget && <>
                 <Form.Item name="title" label="Tên tài liệu" rules={[{ required: true, whitespace: true, message: 'Nhập tên tài liệu.' }, { max: 255 }]}><Input maxLength={255} placeholder="Ví dụ: Hướng dẫn phòng bệnh EMS" /></Form.Item>
-                <Form.Item name="category" label="Danh mục" getValueFromEvent={(value) => value ?? null}><Select allowClear options={categories} placeholder="Chọn danh mục" /></Form.Item>
+                <Form.Item name="category" label="Danh mục" rules={[{ required: true, message: 'Chọn danh mục.' }]} getValueFromEvent={(value) => value ?? null}><Select options={categories} placeholder="Chọn danh mục" /></Form.Item>
                 <Form.Item name="description" label="Mô tả" rules={[{ max: 1000 }]}><Input.TextArea rows={4} maxLength={1000} showCount placeholder="Mô tả ngắn về nội dung tài liệu" /></Form.Item>
                 </>}
                 <Alert className="mt-1" type="info" showIcon icon={<Icon name="upload-imgIconReact21" />} message="Sau khi tải lên, AI cần xử lý trước khi tài liệu sẵn sàng." />
@@ -261,7 +261,7 @@ export default function RagDocuments() {
                 ]} />
                 {editing ? <Form form={editForm} layout="vertical" onFinish={saveMetadata} className="mt-5">
                     <Form.Item name="title" label="Tên tài liệu" rules={[{ required: true, whitespace: true }, { max: 255 }]}><Input maxLength={255} /></Form.Item>
-                    <Form.Item name="category" label="Danh mục" getValueFromEvent={(value) => value ?? null}><Select allowClear options={categories} placeholder="Chọn danh mục" /></Form.Item>
+                    <Form.Item name="category" label="Danh mục" getValueFromEvent={(value) => value ?? null}><Select options={categories} placeholder="Chọn danh mục" /></Form.Item>
                     <Form.Item name="description" label="Mô tả"><Input.TextArea maxLength={1000} rows={4} /></Form.Item>
                     <Space><Button onClick={() => setEditing(false)}>Hủy</Button><Button htmlType="submit" type="primary" className={adminStyles.primaryButton} loading={!!pendingAction}>Lưu thay đổi</Button></Space>
                 </Form> : <div className="mt-5 text-[#3a4a63] [&>div]:flex [&>div]:items-center [&>div]:justify-between [&>p]:mt-2 [&>p]:whitespace-pre-wrap [&>p]:break-words [&>p]:leading-[21px]"><div><strong>Mô tả</strong><Button size="small" type="text" icon={<EditOutlined />} disabled={busy(detail) || detail.status === 'DELETE_FAILED'} onClick={() => { editForm.setFieldsValue(detail); setEditing(true); }}>Chỉnh sửa</Button></div><p>{detail.description || 'Chưa có mô tả.'}</p></div>}
