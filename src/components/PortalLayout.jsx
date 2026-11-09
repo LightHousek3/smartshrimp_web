@@ -23,13 +23,14 @@ const expertPageClassName = `
     max-[650px]:px-3 max-[650px]:pt-20
 `;
 
-const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction, brandLogo = BRAND_LOGO_URL, logoutIcon = <LogoutOutlined />, className = '' }) => {
+const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtitle, headerAction, brandLogo = BRAND_LOGO_URL, logoutIcon = <LogoutOutlined />, onViewProfile, accountActionIcon, className = '' }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const { account, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const { message } = App.useApp();
+    const AccountSummary = onViewProfile ? 'button' : 'div';
 
     const handleLogout = async () => {
         if (loggingOut) return;
@@ -127,23 +128,36 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                 </nav>
 
                 <div className="sidebar-account">
-                    <div className="account-summary">
+                    <AccountSummary
+                        type={onViewProfile ? 'button' : undefined}
+                        className={`account-summary${onViewProfile ? ' mb-2.5 h-auto! min-h-[54px] w-full cursor-pointer rounded-xl border-[0.8px] border-transparent bg-transparent px-1! py-2! text-left transition-colors hover:bg-[rgba(29,122,214,0.06)]' : ''}`}
+                        onClick={onViewProfile}
+                        aria-label={onViewProfile ? 'Xem hồ sơ cá nhân' : undefined}
+                        aria-haspopup={onViewProfile ? 'dialog' : undefined}
+                    >
                         {account?.avatarUrl ? (
                             <img className="account-avatar" src={account.avatarUrl} alt="" />
                         ) : (
-                            <span className="account-avatar account-avatar-fallback">
+                            <span className={`account-avatar account-avatar-fallback${onViewProfile ? ' bg-[rgba(29,122,214,0.15)]! text-sm! text-[#1d7ad6]!' : ''}`}>
                                 {getInitial(account?.fullName, account?.email)}
                             </span>
                         )}
-                        <div className="account-copy">
-                            <strong title={account?.fullName || ROLE_LABELS[account?.role]}>
+                        <span className={`account-copy${onViewProfile ? ' flex-1' : ''}`}>
+                            <strong
+                                className={onViewProfile ? 'max-w-full! text-[13px]! leading-[16.9px]! text-[#0f1c2e]!' : undefined}
+                                title={account?.fullName || ROLE_LABELS[account?.role]}
+                            >
                                 {account?.fullName || ROLE_LABELS[account?.role]}
                             </strong>
-                            <span title={accountSubtitle || account?.email}>
+                            <span
+                                className={onViewProfile ? "max-w-full! font-['JetBrains_Mono',monospace] text-[11px]! leading-[17.77px]!" : undefined}
+                                title={accountSubtitle || account?.email}
+                            >
                                 {accountSubtitle || account?.email}
                             </span>
-                        </div>
-                    </div>
+                        </span>
+                        {onViewProfile && accountActionIcon}
+                    </AccountSummary>
 
                     <Button
                         className="logout-button"

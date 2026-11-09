@@ -13,6 +13,9 @@ export const formatDate = (dateString, format = 'dd/MM/yyyy') => {
     const second = pad(date.getSeconds());
 
     switch (format) {
+        case 'MMMM yyyy':
+            return date.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+
         case 'dd/MM/yyyy':
             return `${day}/${month}/${year}`;
 
