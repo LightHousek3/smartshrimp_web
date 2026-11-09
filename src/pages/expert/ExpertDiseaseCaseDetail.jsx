@@ -124,7 +124,7 @@ const ExpertDiseaseCaseDetail = () => {
         }
     }, []);
 
-    // Silent background fetch helper (no full-screen spinner!)
+    // Background synchronization helper without blocking the viewport
     const fetchDetail = useCallback(
         async (isSilent = false, signal) => {
             try {
@@ -223,7 +223,7 @@ const ExpertDiseaseCaseDetail = () => {
         }
     }, [activeTab, scrollToBottom]);
 
-    // Optimistic, instantaneous chat message send (feels like Telegram/Messenger!)
+    // Optimistic response dispatch with rollback on network failure
     const handleSendResponse = async () => {
         const text = responseMessage.trim();
         if (!text || submitting) return;
@@ -242,7 +242,7 @@ const ExpertDiseaseCaseDetail = () => {
             isOptimistic: true,
         };
 
-        // 1. Immediately append message to UI (zero wait!)
+        // Append optimistic message preview immediately
         setCaseData((prev) => {
             if (!prev) return prev;
             let nextStatus = prev.status;
@@ -258,15 +258,15 @@ const ExpertDiseaseCaseDetail = () => {
             };
         });
 
-        // 2. Immediately clear input field so user can keep typing smoothly
+        // Clear composer input for continuous typing
         setResponseMessage('');
         const currentSwitch = switchToMonitoring;
         setSwitchToMonitoring(false);
 
-        // 3. Smooth scroll down to newest message once
+        // Scroll viewport to latest message
         requestAnimationFrame(() => scrollToBottom(true));
 
-        // 4. Send API call in background
+        // Dispatch asynchronous network request
         try {
             setSubmitting(true);
             const payload = {
@@ -374,7 +374,7 @@ const ExpertDiseaseCaseDetail = () => {
     const statusHistory = caseData.statusHistory || [];
     const attachments = caseData.attachments || [];
 
-    // Protocol checks for resolve block matching Figma logic
+    // Enforce BR-CASE-03: block resolution while treatment protocol remains incomplete
     const runningTreatment = protocols.find(
         (p) => p.status === 'APPROVED' && (!p.metrics || p.metrics.completedCount < p.metrics.totalSchedules)
     );
