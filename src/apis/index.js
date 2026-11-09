@@ -77,13 +77,13 @@ const authAPI = {
         apiClient.post('/auth/forgot-password/reset', payload),
 };
 
-// Expert profile API
+// Personal profile API
 const profileAPI = {
     /**
      * GET /profile
      * Fetch the authenticated account profile.
      */
-    getProfile: () => apiClient.get('/profile'),
+    getProfile: (options) => apiClient.get('/profile', options),
     /**
      * PATCH /profile
      * Update editable profile fields.

@@ -1,4 +1,7 @@
+import { useState } from 'react';
+import { RightOutlined } from '@ant-design/icons';
 import PortalLayout from './PortalLayout';
+import AdminProfileModal from './AdminProfileModal';
 
 const sidebarIcon = (name, size = 17) => <span
     className="inline-block bg-current align-middle"
@@ -13,10 +16,21 @@ const adminMenuItems = [
 ];
 
 const AdminLayout = () => {
-    return <PortalLayout portalLabel="ADMIN PORTAL" menuItems={adminMenuItems}
-        brandLogo="/assets/rag/list/imgSidebar.png"
-        logoutIcon={sidebarIcon('imgIconReact3', 13)}
-        />;
+    const [profileOpen, setProfileOpen] = useState(false);
+
+    return (
+        <>
+            <PortalLayout
+                portalLabel="ADMIN PORTAL"
+                menuItems={adminMenuItems}
+                brandLogo="/assets/rag/list/imgSidebar.png"
+                logoutIcon={sidebarIcon('imgIconReact3', 13)}
+                onViewProfile={() => setProfileOpen(true)}
+                accountActionIcon={<RightOutlined className="shrink-0 text-xs text-[#6a7994]" aria-hidden="true" />}
+            />
+            <AdminProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+        </>
+    );
 };
 
 export default AdminLayout;
