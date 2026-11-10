@@ -12,6 +12,7 @@ import {
     Modal,
     Progress,
     Segmented,
+    Select,
     Tabs,
     Timeline,
     Tooltip,
@@ -22,26 +23,23 @@ import {
     ArrowRightOutlined,
     CheckCircleFilled,
     CheckCircleOutlined,
-    ClockCircleOutlined,
-    ExclamationCircleFilled,
     LoadingOutlined,
-    PlusOutlined,
     RobotOutlined,
     SendOutlined,
-    StopOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { expertDiseaseCaseAPI } from '../../apis';
 import Loading from '../../components/Loading';
+import ExpertCaseSnapshot from '../../components/ExpertCaseSnapshot';
+import ExpertTreatmentProtocols from '../../components/ExpertTreatmentProtocols';
+import { responseAttachment, caseResolutionBlock } from '../../utils/diseaseCaseUtils';
 import { PROTOCOL_THEME } from '../../constants/productionProtocol';
 import { NOTIFICATION_CHANGED_EVENT } from '../../utils/notificationUtils';
 import {
     CaseTag,
-    HealthTag,
     Label,
     PageHeader,
     Panel,
-    ProtocolTag,
     SeverityTag,
 } from './expertUI';
 
@@ -74,16 +72,6 @@ const fmtDateTime = (isoString) => {
     return `${hours}:${mins} ${day}-${month}`;
 };
 
-const fmtDate = (isoString) => {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    return d.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-};
-
 const ExpertDiseaseCaseDetail = () => {
     const { caseId } = useParams();
     const navigate = useNavigate();
@@ -102,6 +90,8 @@ const ExpertDiseaseCaseDetail = () => {
     const [responseType, setResponseType] = useState('EXPERT_ASSESSMENT');
     const [responseMessage, setResponseMessage] = useState('');
     const [switchToMonitoring, setSwitchToMonitoring] = useState(false);
+    const [withdrawRequestId, setWithdrawRequestId] = useState(null);
+    const [releaseHoldIds, setReleaseHoldIds] = useState([]);
 
     // Resolve form state
     const [resolutionSummary, setResolutionSummary] = useState('');
@@ -223,7 +213,7 @@ const ExpertDiseaseCaseDetail = () => {
         }
     }, [activeTab, scrollToBottom]);
 
-    // Optimistic response dispatch with rollback on network failure
+    // Optimistic messages are temporary; only the server determines clinical state.
     const handleSendResponse = async () => {
         const text = responseMessage.trim();
         if (!text || submitting) return;
@@ -233,7 +223,7 @@ const ExpertDiseaseCaseDetail = () => {
             id: tempId,
             author: {
                 id: caseData?.expert?.id || 'expert',
-                fullName: caseData?.expert?.fullName || 'TS. Nguyễn Thị Mai Anh',
+                fullName: caseData?.expert?.fullName || 'Chuyên gia',
                 role: 'EXPERT',
             },
             responseType,
@@ -242,45 +232,39 @@ const ExpertDiseaseCaseDetail = () => {
             isOptimistic: true,
         };
 
-        // Append optimistic message preview immediately
+        // Keep the clinical state unchanged until the server accepts the response.
         setCaseData((prev) => {
             if (!prev) return prev;
-            let nextStatus = prev.status;
-            if (responseType === 'REQUEST_INFO' && prev.status !== 'IN_TREATMENT') {
-                nextStatus = 'WAITING_FOR_INFO';
-            } else if (responseType === 'EXPERT_INSTRUCTION' && switchToMonitoring && prev.status !== 'IN_TREATMENT') {
-                nextStatus = 'MONITORING';
-            }
             return {
                 ...prev,
-                status: nextStatus,
                 responses: [...(prev.responses || []), optimisticMsg],
             };
         });
 
-        // Clear composer input for continuous typing
+        // Preserve form values for retry if the request fails.
         setResponseMessage('');
         const currentSwitch = switchToMonitoring;
         setSwitchToMonitoring(false);
 
-        // Scroll viewport to latest message
         requestAnimationFrame(() => scrollToBottom(true));
 
-        // Dispatch asynchronous network request
         try {
             setSubmitting(true);
             const payload = {
                 responseType,
                 message: text,
-                switchToMonitoring: responseType === 'EXPERT_INSTRUCTION' ? currentSwitch : false,
+                switchToMonitoring: responseType === 'EXPERT_INSTRUCTION' && ['OPEN', 'MONITORING'].includes(caseData.status) ? currentSwitch : false,
                 attachments: [],
+                ...(responseType !== 'REQUEST_INFO' && withdrawRequestId ? { withdrawRequestId } : {}),
+                ...(responseType === 'EXPERT_INSTRUCTION' && releaseHoldIds.length ? { releaseHoldIds } : {}),
             };
 
             const res = await expertDiseaseCaseAPI.respond(caseId, payload);
             if (res.data?.success) {
+                setWithdrawRequestId(null);
+                setReleaseHoldIds([]);
                 const savedResponse = res.data.data;
-                // Seamlessly replace the temporary optimistic message in-place
-                // Zero jumping, zero duplication, transition "Đang gửi..." -> timestamp
+                // A polling response may already contain the saved message.
                 setCaseData((prev) => {
                     if (!prev) return prev;
                     const exists = (prev.responses || []).some((r) => r.id === savedResponse.id);
@@ -291,6 +275,7 @@ const ExpertDiseaseCaseDetail = () => {
                             .filter(Boolean),
                     };
                 });
+                await fetchDetail(true);
             }
         } catch (error) {
             console.error('Lỗi gửi phản hồi:', error);
@@ -304,6 +289,7 @@ const ExpertDiseaseCaseDetail = () => {
                 };
             });
             setResponseMessage(text);
+            setSwitchToMonitoring(currentSwitch);
         } finally {
             setSubmitting(false);
         }
@@ -374,22 +360,8 @@ const ExpertDiseaseCaseDetail = () => {
     const statusHistory = caseData.statusHistory || [];
     const attachments = caseData.attachments || [];
 
-    // Enforce BR-CASE-03: block resolution while treatment protocol remains incomplete
-    const runningTreatment = protocols.find(
-        (p) => p.status === 'APPROVED' && (!p.metrics || p.metrics.completedCount < p.metrics.totalSchedules)
-    );
-    const pendingTreatment = protocols.find(
-        (p) => p.status === 'PENDING_APPROVAL' || p.status === 'DRAFT'
-    );
-    const resolveBlock = runningTreatment
-        ? 'Phác đồ điều trị đang chạy — chờ hoàn tất hoặc dừng khẩn cấp trước khi đóng ca.'
-        : pendingTreatment
-          ? (pendingTreatment.status === 'DRAFT'
-                ? 'Còn phác đồ điều trị đang soạn thảo.'
-                : 'Còn phác đồ điều trị đang chờ chủ trại duyệt.')
-          : null;
+    const resolveBlock = caseResolutionBlock(caseData.status, protocols, caseData.productionHolds);
 
-    const approvedProtocol = protocols.find((p) => p.status === 'APPROVED');
     const symptoms = snapshot.observedSigns || snapshot.symptoms || [];
 
     const tabItems = [
@@ -480,9 +452,10 @@ const ExpertDiseaseCaseDetail = () => {
                                         {Array.isArray(r.attachments) && r.attachments.length > 0 && (
                                             <div className="mt-2 flex flex-wrap gap-2">
                                                 {r.attachments.map((att, aIdx) => {
-                                                    const url = typeof att === 'string' ? att : att.url || att.filePath || att.link;
-                                                    const name = typeof att === 'string' ? `Đính kèm ${aIdx + 1}` : att.fileName || att.name || `Đính kèm ${aIdx + 1}`;
-                                                    const isImg = url && (/\.(jpg|jpeg|png|webp|gif)$/i.test(url) || att.fileType?.startsWith('image/'));
+                                                    const attachment = responseAttachment(att);
+                                                    if (!attachment) return null;
+                                                    const { url, isImage: isImg } = attachment;
+                                                    const name = attachment.label;
                                                     if (isImg) {
                                                         return (
                                                             <Image
@@ -527,7 +500,7 @@ const ExpertDiseaseCaseDetail = () => {
                                     onChange={(v) => {
                                         setResponseType(v);
                                         if (v === 'EXPERT_INSTRUCTION') {
-                                            setSwitchToMonitoring(true);
+                                            setSwitchToMonitoring(['OPEN', 'MONITORING'].includes(caseData.status));
                                         }
                                     }}
                                     options={[
@@ -543,6 +516,16 @@ const ExpertDiseaseCaseDetail = () => {
                                 )}
                             </div>
 
+                            {responseType !== 'REQUEST_INFO' && (caseData.responses || []).some(r => r.responseType === 'REQUEST_INFO' && (r.requestStatus === 'OPEN' || r.requestStatus == null)) && (
+                                <Select allowClear className="w-full mb-2" placeholder="Thu hồi yêu cầu không còn cần thiết (nêu lý do trong nội dung)"
+                                    value={withdrawRequestId} onChange={setWithdrawRequestId}
+                                    options={caseData.responses.filter(r => r.responseType === 'REQUEST_INFO' && (r.requestStatus === 'OPEN' || r.requestStatus == null)).map(r => ({ value: r.id, label: r.message }))} />
+                            )}
+                            {responseType === 'EXPERT_INSTRUCTION' && caseData.productionHolds?.length > 0 && (
+                                <Select mode="multiple" className="w-full mb-2" placeholder="Chọn quyết định giữ nuôi cần gỡ (nêu chỉ dẫn trong nội dung)"
+                                    value={releaseHoldIds} onChange={setReleaseHoldIds}
+                                    options={caseData.productionHolds.map(h => ({ value: h.id, label: h.reason || 'Tạm giữ phác đồ nuôi' }))} />
+                            )}
                             <Input.TextArea
                                 rows={3}
                                 value={responseMessage}
@@ -559,7 +542,7 @@ const ExpertDiseaseCaseDetail = () => {
                             />
 
                             <div className="flex items-center justify-between mt-2.5">
-                                {responseType === 'EXPERT_INSTRUCTION' && caseData.status !== 'IN_TREATMENT' ? (
+                                {responseType === 'EXPERT_INSTRUCTION' && ['OPEN', 'MONITORING'].includes(caseData.status) ? (
                                     <Checkbox
                                         checked={switchToMonitoring}
                                         onChange={(e) => setSwitchToMonitoring(e.target.checked)}
@@ -601,114 +584,7 @@ const ExpertDiseaseCaseDetail = () => {
         {
             key: 'treatment',
             label: `Phác đồ điều trị · ${protocols.length}`,
-            children: (
-                <div className="p-4 sm:p-5">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="text-[12px] text-[#6a7994]">
-                            {approvedProtocol ? (
-                                <>
-                                    Đang áp dụng <b className="text-[#0f1c2e]">v{approvedProtocol.versionNo}</b> · duyệt {fmtDate(approvedProtocol.approvedAt || approvedProtocol.updatedAt)}
-                                </>
-                            ) : (
-                                'Chưa có phác đồ điều trị được duyệt'
-                            )}
-                        </div>
-                        {!isResolved && (
-                            pendingTreatment ? (
-                                <Tooltip
-                                    title={
-                                        pendingTreatment.status === 'DRAFT'
-                                            ? 'Ca bệnh đang có phác đồ đang soạn thảo'
-                                            : 'Ca bệnh đang có phác đồ chờ duyệt'
-                                    }
-                                >
-                                    <span>
-                                        <Button
-                                            type="primary"
-                                            icon={<PlusOutlined />}
-                                            disabled
-                                            className="h-9! rounded-xl! px-4! text-[13px]! font-medium!"
-                                        >
-                                            Tạo phác đồ điều trị
-                                        </Button>
-                                    </span>
-                                </Tooltip>
-                            ) : (
-                                <Button
-                                    type="primary"
-                                    icon={<PlusOutlined />}
-                                    onClick={() => message.info('Chức năng tạo phác đồ điều trị thuộc phân hệ Phác đồ điều trị')}
-                                    className="h-9! rounded-xl! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-[13px]! font-medium! text-white! shadow-none! hover:opacity-90! transition-opacity"
-                                >
-                                    Tạo phác đồ điều trị
-                                </Button>
-                            )
-                        )}
-                    </div>
-
-                    {!protocols.length ? (
-                        <Empty
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="Chưa có phác đồ điều trị"
-                        />
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {protocols.map((p) => {
-                                const isApproved = p.status === 'APPROVED';
-                                const completed = p.metrics?.completedCount ?? 0;
-                                const total = p.metrics?.totalSchedules ?? 0;
-
-                                return (
-                                    <div
-                                        key={p.id}
-                                        className={`grid grid-cols-[48px_1fr] gap-3 items-center rounded-xl border px-3.5 py-3 ${
-                                            isApproved
-                                                ? 'border-[#0f9b8e]/40 bg-[#e2f6f3]/40'
-                                                : 'border-[#e5e8f0] bg-white'
-                                        }`}
-                                    >
-                                        <div className="font-mono text-[13px] font-semibold text-[#3a4a63] text-center">
-                                            v{p.versionNo}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-semibold text-[13px] text-[#0f1c2e] truncate">
-                                                    {p.title}
-                                                </span>
-                                                <ProtocolTag s={p.status} />
-                                            </div>
-                                            <div className="text-[11.5px] text-[#6a7994] mt-0.5">
-                                                {p.stages?.length || 1} giai đoạn · {p.items?.length || 0} hạng mục ·{' '}
-                                                {p.submittedAt
-                                                    ? `gửi ${fmtDateTime(p.submittedAt)}`
-                                                    : `sửa ${fmtDateTime(p.updatedAt || p.createdAt)}`}
-                                                {p.status === 'REJECTED' && p.rejectionReason && (
-                                                    <span className="text-[#d43b57]"> · {p.rejectionReason}</span>
-                                                )}
-                                            </div>
-
-                                            {isApproved && total > 0 && (
-                                                <Progress
-                                                    percent={Math.round((completed / total) * 100)}
-                                                    size="small"
-                                                    className="!m-0 !mt-1 max-w-80"
-                                                    format={() => `${completed}/${total} lịch`}
-                                                />
-                                            )}
-
-                                            {p.status === 'ABORTED' && p.abortReason && (
-                                                <div className="mt-1 text-[11px] text-[#d43b57]">
-                                                    <StopOutlined /> Dừng khẩn cấp: {p.abortReason}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            ),
+            children: <ExpertTreatmentProtocols key={caseId} diseaseCase={caseData} onChanged={() => fetchDetail(true)} />,
         },
         {
             key: 'history',
@@ -738,7 +614,7 @@ const ExpertDiseaseCaseDetail = () => {
                                             <CaseTag s={h.toStatus || h.to} />
                                         </div>
                                         <div className="text-[#6a7994] mt-0.5">
-                                            {h.changer?.fullName || h.by || 'Người dùng'} · {fmtDateTime(h.changedAt || h.at)}
+                                            {h.changer?.fullName || h.by || (h.changedBy ? 'Tài khoản cũ' : 'Hệ thống')} · {fmtDateTime(h.changedAt || h.at)}
                                             {h.reason && ` · ${h.reason}`}
                                         </div>
                                     </div>
@@ -797,7 +673,7 @@ const ExpertDiseaseCaseDetail = () => {
                         showIcon
                         icon={<CheckCircleFilled className="!text-[#0f9b8e] !text-base" />}
                         className="!mb-3.5 !rounded-xl !border-[#bbf0e8] !bg-[#e2f6f3] !text-[#0b7a70] [&_.ant-alert-message]:!font-semibold [&_.ant-alert-message]:!text-[#0b7a70] [&_.ant-alert-description]:!text-[#0b7a70] [&_.ant-alert-description]:!opacity-90 [&_.ant-alert-icon]:!text-[#0f9b8e]"
-                        message={`Đã giải quyết · ${fmtDateTime(caseData.resolvedAt || caseData.updatedAt)}`}
+                        message={`${['SEASON_ENDED', 'SEASON_CANCELLED'].includes(caseData.resolutionReason) ? 'Khép hành chính do đóng vụ' : 'Đã khép chuyên môn'} · ${fmtDateTime(caseData.resolvedAt || caseData.updatedAt)}`}
                         description={caseData.resolutionSummary || 'Đã kết thúc xử lý.'}
                     />
                 )}
@@ -844,8 +720,8 @@ const ExpertDiseaseCaseDetail = () => {
                             </Panel>
                         )}
 
-                        {/* Panel 2: SnapshotPanel */}
-                        <SnapshotPanel
+                        {/* Water and health observations */}
+                        <ExpertCaseSnapshot
                             c={caseData}
                             current={caseData.latestMetrics?.water || caseData.latestWaterLog}
                         />
@@ -887,131 +763,6 @@ const ExpertDiseaseCaseDetail = () => {
         </ConfigProvider>
     );
 };
-
-/** Snapshot lúc báo ca so với đo mới nhất matching Figma */
-function SnapshotPanel({ c, current }) {
-    const s = c.caseSnapshot || {};
-    const health = s.shrimpHealth || s.health || {};
-    const water = s.waterIndicators || s.water || {};
-
-    const rows = [
-        {
-            k: 'dissolvedOxygenMgL',
-            fallbackK: 'dissolved_oxygen_mg_l',
-            label: 'DO',
-            unit: 'mg/L',
-            bad: (v) => v < 4,
-        },
-        {
-            k: 'ph',
-            fallbackK: 'ph',
-            label: 'pH',
-            unit: '',
-            bad: (v) => v < 7.5 || v > 8.5,
-        },
-        {
-            k: 'temperatureC',
-            fallbackK: 'temperature_c',
-            label: 'Nhiệt độ',
-            unit: '°C',
-            bad: (v) => v < 28 || v > 32,
-        },
-        {
-            k: 'nh3MgL',
-            fallbackK: 'nh3_mg_l',
-            label: 'NH₃',
-            unit: 'mg/L',
-            bad: (v) => v > 0.1,
-        },
-        {
-            k: 'no2MgL',
-            fallbackK: 'no2_mg_l',
-            label: 'NO₂',
-            unit: 'mg/L',
-            bad: (v) => v > 1,
-        },
-        {
-            k: 'alkalinityMgLCaCO3',
-            fallbackK: 'alkalinity_mg_l',
-            label: 'Kiềm',
-            unit: 'mg/L',
-            bad: (v) => v < 100,
-        },
-        {
-            k: 'salinityPpt',
-            fallbackK: 'salinity_ppt',
-            label: 'Độ mặn',
-            unit: '‰',
-            bad: (v) => v < 10,
-        },
-    ];
-
-    const healthStatus = health.healthStatus || health.health_status || null;
-    const avgWeight = health.avgWeightG ?? health.avg_weight_g ?? null;
-    const biomass = health.estimatedBiomassKg ?? health.estimated_biomass_kg ?? null;
-    const mortality = health.mortality7d ?? health.mortality_7d ?? null;
-
-    const healthMetricsParts = [
-        avgWeight != null ? `${avgWeight} g` : null,
-        biomass != null ? `${biomass} kg` : null,
-        mortality != null ? `chết 7d ${mortality}` : null,
-    ].filter(Boolean);
-
-    return (
-        <Panel title="Ảnh chụp dữ liệu khi báo ca">
-            <div className="flex items-center justify-between mb-2.5">
-                {healthStatus ? (
-                    <HealthTag s={healthStatus} />
-                ) : (
-                    <span className="text-[12px] text-[#8796ae]">Chưa có đánh giá sức khỏe</span>
-                )}
-                <span className="text-[12px] text-[#6a7994] font-mono">
-                    {healthMetricsParts.length > 0 ? healthMetricsParts.join(' · ') : 'Chưa có số liệu tôm'}
-                </span>
-            </div>
-            <table className="w-full text-[12px]">
-                <thead>
-                    <tr className="text-[#6a7994] text-left">
-                        <th className="font-medium pb-1.5">Chỉ số</th>
-                        <th className="font-medium pb-1.5 text-right">Khi báo</th>
-                        {current && <th className="font-medium pb-1.5 text-right">Hiện tại</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r) => {
-                        const aVal = water[r.k] ?? water[r.fallbackK];
-                        const hasA = aVal != null && aVal !== '';
-                        const aBad = hasA && r.bad(Number(aVal));
-
-                        const bVal = current ? (current[r.k] ?? current[r.fallbackK]) : undefined;
-                        const hasB = bVal != null && bVal !== '';
-                        const bBad = hasB && r.bad(Number(bVal));
-
-                        return (
-                            <tr key={r.label} className="border-t border-[#eef1f7]">
-                                <td className="py-1.5 text-[#3a4a63]">{r.label}</td>
-                                <td className={`py-1.5 text-right font-mono ${aBad ? 'text-[#d43b57] font-semibold' : ''}`}>
-                                    {aBad && <ExclamationCircleFilled className="mr-1 text-[10px]" />}
-                                    {hasA ? `${aVal} ${r.unit}`.trim() : '—'}
-                                </td>
-                                {current && (
-                                    <td className={`py-1.5 text-right font-mono ${hasB ? (bBad ? 'text-[#d43b57] font-semibold' : 'text-[#0f9b8e]') : ''}`}>
-                                        {hasB ? bVal : '—'}
-                                    </td>
-                                )}
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-            {current && (
-                <div className="text-[11px] text-[#6a7994] mt-2">
-                    <ClockCircleOutlined /> Hiện tại: đo {fmtDateTime(current.recordedAt || current.recorded_at || new Date().toISOString())}
-                </div>
-            )}
-        </Panel>
-    );
-}
 
 function ResolveModal({
     open,

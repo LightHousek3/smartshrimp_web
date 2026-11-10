@@ -145,8 +145,7 @@ export const getSuggestedFeedDose = ({
         suggested.dailyDose > perMealLimit * stage.meals.length ||
         !getMaterialDoseUnits(product).some(
             ({ value }) => value === suggested.doseUnit
-        ) ||
-        (suggested.dailyIncrement > 0 && stage.endDay > 29)
+        )
     )
         return null;
     const shares = defaultProtocolMeals(shrimpType);
@@ -428,6 +427,7 @@ const mergeEditorStages = (left, right) => {
                     existing.doseBasis !== item.doseBasis ||
                     existing.doseUnit !== item.doseUnit ||
                     existing.instructions !== item.instructions ||
+                    existing.dueAtMinutes !== item.dueAtMinutes ||
                     increment !== (item.dailyDoseIncrement ?? 0) ||
                     Math.abs(
                         existing.doseValue + increment *
@@ -509,6 +509,7 @@ export const getTemplateEditorStages = (items) => {
                         Math.max(item.startDay, phase.startDay)
                     ),
                     dailyDoseIncrement: item.dailyDoseIncrement ?? 0,
+                    dueAtMinutes: item.dueAtMinutes ?? null,
                     doseUnit: item.doseUnit,
                     instructions: item.instructions || '',
                 };
@@ -695,11 +696,10 @@ export const buildTemplateCreatePayload = (values, stages) => {
             (increment > 0 &&
                 (environment ||
                     item.product.category !== 'FEED' ||
-                    item.doseBasis !== 'FIXED_QUANTITY' ||
-                    startDay >= 30))
+                    item.doseBasis !== 'FIXED_QUANTITY'))
         )
             throw new Error(
-                'Tăng đều chỉ dùng cho thức ăn liều cố định DOC 1–29.'
+                'Tăng đều chỉ dùng cho thức ăn liều cố định theo khoảng đã chỉ định.'
             );
         const selectionError = templateMaterialSelectionError(item.product, {
             environment,
@@ -772,6 +772,7 @@ export const buildTemplateCreatePayload = (values, stages) => {
             doseBasis: item.doseBasis,
             doseValue: item.doseValue,
             dailyDoseIncrement: increment,
+            dueAtMinutes: item.dueAtMinutes ?? null,
             doseUnit: item.doseUnit,
             instructions: item.instructions || null,
         };
@@ -834,15 +835,14 @@ export const buildTemplateCreatePayload = (values, stages) => {
                         const lastApplicationDay = applicationDays.at(-1) ?? item.lastDay ?? stage.endDay;
                         if (
                             (item.dailyDoseIncrement ?? 0) > 0 &&
-                            (lastApplicationDay > 29 ||
-                                item.doseValue +
+                            (item.doseValue +
                                     item.dailyDoseIncrement *
                                         (lastApplicationDay -
                                             (item.firstDay ?? stage.startDay)) >
                                     9999999999)
                         )
                             throw new Error(
-                                'Giai đoạn tăng đều phải kết thúc trước DOC 30 và có liều hợp lệ.'
+                                'Lượng cuối giai đoạn tăng đều phải nằm trong giới hạn hợp lệ.'
                             );
                         if (
                             item.applicationDays &&

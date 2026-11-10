@@ -59,6 +59,7 @@ const primaryButton =
 const MaterialRecommendation = ({
     environment,
     feedOnly,
+    production,
     initialValues,
     manufacturers,
     onSelect,
@@ -107,6 +108,7 @@ const MaterialRecommendation = ({
         const selectionError = templateMaterialSelectionError(values, {
             environment,
             feedOnly,
+            production,
         });
         if (selectionError) {
             message.error(selectionError);
@@ -409,6 +411,7 @@ const MaterialRecommendation = ({
 
 /** One farm-scoped selection per popup; all inventory values are read from the API. */
 const ExpertProtocolMaterialPicker = ({
+    production = true,
     farm,
     manufacturers = [],
     environment = false,
@@ -450,7 +453,7 @@ const ExpertProtocolMaterialPicker = ({
             _proposalKey: `proposal-${index}`,
         }));
     const selectionError = (product) =>
-        templateMaterialSelectionError(product, { environment, feedOnly });
+        templateMaterialSelectionError(product, { environment, feedOnly, production });
     const canSelect = (product) => !selectionError(product);
     const selectProduct = (product) => {
         const { _proposalKey, ...content } = product;
@@ -676,6 +679,7 @@ const ExpertProtocolMaterialPicker = ({
                 {tab === 'recommendation' ? (
                     <>
                         <MaterialRecommendation
+                            production={production}
                             feedOnly={feedOnly}
                             environment={environment}
                             initialValues={initialRecommendation}

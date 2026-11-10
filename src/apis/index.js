@@ -168,6 +168,16 @@ const expertProductionProtocolAPI = {
 };
 
 
+const expertTreatmentProtocolAPI = {
+    context: (caseId, signal) => apiClient.get(`/expert/disease-cases/${caseId}/protocols/context`, { signal }),
+    detail: (caseId, protocolId, signal) => apiClient.get(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { signal }),
+    create: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols`, body),
+    update: (caseId, protocolId, body) => apiClient.patch(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, body),
+    cancel: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/cancel`, body),
+    submit: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/submit`, body),
+    stop: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
+};
+
 const expertDiseaseCaseAPI = {
     /**
      * GET /expert/disease-cases
@@ -644,6 +654,7 @@ const adminDashboardAPI = {
 
 /* ─── Exports ───────────────────────────────────────────────── */
 export {
+    expertTreatmentProtocolAPI,
     adminDashboardAPI,
     expertProtocolTemplateAPI,
     adminAccountAPI,

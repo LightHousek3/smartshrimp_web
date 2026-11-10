@@ -18,11 +18,11 @@ export const protocolHarvestCoverageError = (stages, season) => {
         : null;
 };
 
-export const productionMaterialOptions = (products, { contentVersion = 1, environment = false } = {}) =>
+export const productionMaterialOptions = (products, { contentVersion = 1, environment = false, production = true } = {}) =>
     products.map((product) => {
         const error = contentVersion === 2 ? templateMaterialSelectionError({ ...product,
             productCompliance: product.compliance ?? product.productCompliance,
-        }, { environment, protocolLabel: 'phác đồ nuôi' }) : null;
+        }, { environment, production, protocolLabel: production ? 'phác đồ nuôi' : 'phác đồ điều trị' }) : null;
         return { value: product.id, label: product.name, title: error || undefined,
             disabled: product.status !== 'ACTIVE' || Boolean(error) };
     });
@@ -98,6 +98,10 @@ const decimal = (value, digits, scale, label, zero = false) => {
     return str;
 };
 export const protocolPayload = (values, revision, season) => {
+    const treatment = season?.protocolType === 'TREATMENT';
+    const cultureOffset = treatment && values.treatmentStartAt && season.stockingDate
+        ? Math.round((Date.parse(new Date(new Date(values.treatmentStartAt).getTime() + 7 * 3600000).toISOString().slice(0, 10))
+            - Date.parse(String(season.stockingDate).slice(0, 10))) / 86400000) : 0;
     const contentVersion = values.contentVersion ?? 1;
     const allowedVariancePct = decimal(values.allowedVariancePct, 3, 2, 'Sai lệch cho phép', true);
     if (Number(allowedVariancePct) > 100) fail('Sai lệch cho phép phải trong 0–100%.');
@@ -105,7 +109,7 @@ export const protocolPayload = (values, revision, season) => {
     if (values.stages.length > 120) fail('Tối đa 120 giai đoạn.');
     const overlap = stageOverlapError(values.stages);
     if (overlap) fail(overlap);
-    const harvestError = protocolHarvestCoverageError(values.stages, season);
+    const harvestError = treatment ? null : protocolHarvestCoverageError(values.stages, season);
     if (harvestError) fail(harvestError);
     let itemCount = 0;
     const stages = values.stages.map((stage, stageIndex) => {
@@ -125,7 +129,7 @@ export const protocolPayload = (values, revision, season) => {
                         if (!OPERATION_LABELS[item.operationType] || !UNIT_LABELS[item.doseUnit]) fail(`${itemLabel}: chọn hoạt động và đơn vị.`);
                         const first = contentVersion === 2 ? integer(item.firstDoc ?? start + 1, start + 1, end + 1, `${itemLabel} DOC đầu`) - 1 : start;
                         const last = contentVersion === 2 ? integer(item.lastDoc ?? end + 1, first + 1, end + 1, `${itemLabel} DOC cuối`) - 1 : end;
-                        if (!allowedDoseBases(item.operationType, first, { contentVersion, environment: meal.mealNumber == null }).includes(item.doseBasis)) fail(`${itemLabel}: cơ sở liều không phù hợp với tuổi nuôi hoặc đường sử dụng.`);
+                        if (!allowedDoseBases(item.operationType, first + cultureOffset, { contentVersion, environment: meal.mealNumber == null }).includes(item.doseBasis)) fail(`${itemLabel}: cơ sở liều không phù hợp với tuổi nuôi hoặc đường sử dụng.`);
                         if (item.doseBasis === 'PERCENT_BIOMASS' && (Number(item.doseValue) > 100 || !['KG', 'G'].includes(item.doseUnit)))
                             fail(`${itemLabel}: tỷ lệ sinh khối tối đa 100% và dùng đơn vị kg hoặc g.`);
                         const recommendedProductName = item.productId ? (item.recommendedProductName?.trim() || null)
@@ -137,6 +141,7 @@ export const protocolPayload = (values, revision, season) => {
                             recurrenceAnchorOffset: integer(item.recurrenceAnchorDoc ?? first + 1, 1, first + 1, `${itemLabel} mốc chu kỳ`) - 1,
                             doseAnchorOffset: integer(item.doseAnchorDoc ?? first + 1, 1, first + 1, `${itemLabel} mốc liều`) - 1,
                             dailyDoseIncrement: decimal(item.dailyDoseIncrement ?? '0', 10, 4, `${itemLabel} tăng liều`, true),
+                            dueAtMinutes: item.dueAtMinutes == null ? null : integer(item.dueAtMinutes, 0, 2147483647, `${itemLabel} khoảng thực hiện`),
                             recommendedManufacturerId: item.recommendedManufacturerId ?? null,
                             recommendedProductDetails: item.recommendedProductDetails?.proposed ? { proposed: {
                                 ...structuredClone(item.recommendedProductDetails.proposed),
@@ -154,5 +159,6 @@ export const protocolPayload = (values, revision, season) => {
     if (itemCount > 1000) fail('Tối đa 1000 hạng mục trong một phác đồ.');
     return { contentVersion, title: text(values.title, 500, 'Tên phác đồ'), summary: values.summary?.trim() || null,
         allowedVariancePct, rollingWindowDays: integer(values.rollingWindowDays, 1, 14, 'Cửa sổ lịch'), stages,
+        ...(treatment && { treatmentStartAt: values.treatmentStartAt ?? null, rollingWindowDays: 3 }),
         ...(revision != null && { revision }) };
 };

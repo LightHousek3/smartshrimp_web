@@ -314,6 +314,11 @@ const MaterialRow = ({
                 danger
                 onClick={onDelete}
             />
+            <Flex gap={6} align="center" className="basis-full! pl-16! max-sm:pl-0!">
+                <Text className="text-xs!">Khoảng thực hiện (phút)</Text>
+                <InputNumber min={0} max={2147483647} precision={0} size="small" value={item.dueAtMinutes}
+                    onChange={dueAtMinutes => onChange({ ...item, dueAtMinutes })} aria-label={`Khoảng thực hiện ${item.product.name}`} />
+            </Flex>
             {canIncrease && linearDaily && (
                 <Flex
                     gap={6}

@@ -80,11 +80,11 @@ export const materialCategoryFits = (
 /** Provide route guidance locally; the backend still performs the authoritative safety check. */
 export const templateMaterialSelectionError = (
     product,
-    { environment = false, feedOnly = false, protocolLabel = 'phác đồ mẫu' } = {}
+    { environment = false, feedOnly = false, protocolLabel = 'phác đồ mẫu', production = true } = {}
 ) => {
     if (product.unavailable)
         return 'Vật tư không còn khả dụng. Anh/chị vui lòng chọn lại.';
-    if (['BANNED', 'TREATMENT_ONLY'].includes(product.safety?.status))
+    if (product.safety?.status === 'BANNED' || production && product.safety?.status === 'TREATMENT_ONLY')
         return (
             product.safety.reason ||
             `Vật tư này không được dùng trong ${protocolLabel}.`
@@ -92,7 +92,7 @@ export const templateMaterialSelectionError = (
     if (product.productCompliance?.complianceStatus === 'blocked')
         return product.productCompliance.reviewNote ||
             `Hồ sơ vật tư đã bị chặn; anh/chị chọn vật tư khác cho ${protocolLabel}.`;
-    if (product.productCompliance?.containsAntibiotic === true)
+    if (production && product.productCompliance?.containsAntibiotic === true)
         return `Vật tư chứa kháng sinh cần phác đồ điều trị riêng; anh/chị chọn vật tư khác cho ${protocolLabel}.`;
     if (!materialCategoryFits(product.category, environment, feedOnly))
         return 'Nhóm vật tư chưa phù hợp với hoạt động đang chọn.';

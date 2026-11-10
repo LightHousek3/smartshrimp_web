@@ -6,6 +6,7 @@ import {
     Button,
     ConfigProvider,
     Drawer,
+    DatePicker,
     Empty,
     Flex,
     Form,
@@ -32,7 +33,7 @@ import {
     SendOutlined,
     UpOutlined,
 } from '@ant-design/icons';
-import { expertProductionProtocolAPI as api, expertProtocolTemplateAPI } from '../apis';
+import { expertProductionProtocolAPI, expertProtocolTemplateAPI } from '../apis';
 import ExpertProtocolMaterialPicker from './ExpertProtocolMaterialPicker';
 import ProtocolMaterialDetail from './ProtocolMaterialDetail';
 import {
@@ -71,6 +72,9 @@ const Action = ({ title, ...props }) => (
 );
 
 const ItemEditor = ({
+    treatment = false,
+    cultureOffset = 0,
+    dayLabel = 'DOC',
     field,
     index,
     item,
@@ -100,7 +104,7 @@ const ItemEditor = ({
         return !entry?.productId && !entry?.recommendedProductName;
     });
     const doseBases = (operation) =>
-        allowedDoseBases(operation, (item?.firstDoc ?? offset + 1) - 1, {
+        allowedDoseBases(operation, (item?.firstDoc ?? offset + 1) - 1 + cultureOffset, {
             contentVersion,
             environment,
         });
@@ -135,6 +139,7 @@ const ItemEditor = ({
     const productOptions = productionMaterialOptions([...products.values()], {
         contentVersion,
         environment,
+        production: !treatment,
     }).map((option) => {
         const incompatible =
             proposalLocked &&
@@ -310,7 +315,10 @@ const ItemEditor = ({
                                 </Typography.Text>
                             )}
                         </Space>
-                        <Form.Item label="Áp dụng từ DOC" name={[field.name, 'firstDoc']}>
+                        <Form.Item label="Khoảng thực hiện từ giờ dự kiến (phút)" name={[field.name, 'dueAtMinutes']}>
+                            <InputNumber min={0} max={2147483647} precision={0} />
+                        </Form.Item>
+                        <Form.Item label={`Áp dụng từ ${dayLabel}`} name={[field.name, 'firstDoc']}>
                             <InputNumber
                                 min={offset + 1}
                                 max={endDoc}
@@ -318,7 +326,7 @@ const ItemEditor = ({
                                 placeholder={String(offset + 1)}
                             />
                         </Form.Item>
-                        <Form.Item label="Đến DOC" name={[field.name, 'lastDoc']}>
+                        <Form.Item label={`Đến ${dayLabel}`} name={[field.name, 'lastDoc']}>
                             <InputNumber
                                 min={item?.firstDoc ?? offset + 1}
                                 max={endDoc}
@@ -328,13 +336,13 @@ const ItemEditor = ({
                         </Form.Item>
                         <Form.Item
                             label="Tăng liều mỗi ngày"
-                            tooltip="Chỉ thức ăn liều cố định hằng ngày đến DOC 29; liều tính theo mốc liều gốc."
+                            tooltip="Chỉ tăng lượng thức ăn cố định hằng ngày trong khoảng đã chỉ định; không tăng thuốc tự động."
                             name={[field.name, 'dailyDoseIncrement']}
                         >
                             <InputNumber stringMode min="0" precision={4} placeholder="0" />
                         </Form.Item>
                         <Form.Item
-                            label="DOC mốc chu kỳ"
+                            label={`${dayLabel} mốc chu kỳ`}
                             name={[field.name, 'recurrenceAnchorDoc']}
                         >
                             <InputNumber
@@ -344,7 +352,7 @@ const ItemEditor = ({
                                 placeholder={String(item?.firstDoc ?? offset + 1)}
                             />
                         </Form.Item>
-                        <Form.Item label="DOC mốc liều gốc" name={[field.name, 'doseAnchorDoc']}>
+                        <Form.Item label={`${dayLabel} mốc liều gốc`} name={[field.name, 'doseAnchorDoc']}>
                             <InputNumber
                                 min={1}
                                 max={item?.firstDoc ?? offset + 1}
@@ -381,6 +389,7 @@ const ItemEditor = ({
             </div>
             {picker && (
                 <ExpertProtocolMaterialPicker
+                    production={!treatment}
                     farm={farm}
                     manufacturers={manufacturers}
                     environment={environment}
@@ -425,7 +434,9 @@ const ItemEditor = ({
     );
 };
 
-const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSaved, onReload }) => {
+const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSaved, onReload, api = expertProductionProtocolAPI }) => {
+    const treatment = season.protocolType === 'TREATMENT';
+    const dayLabel = treatment ? 'ngày điều trị' : 'DOC';
     const [form] = Form.useForm();
     const { modal, message } = App.useApp();
     const [busy, setBusy] = useState(false);
@@ -460,9 +471,14 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
     const templateRequest = useRef(null);
     const stages = Form.useWatch('stages', form) || [];
     const overlapError = stageOverlapError(stages);
-    const minimumEndDoc = expectedHarvestDoc(season);
-    const harvestError = protocolHarvestCoverageError(stages, season);
+    const minimumEndDoc = treatment ? null : expectedHarvestDoc(season);
+    const harvestError = treatment ? null : protocolHarvestCoverageError(stages, season);
     const initial = protocolToForm(detail);
+    if (treatment) { initial.contentVersion = 2; initial.rollingWindowDays = 3; initial.treatmentStartAt = detail?.treatmentStartAt ?? null; }
+    const treatmentStartAt = Form.useWatch('treatmentStartAt', form) ?? initial.treatmentStartAt;
+    const cultureOffset = treatment && treatmentStartAt && season.stockingDate
+        ? Math.round((Date.parse(new Date(new Date(treatmentStartAt).getTime() + 7 * 3600000).toISOString().slice(0, 10))
+            - Date.parse(String(season.stockingDate).slice(0, 10))) / 86400000) : 0;
     if (!detail) initial.contentVersion = season.authoringVersion ?? 1;
     const contentVersion = Form.useWatch('contentVersion', form) ?? initial.contentVersion;
     const itemCount = stages.reduce(
@@ -527,7 +543,7 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
             clearTimeout(timer);
             controller.abort();
         };
-    }, [seasonId, search, productPage, catalogRetry]);
+    }, [seasonId, search, productPage, catalogRetry, api]);
     useEffect(() => {
         const controller = new AbortController();
         const timer = setTimeout(() => {
@@ -559,7 +575,7 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
             clearTimeout(timer);
             controller.abort();
         };
-    }, [seasonId, templateSearch, templatePage, templateRetry]);
+    }, [seasonId, templateSearch, templatePage, templateRetry, api]);
 
     const existingProducts = initial.stages
         .flatMap((stage) => stage.meals.flatMap((meal) => meal.items.map((item) => item.product)))
@@ -862,7 +878,12 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                                 </Typography.Text>
                             )}
                         </Form.Item>
-                        <Form.Item label="Ghi chú cho chủ trại (tùy chọn)" name="summary">
+                        {treatment && <Form.Item label="Bắt đầu điều trị (giờ Việt Nam)" name="treatmentStartAt"
+                            getValueProps={value => ({ value: value ? dayjs(new Date(new Date(value).getTime() + 7 * 3600000).toISOString().slice(0, 19)) : null })}
+                            getValueFromEvent={value => value ? new Date(`${value.format('YYYY-MM-DDTHH:mm:ss')}+07:00`).toISOString() : null}>
+                            <DatePicker showTime format="DD/MM/YYYY HH:mm" className="w-full" />
+                        </Form.Item>}
+                        <Form.Item label={treatment ? 'Chỉ định và hướng theo dõi sau điều trị' : 'Ghi chú cho chủ trại (tùy chọn)'} name="summary">
                             <Input maxLength={4000} placeholder="Mục tiêu, lý do điều chỉnh…" />
                         </Form.Item>
                     </div>
@@ -936,7 +957,7 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                                         <div className={styles.stageHeading}>
                                             <strong>Giai đoạn {stageIndex + 1}</strong>
                                             <Space size={6}>
-                                                <span className="text-xs">DOC</span>
+                                                <span className="text-xs">{dayLabel}</span>
                                                 <Form.Item
                                                     name={[stageField.name, 'startDoc']}
                                                     rules={required}
@@ -1156,6 +1177,9 @@ const ExpertProductionProtocolForm = ({ seasonId, season, detail, onClose, onSav
                                                                                         index,
                                                                                     ) => (
                                                                                         <ItemEditor
+                                                                                            treatment={treatment}
+                                                                                            cultureOffset={cultureOffset}
+                                                                                            dayLabel={dayLabel}
                                                                                             key={
                                                                                                 field.key
                                                                                             }
