@@ -64,7 +64,7 @@ export const cloneGroup = (value) => {
 export const protocolToForm = (detail) => ({
     contentVersion: detail?.contentVersion ?? 1,
     title: detail?.title || '', summary: detail?.summary || '',
-    allowedVariancePct: detail?.allowedVariancePct ?? '10', rollingWindowDays: detail?.rollingWindowDays ?? 7,
+    allowedVariancePct: detail?.allowedVariancePct ?? '10', rollingWindowDays: 3,
     stages: (detail?.stages || []).map((stage) => ({ ...stage,
         startDoc: stage.startDayOffset + 1, endDoc: stage.endDayOffset + 1,
         meals: stage.meals.map((meal) => ({ ...meal, items: meal.items.map((item) => ({ ...item,
@@ -97,8 +97,23 @@ const decimal = (value, digits, scale, label, zero = false) => {
         || (!zero && Number(str) <= 0)) fail(`${label}: số thập phân không hợp lệ, tối đa ${scale} chữ số sau dấu chấm.`);
     return str;
 };
+export const treatmentStartError = (value, season, { future = false, now = new Date() } = {}) => {
+    if (value == null) return future ? 'Chọn mốc bắt đầu điều trị trước khi gửi duyệt.' : null;
+    const start = new Date(value);
+    if (!Number.isFinite(start.getTime())) return 'Mốc bắt đầu điều trị không hợp lệ.';
+    const stockingDate = season?.stockingDate instanceof Date ? season.stockingDate.toISOString().slice(0, 10) : String(season?.stockingDate || '').slice(0, 10);
+    const day = new Date(start.getTime() + 7 * 3600000).toISOString().slice(0, 10);
+    if (!stockingDate || day < stockingDate) return 'Mốc điều trị không được trước ngày thả giống của vụ.';
+    if (future && start <= now) return 'Mốc bắt đầu đã qua; hãy cập nhật trước khi gửi duyệt.';
+    return null;
+};
+
 export const protocolPayload = (values, revision, season) => {
     const treatment = season?.protocolType === 'TREATMENT';
+    const startError = treatment ? treatmentStartError(values.treatmentStartAt, season) : null;
+    if (startError) fail(startError);
+    if (treatment && values.stages.length && values.stages[0].startDoc !== 1)
+        fail('Giai đoạn điều trị đầu tiên phải bắt đầu từ ngày điều trị 1.');
     const cultureOffset = treatment && values.treatmentStartAt && season.stockingDate
         ? Math.round((Date.parse(new Date(new Date(values.treatmentStartAt).getTime() + 7 * 3600000).toISOString().slice(0, 10))
             - Date.parse(String(season.stockingDate).slice(0, 10))) / 86400000) : 0;
@@ -129,6 +144,11 @@ export const protocolPayload = (values, revision, season) => {
                         if (!OPERATION_LABELS[item.operationType] || !UNIT_LABELS[item.doseUnit]) fail(`${itemLabel}: chọn hoạt động và đơn vị.`);
                         const first = contentVersion === 2 ? integer(item.firstDoc ?? start + 1, start + 1, end + 1, `${itemLabel} DOC đầu`) - 1 : start;
                         const last = contentVersion === 2 ? integer(item.lastDoc ?? end + 1, first + 1, end + 1, `${itemLabel} DOC cuối`) - 1 : end;
+                        if (treatment && first === 0 && values.treatmentStartAt && meal.plannedTime) {
+                            const clock = new Date(`1970-01-01T${meal.plannedTime}Z`).toISOString().slice(11, 23);
+                            const startClock = new Date(new Date(values.treatmentStartAt).getTime() + 7 * 3600000).toISOString().slice(11, 23);
+                            if (clock < startClock) fail('Cữ ngày điều trị 1 không được trước giờ bắt đầu; hãy sửa giờ hoặc ngày áp dụng.');
+                        }
                         if (!allowedDoseBases(item.operationType, first + cultureOffset, { contentVersion, environment: meal.mealNumber == null }).includes(item.doseBasis)) fail(`${itemLabel}: cơ sở liều không phù hợp với tuổi nuôi hoặc đường sử dụng.`);
                         if (item.doseBasis === 'PERCENT_BIOMASS' && (Number(item.doseValue) > 100 || !['KG', 'G'].includes(item.doseUnit)))
                             fail(`${itemLabel}: tỷ lệ sinh khối tối đa 100% và dùng đơn vị kg hoặc g.`);

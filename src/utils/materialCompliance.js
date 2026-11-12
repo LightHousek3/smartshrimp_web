@@ -14,6 +14,26 @@ export const editableCompliance = (value = {}) =>
             .map((field) => [field, value[field]])
     );
 
+/** Required proposal evidence; reviewer identity and timestamps remain server-owned. */
+export const proposalMissingFields = product => {
+    const c = product.productCompliance || {};
+    const missing = [];
+    if (!product.recommendationReason?.trim()) missing.push('lý do đề xuất');
+    if (!product.manufacturerId && !product.manufacturer?.name?.trim()) missing.push('nhà sản xuất');
+    if (!['feed', 'environment', 'dual_purpose', 'medicine'].includes(c.regulatoryType)) missing.push('phân loại pháp lý');
+    for (const [field, label] of [['registrationNumber', 'số đăng ký'], ['ingredientsText', 'thành phần'], ['usageInstructions', 'hướng dẫn theo nhãn']]) {
+        if (!c[field]?.trim()) missing.push(label);
+    }
+    if (typeof c.containsAntibiotic !== 'boolean') missing.push('xác định kháng sinh');
+    if (!c.evidenceUrls?.length) missing.push('tài liệu chứng minh');
+    const prefix = /^(01|02|03)-\d{6}$/.exec(c.registrationNumber || '')?.[1];
+    const expected = { feed: '01', environment: '02', dual_purpose: '03' }[c.regulatoryType];
+    if (prefix && expected && prefix !== expected) missing.push('số đăng ký phù hợp phân loại');
+    if (c.containsAntibiotic === true && c.regulatoryType !== 'medicine') missing.push('phân loại thuốc cho vật tư có kháng sinh');
+    if (c.regulatoryType === 'medicine' && (c.withdrawalDays == null || !Number.isFinite(Number(c.withdrawalDays)) || Number(c.withdrawalDays) < 0)) missing.push('thời gian ngừng thuốc');
+    return missing;
+};
+
 const canonical = (value) => {
     if (Array.isArray(value)) return value.map(canonical);
     if (value && typeof value === 'object')

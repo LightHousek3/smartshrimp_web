@@ -15,7 +15,6 @@ export const expertStyle = {
         '[&_.ant-form-item-label]:pb-2! [&_.ant-form-item-label>label]:text-xs! [&_.ant-form-item-label>label]:text-[#3a4a63]!',
     ].join(' '),
     formTop: 'grid grid-cols-[2fr_1fr_1fr] items-start gap-4 max-[760px]:grid-cols-1',
-    rollingInfo: 'min-h-[182px] rounded-[14px] border border-[#9dd6fc] bg-[#f0faff] px-6 py-5 max-[760px]:mb-4 max-[760px]:min-h-0 max-[760px]:px-4 max-[760px]:py-3',
     formSecondary: 'grid grid-cols-[1fr_2fr] gap-4 max-[760px]:grid-cols-1',
     formEmpty: 'rounded-xl border border-dashed border-[#e5e8f0] px-2 py-10',
     stage: 'mb-4 overflow-hidden rounded-xl border border-[#e5e8f0] bg-white',

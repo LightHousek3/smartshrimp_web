@@ -2,12 +2,13 @@ import { Form, Input, Select } from 'antd';
 import InputNumber from './ProtocolNumberInput';
 
 /** Capture label evidence; the server determines completeness and review metadata on save. */
-const ProductComplianceFields = () => (
+const ProductComplianceFields = ({ requiredComplete = false }) => (
     <>
         <Form.Item
             name={['productCompliance', 'regulatoryType']}
             label="Phân loại pháp lý"
-            rules={[{ required: true }]}
+            rules={[{ required: true }, { validator: (_, value) => !requiredComplete || ['feed', 'environment', 'dual_purpose', 'medicine'].includes(value)
+                ? Promise.resolve() : Promise.reject(new Error('Chọn phân loại pháp lý theo hồ sơ vật tư.')) }]}
         >
             <Select
                 options={[
@@ -35,20 +36,21 @@ const ProductComplianceFields = () => (
             name={['productCompliance', 'registrationNumber']}
             label="Mã tiếp nhận / số ĐKLH"
             extra="Anh/chị nhập mã theo đúng hồ sơ sản phẩm; nhóm Khoáng có thể thuộc thức ăn bổ sung hoặc xử lý môi trường."
-            rules={[{ max: 100 }]}
+            rules={[{ required: requiredComplete, whitespace: true, max: 100 }]}
         >
             <Input maxLength={100} />
         </Form.Item>
         <Form.Item
             name={['productCompliance', 'ingredientsText']}
             label="Toàn bộ thành phần theo nhãn"
-            rules={[{ max: 20000 }]}
+            rules={[{ required: requiredComplete, whitespace: true, max: 20000 }]}
         >
             <Input.TextArea rows={4} maxLength={20000} showCount />
         </Form.Item>
         <Form.Item
             name={['productCompliance', 'containsAntibiotic']}
             label="Có chứa kháng sinh?"
+            rules={[{ required: requiredComplete, type: 'boolean', message: 'Cần đối chiếu và xác định có chứa kháng sinh hay không.' }]}
             extra="Anh/chị đối chiếu thành phần trước khi chọn. Vật tư chứa kháng sinh cần phác đồ điều trị riêng, không dùng trong mẫu nuôi."
         >
             <Select
@@ -66,7 +68,7 @@ const ProductComplianceFields = () => (
         <Form.Item
             name={['productCompliance', 'usageInstructions']}
             label="Loài, liều, đường dùng, tần suất/liệu trình theo nhãn"
-            rules={[{ max: 20000 }]}
+            rules={[{ required: requiredComplete, whitespace: true, max: 20000 }]}
         >
             <Input.TextArea rows={4} maxLength={20000} showCount />
         </Form.Item>
@@ -82,6 +84,7 @@ const ProductComplianceFields = () => (
                         name={['productCompliance', 'withdrawalDays']}
                         preserve={false}
                         label="Thời gian ngừng thuốc (ngày)"
+                        rules={[{ required: requiredComplete, message: 'Nhập thời gian ngừng thuốc theo nhãn.' }]}
                         extra="Anh/chị nhập theo nhãn thuốc; để trống khi chưa xác định. Giá trị 0 chỉ dùng khi hồ sơ nêu rõ không cần ngừng."
                     >
                         <InputNumber min={0} max={9999.999} precision={3} className="w-full!" />
@@ -106,7 +109,7 @@ const ProductComplianceFields = () => (
                         } catch {
                             valid = false;
                         }
-                        return valid
+                        return (valid && (!requiredComplete || (Array.isArray(urls) && urls.length > 0)))
                             ? Promise.resolve()
                             : Promise.reject(
                                   new Error(

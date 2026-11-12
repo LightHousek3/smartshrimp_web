@@ -53,16 +53,16 @@ export const defaultProtocolMeals = (species) =>
         growoutSharePct: profileFor(species).shares[index],
     }));
 
-export const suggestProtocolRange = (stages, species) => {
+export const suggestProtocolRange = (stages, species, initialStartDay = 1) => {
     const last = stages.at(-1);
-    const startDay = last ? last.endDay + 1 : 1;
+    const startDay = last ? last.endDay + 1 : initialStartDay;
     if (!Number.isInteger(startDay) || startDay < 1 || startDay > 3650)
         throw new Error('Không còn DOC hợp lệ để thêm giai đoạn.');
     const next = profileFor(species).phases.find(([, end]) => end >= startDay);
     return {
         startDay,
         endDay:
-            next?.[1] ?? Math.min(3650, startDay + last.endDay - last.startDay),
+            next?.[1] ?? Math.min(3650, startDay + (last ? last.endDay - last.startDay : 13)),
     };
 };
 
@@ -83,8 +83,8 @@ const referenceRation = (species, postCount, day) => {
 };
 
 /** Carry forward the Expert's relative adjustment within a compatible basis; never convert grams to biomass. */
-export const suggestQuickPhase = (species, postCount, phases) => {
-    const range = suggestProtocolRange(phases, species);
+export const suggestQuickPhase = (species, postCount, phases, initialStartDay = 1) => {
+    const range = suggestProtocolRange(phases, species, initialStartDay);
     const last = phases.at(-1);
     return {
         ...range,

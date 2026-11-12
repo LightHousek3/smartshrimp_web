@@ -36,6 +36,7 @@ import ProtocolProductImages from './ProtocolProductImages';
 import ProductComplianceFields from './ProductComplianceFields';
 import {
     editableCompliance,
+    proposalMissingFields,
     uniqueTemplateProposals,
     materialCategoryFits as categoryFits,
     templateMaterialSelectionError,
@@ -105,6 +106,9 @@ const MaterialRecommendation = ({
         }
     };
     const submit = (values) => {
+        const missing = proposalMissingFields({ ...values, manufacturerId: manufacturerMode === 'existing' ? values.manufacturerId : null,
+            manufacturer: manufacturerMode === 'new' ? values.manufacturer : null });
+        if (missing.length) { message.error(`Hồ sơ đề xuất cần bổ sung: ${missing.join(', ')}.`); return; }
         const selectionError = templateMaterialSelectionError(values, {
             environment,
             feedOnly,
@@ -324,7 +328,7 @@ const MaterialRecommendation = ({
                     ))}
                 </>
             )}
-            <ProductComplianceFields />
+            <ProductComplianceFields requiredComplete />
             <Form.Item label="Ảnh vật tư tham khảo (Tùy chọn)">
                 <Upload
                     listType="picture-card"

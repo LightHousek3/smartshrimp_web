@@ -1,6 +1,7 @@
 import {
     editableCompliance,
     templateMaterialSelectionError,
+    proposalMissingFields,
 } from './materialCompliance.js';
 import {
     defaultProtocolMeals,
@@ -59,10 +60,10 @@ export const getStageDocError = (stages, index) => {
         return `DOC cuối phải nhỏ hơn DOC đầu giai đoạn sau (${stages[index + 1].startDay}).`;
     return null;
 };
-export const getNextStageRange = (stages, species = 'WHITELEG') => {
+export const getNextStageRange = (stages, species = 'WHITELEG', initialStartDay = 1) => {
     if (stages.some((_, index) => getStageDocError(stages, index)))
         throw new Error('Sửa DOC của các giai đoạn trước khi thêm giai đoạn.');
-    return suggestProtocolRange(stages, species);
+    return suggestProtocolRange(stages, species, initialStartDay);
 };
 
 /** Use the save-path rules for progressive authoring; partial earlier phases must not become hidden validation debt. */
@@ -675,6 +676,15 @@ export const parseProtocolTemplateDetail = (response) => {
 export const nextRepeatDay = (anchor, interval, startDay) =>
     anchor + Math.max(0, Math.ceil((startDay - anchor) / interval)) * interval;
 
+export const assertMaterialDailyIncrement = (item, environment = false) => {
+    const increment = item.dailyDoseIncrement ?? 0;
+    if (item.linearDaily && increment <= 0)
+        throw new Error('Nhập mức tăng mỗi cữ mỗi ngày lớn hơn 0.');
+    if (!Number.isFinite(increment) || increment < 0 || increment !== Number(increment.toFixed(4)) ||
+        (increment > 0 && (environment || item.product.category !== 'FEED' || item.doseBasis !== 'FIXED_QUANTITY')))
+        throw new Error('Tăng đều chỉ dùng cho thức ăn liều cố định theo khoảng đã chỉ định.');
+};
+
 /** Match the authoring API contract; never silently drop empty meals or invalid dosage rules. */
 export const buildTemplateCreatePayload = (values, stages) => {
     if (!['WHITELEG', 'BLACK_TIGER'].includes(values.shrimpType))
@@ -684,23 +694,14 @@ export const buildTemplateCreatePayload = (values, stages) => {
     let previousEnd = 0;
     let itemCount = 0;
     const mapMaterial = (item, startDay, environment = false) => {
+        if (!item.product.id) {
+            const missing = proposalMissingFields(item.product);
+            if (missing.length) throw new Error(`${item.product.name}: cần bổ sung ${missing.join(', ')}.`);
+        }
         const increment = item.dailyDoseIncrement ?? 0;
         if (!operationTypes.includes(item.operationType))
             throw new Error('Chọn loại hoạt động của từng vật tư.');
-        if (item.linearDaily && increment <= 0)
-            throw new Error('Nhập mức tăng mỗi cữ mỗi ngày lớn hơn 0.');
-        if (
-            !Number.isFinite(increment) ||
-            increment < 0 ||
-            increment !== Number(increment.toFixed(4)) ||
-            (increment > 0 &&
-                (environment ||
-                    item.product.category !== 'FEED' ||
-                    item.doseBasis !== 'FIXED_QUANTITY'))
-        )
-            throw new Error(
-                'Tăng đều chỉ dùng cho thức ăn liều cố định theo khoảng đã chỉ định.'
-            );
+        assertMaterialDailyIncrement(item, environment);
         const selectionError = templateMaterialSelectionError(item.product, {
             environment,
         });
