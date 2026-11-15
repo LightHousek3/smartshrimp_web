@@ -1,17 +1,25 @@
+export const PROTOCOL_TIMING = Object.freeze({ defaultMinutes: 30, minMinutes: 10, maxMinutes: 2147483647 });
+
 export const PROTOCOL_STATUS_LABELS = {
     DRAFT: 'Bản nháp',
     REJECTED: 'Bị từ chối',
     PENDING_APPROVAL: 'Chờ duyệt',
-    APPROVED: 'Đang áp dụng',
+    APPROVED: 'Đã duyệt',
+    ACTIVE: 'Đang có hiệu lực',
+    PAUSED: 'Tạm hoãn',
+    COMPLETED: 'Đã kết thúc',
     SUPERSEDED: 'Đã thay thế',
     CANCELLED: 'Đã hủy',
-    ABORTED: 'Dừng khẩn cấp',
+    ABORTED: 'Đã dừng sớm',
 };
 export const PROTOCOL_STATUS_COLORS = {
     DRAFT: 'default',
     REJECTED: 'error',
     PENDING_APPROVAL: 'warning',
     APPROVED: 'success',
+    ACTIVE: 'processing',
+    PAUSED: 'warning',
+    COMPLETED: 'default',
     ABORTED: 'error',
 };
 export const SEASON_STATUS_LABELS = {
@@ -40,7 +48,6 @@ export const UNIT_LABELS = {
     ML: 'ml',
     PACK: 'gói',
     BOTTLE: 'chai',
-    PCS: 'cái',
 };
 export const OPERATION_COLORS = {
     FEEDING: '#1d7ad6',
@@ -65,6 +72,7 @@ export const PROTOCOL_THEME = {
 };
 export const PROTOCOL_PRIMARY_BUTTON =
     'border-0! bg-[linear-gradient(90deg,#77a1d3,#79cbca)]! font-semibold! text-white! shadow-none! enabled:hover:bg-[linear-gradient(90deg,#5f91cc,#57bdbd)]! enabled:focus-visible:bg-[linear-gradient(90deg,#5f91cc,#57bdbd)]!';
+/** Apply culture-day and administration-route rules to zero-based editor offsets. */
 export const allowedDoseBases = (
     operationType,
     offset,

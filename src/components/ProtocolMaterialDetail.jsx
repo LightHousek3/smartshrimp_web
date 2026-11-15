@@ -31,7 +31,6 @@ export const MaterialCategoryTag = ({ category }) => (
     </Tag>
 );
 const regulatoryLabels = {
-    unclassified: 'Chưa đủ căn cứ phân loại',
     feed: 'Thức ăn / thức ăn bổ sung',
     environment: 'Xử lý môi trường',
     dual_purpose: 'Hồ sơ cho cả hai mục đích',
@@ -77,16 +76,6 @@ const ProtocolMaterialDetail = ({
         ],
         ['Phân loại pháp lý', regulatoryLabels[profile.regulatoryType]],
         ['Mã tiếp nhận / số ĐKLH', profile.registrationNumber],
-        [
-            'Kết quả hồ sơ',
-            product.id
-                ? ({
-                      reviewed: 'Đủ dữ liệu hồ sơ',
-                      draft: 'Chờ bổ sung hồ sơ',
-                      blocked: 'Đang bị chặn',
-                  }[profile.complianceStatus] ?? 'Chưa có hồ sơ')
-                : 'Hệ thống kiểm tra lại khi lưu phác đồ',
-        ],
         ['Thành phần theo nhãn', profile.ingredientsText],
         [
             'Kháng sinh',

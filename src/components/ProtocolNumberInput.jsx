@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useReducer, useRef } from 'react';
 import { InputNumber } from 'antd';
 
+/** Retain raw numeric input locally until the field commits its configured precision. */
 const NumberDraft = ({
     value,
     onChange,
@@ -12,17 +13,23 @@ const NumberDraft = ({
     ...props
 }) => {
     const draft = useRef(value);
+    const [display, resetDisplay] = useReducer((current, nextValue) => ({ value: nextValue, revision: current.revision + 1 }), { value, revision: 0 });
+    /** Normalize the visible input even when rounding produces the previously saved value. */
     const commit = () => {
         const number =
             Number.isFinite(draft.current) && Number.isInteger(precision)
                 ? Number(draft.current.toFixed(precision))
                 : draft.current;
+        draft.current = number;
         if (!Object.is(number, value)) onChange?.(number);
+        // Reset raw input even when rounding returns the value that was already saved.
+        resetDisplay(number);
     };
     return (
         <InputNumber
+            key={display.revision}
             {...props}
-            defaultValue={value}
+            defaultValue={display.value}
             precision={precision}
             parser={parser}
             formatter={

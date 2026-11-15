@@ -103,10 +103,10 @@ export const buildQuickTemplateStages = ({
         if (
             !Number.isFinite(increment) ||
             increment < 0 ||
-            (increment > 0 && (percent || phase.endDay > 29))
+            (increment > 0 && percent)
         )
             throw new Error(
-                'Tăng lượng mỗi ngày chỉ áp dụng cho thức ăn cố định trong DOC 1–29.'
+                'Tăng lượng mỗi ngày chỉ áp dụng cho thức ăn cố định trong khoảng đã chỉ định.'
             );
         const unit = percent ? 'KG' : phase.doseUnit;
         if (

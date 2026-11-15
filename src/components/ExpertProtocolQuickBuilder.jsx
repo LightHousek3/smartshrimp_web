@@ -60,6 +60,7 @@ const FeedField = ({
 
 /** Build a draft from Expert-entered quantities; persistence uses the existing template authoring flow. */
 const ExpertProtocolQuickBuilder = ({
+    initialStartDay = 1,
     farm,
     manufacturers,
     shrimpType,
@@ -129,7 +130,7 @@ const ExpertProtocolQuickBuilder = ({
         <Modal
             open
             centered
-            title="Tạo nhanh phác đồ mẫu"
+            title="Điền nhanh khẩu phần"
             width={820}
             styles={{
                 body: { maxHeight: '68vh', overflowY: 'auto', paddingRight: 8 },
@@ -139,7 +140,7 @@ const ExpertProtocolQuickBuilder = ({
                 <Flex justify="end" gap={8}>
                     <Button onClick={onClose}>Hủy</Button>
                     <Button type="primary" onClick={() => form.submit()}>
-                        Tạo bản nháp
+                        Điền vào phác đồ
                     </Button>
                 </Flex>
             }
@@ -148,7 +149,7 @@ const ExpertProtocolQuickBuilder = ({
                 type="info"
                 showIcon
                 className="mb-4!"
-                message="Anh/chị kiểm tra khẩu phần gợi ý và chọn thức ăn cho mỗi giai đoạn. Có thể chỉnh các thông số, rồi bổ sung vật tư trộn ăn và xử lý môi trường vào bản nháp trước khi lưu."
+                message={<span>Khẩu phần gợi ý của hệ thống tham khảo quy trình Tép Bạc. <a href="https://tepbac.com/technical/full/129/quy-trinh-nuoi-tom-su-tom-the-chan-trang-tham-canh-ban-tham-canh" target="_blank" rel="noopener noreferrer">Xem quy trình</a>. Anh/chị kiểm tra và điều chỉnh trước khi lưu.</span>}
             />
             {error && (
                 <Alert
@@ -173,7 +174,7 @@ const ExpertProtocolQuickBuilder = ({
                         time: dayjs(`2000-01-01T${meal.time}:00`),
                     })),
                     phases: [
-                        suggestQuickPhase(shrimpType, referencePostCount, []),
+                        suggestQuickPhase(shrimpType, referencePostCount, [], initialStartDay),
                     ],
                 }}
             >
@@ -522,51 +523,9 @@ const ExpertProtocolQuickBuilder = ({
                                                                     'dailyIncrement',
                                                                 ]}
                                                                 label="Tăng tổng lượng mỗi ngày"
-                                                                extra={
-                                                                    form.getFieldValue(
-                                                                        [
-                                                                            'phases',
-                                                                            field.name,
-                                                                            'endDay',
-                                                                        ]
-                                                                    ) <= 29
-                                                                        ? `Áp dụng trong DOC ${form.getFieldValue(['phases', field.name, 'startDay'])}–${form.getFieldValue(['phases', field.name, 'endDay'])}; cùng đơn vị với khẩu phần, nhập 0 để giữ cố định.`
-                                                                        : 'Giai đoạn sau DOC 29 dùng khẩu phần cố định hoặc % sinh khối; mức tăng phải bằng 0.'
-                                                                }
-                                                                rules={[
-                                                                    {
-                                                                        validator:
-                                                                            (
-                                                                                _,
-                                                                                value
-                                                                            ) =>
-                                                                                (value ??
-                                                                                    0) ===
-                                                                                    0 ||
-                                                                                form.getFieldValue(
-                                                                                    [
-                                                                                        'phases',
-                                                                                        field.name,
-                                                                                        'endDay',
-                                                                                    ]
-                                                                                ) <=
-                                                                                    29
-                                                                                    ? Promise.resolve()
-                                                                                    : Promise.reject(
-                                                                                          new Error(
-                                                                                              'Mức tăng chỉ áp dụng khi toàn bộ giai đoạn nằm trong DOC 1–29.'
-                                                                                          )
-                                                                                      ),
-                                                                    },
-                                                                ]}
+                                                                extra="Chỉ áp dụng cho thức ăn cố định trong khoảng ngày đã chọn; nhập 0 để giữ nguyên."
                                                             >
-                                                                <ProtocolNumberInput
-                                                                    min={0}
-                                                                    max={
-                                                                        9999999999
-                                                                    }
-                                                                    className="w-full!"
-                                                                />
+                                                                <ProtocolNumberInput min={0} max={9999999999} precision={4} className="w-full!" />
                                                             </Form.Item>
                                                         )}
                                                     </>

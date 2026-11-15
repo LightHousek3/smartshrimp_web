@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Badge, Button, ConfigProvider, Space, Tabs, Tooltip } from 'antd';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Alert, Badge, Button, ConfigProvider, Space, Tabs } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { expertSeasonAPI } from '../../apis';
 import Loading from '../../components/Loading';
 import ExpertSeasonHeader from '../../components/ExpertSeasonHeader';
 import ExpertSeasonMetrics from '../../components/ExpertSeasonMetrics';
 import ExpertSeasonProtocols from '../../components/ExpertSeasonProtocols';
+import ExpertDiseaseCases from '../../components/ExpertDiseaseCases';
 import { PROTOCOL_THEME, protocolError } from '../../constants/productionProtocol';
 import { expertStyle } from '../../constants/expertStyle';
 
 /** Coordinate the detail request and tabs; cancel stale requests when the route changes. */
 const SeasonDetailContent = ({ seasonId }) => {
     const navigate = useNavigate();
-    const [tab, setTab] = useState('metrics');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    const tab = ['protocols', 'diseases'].includes(requestedTab) ? requestedTab : 'metrics';
+    const changeTab = value => setSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        next.set('tab', value);
+        return next;
+    }, { replace: true });
     const [attempt, setAttempt] = useState(0);
     const [state, setState] = useState(null);
     useEffect(() => {
@@ -41,12 +49,11 @@ const SeasonDetailContent = ({ seasonId }) => {
     return <div className={`${expertStyle.page} [&_.ant-tabs-tab-disabled]:text-[#3a4a63]!`}>
         {back}
         <ExpertSeasonHeader season={season} />
-        <Tabs activeKey={tab} onChange={setTab} tabBarGutter={32} items={[
+        <Tabs activeKey={tab} onChange={changeTab} tabBarGutter={32} items={[
             { key: 'metrics', label: 'Chỉ số chuyên môn', children: <ExpertSeasonMetrics season={season} /> },
             { key: 'protocols', label: 'Phác đồ nuôi', children: <ExpertSeasonProtocols seasonId={seasonId} /> },
-            { key: 'diseases', disabled: true, label: <Tooltip title="Ca bệnh được quản lý ở mục Ca bệnh">
-                <span className="inline-flex items-center gap-1">Ca bệnh{season.openCaseCount > 0 && <Badge count={season.openCaseCount} size="small" color="#d43b57" />}</span>
-            </Tooltip> },
+            { key: 'diseases', label: <span className="inline-flex items-center gap-1">Ca bệnh{season.openCaseCount > 0 && <Badge count={season.openCaseCount} size="small" color="#d43b57" />}</span>,
+                children: <ExpertDiseaseCases seasonId={seasonId} /> },
         ]} />
     </div>;
 };

@@ -11,7 +11,7 @@ import {
     Input,
     Modal,
     Progress,
-    Segmented,
+    Select,
     Tabs,
     Timeline,
     Tooltip,
@@ -22,30 +22,29 @@ import {
     ArrowRightOutlined,
     CheckCircleFilled,
     CheckCircleOutlined,
-    ClockCircleOutlined,
-    ExclamationCircleFilled,
     LoadingOutlined,
-    PlusOutlined,
     RobotOutlined,
     SendOutlined,
-    StopOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { expertDiseaseCaseAPI } from '../../apis';
 import Loading from '../../components/Loading';
+import ExpertCaseSnapshot from '../../components/ExpertCaseSnapshot';
+import ExpertTreatmentProtocols from '../../components/ExpertTreatmentProtocols';
+import { responseAttachment, caseResolutionBlock } from '../../utils/diseaseCaseUtils';
 import { PROTOCOL_THEME } from '../../constants/productionProtocol';
 import { NOTIFICATION_CHANGED_EVENT } from '../../utils/notificationUtils';
 import {
     CaseTag,
-    HealthTag,
     Label,
     PageHeader,
     Panel,
-    ProtocolTag,
     SeverityTag,
 } from './expertUI';
 
 const responseTypeLabels = {
+    NORMAL: 'Trao đổi',
+    normal: 'Trao đổi',
     REQUEST_INFO: 'Yêu cầu bổ sung',
     request_info: 'Yêu cầu bổ sung',
     PROVIDE_INFO: 'Bổ sung thông tin',
@@ -74,20 +73,16 @@ const fmtDateTime = (isoString) => {
     return `${hours}:${mins} ${day}-${month}`;
 };
 
-const fmtDate = (isoString) => {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    return d.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-};
-
 const ExpertDiseaseCaseDetail = () => {
     const { caseId } = useParams();
+    return <ExpertCaseDetail key={caseId} caseId={caseId} />;
+};
+
+/** Coordinate case conversation, care decisions and treatment versions from the scoped detail response. */
+const ExpertCaseDetail = ({ caseId }) => {
     const navigate = useNavigate();
     const { message } = App.useApp();
+    const activeCaseId = useRef(caseId);
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -96,12 +91,25 @@ const ExpertDiseaseCaseDetail = () => {
 
     const [caseData, setCaseData] = useState(null);
     const [fetchError, setFetchError] = useState(null);
-    const [activeTab, setActiveTab] = useState('thread');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    const activeTab = ['thread', 'treatment', 'history'].includes(requestedTab) ? requestedTab : 'thread';
+    const changeTab = value => setSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        next.set('tab', value);
+        return next;
+    }, { replace: true });
 
     // Response form state
-    const [responseType, setResponseType] = useState('EXPERT_ASSESSMENT');
+    const responseType = 'NORMAL';
     const [responseMessage, setResponseMessage] = useState('');
-    const [switchToMonitoring, setSwitchToMonitoring] = useState(false);
+    const [careAction, setCareAction] = useState(null);
+    const [careReason, setCareReason] = useState('');
+    const [careBusy, setCareBusy] = useState(false);
+    const [careContext, setCareContext] = useState(null);
+    const [careConfirm, setCareConfirm] = useState(false);
+    const [resolutionContext, setResolutionContext] = useState(null);
+    const [resolveConfirmed, setResolveConfirmed] = useState(false);
 
     // Resolve form state
     const [resolutionSummary, setResolutionSummary] = useState('');
@@ -129,6 +137,7 @@ const ExpertDiseaseCaseDetail = () => {
         async (isSilent = false, signal) => {
             try {
                 const res = await expertDiseaseCaseAPI.detail(caseId, signal);
+                if (signal?.aborted || activeCaseId.current !== caseId) return;
                 if (res.data?.success) {
                     const serverData = res.data.data;
                     setCaseData((prev) => {
@@ -170,6 +179,7 @@ const ExpertDiseaseCaseDetail = () => {
     useEffect(() => {
         let isMounted = true;
         const controller = new AbortController();
+        activeCaseId.current = caseId;
 
         expertDiseaseCaseAPI
             .detail(caseId, controller.signal)
@@ -210,6 +220,7 @@ const ExpertDiseaseCaseDetail = () => {
 
         return () => {
             isMounted = false;
+            activeCaseId.current = null;
             controller.abort();
             clearInterval(timer);
             window.removeEventListener(NOTIFICATION_CHANGED_EVENT, handleNotificationEvent);
@@ -223,7 +234,7 @@ const ExpertDiseaseCaseDetail = () => {
         }
     }, [activeTab, scrollToBottom]);
 
-    // Optimistic response dispatch with rollback on network failure
+    // Optimistic messages are temporary; only the server determines clinical state.
     const handleSendResponse = async () => {
         const text = responseMessage.trim();
         if (!text || submitting) return;
@@ -233,7 +244,7 @@ const ExpertDiseaseCaseDetail = () => {
             id: tempId,
             author: {
                 id: caseData?.expert?.id || 'expert',
-                fullName: caseData?.expert?.fullName || 'TS. Nguyễn Thị Mai Anh',
+                fullName: caseData?.expert?.fullName || 'Chuyên gia',
                 role: 'EXPERT',
             },
             responseType,
@@ -242,45 +253,33 @@ const ExpertDiseaseCaseDetail = () => {
             isOptimistic: true,
         };
 
-        // Append optimistic message preview immediately
+        // Keep the clinical state unchanged until the server accepts the response.
         setCaseData((prev) => {
             if (!prev) return prev;
-            let nextStatus = prev.status;
-            if (responseType === 'REQUEST_INFO' && prev.status !== 'IN_TREATMENT') {
-                nextStatus = 'WAITING_FOR_INFO';
-            } else if (responseType === 'EXPERT_INSTRUCTION' && switchToMonitoring && prev.status !== 'IN_TREATMENT') {
-                nextStatus = 'MONITORING';
-            }
             return {
                 ...prev,
-                status: nextStatus,
                 responses: [...(prev.responses || []), optimisticMsg],
             };
         });
 
-        // Clear composer input for continuous typing
+        // Preserve form values for retry if the request fails.
         setResponseMessage('');
-        const currentSwitch = switchToMonitoring;
-        setSwitchToMonitoring(false);
 
-        // Scroll viewport to latest message
         requestAnimationFrame(() => scrollToBottom(true));
 
-        // Dispatch asynchronous network request
         try {
             setSubmitting(true);
             const payload = {
                 responseType,
                 message: text,
-                switchToMonitoring: responseType === 'EXPERT_INSTRUCTION' ? currentSwitch : false,
                 attachments: [],
             };
 
             const res = await expertDiseaseCaseAPI.respond(caseId, payload);
+            if (activeCaseId.current !== caseId) return;
             if (res.data?.success) {
                 const savedResponse = res.data.data;
-                // Seamlessly replace the temporary optimistic message in-place
-                // Zero jumping, zero duplication, transition "Đang gửi..." -> timestamp
+                // A polling response may already contain the saved message.
                 setCaseData((prev) => {
                     if (!prev) return prev;
                     const exists = (prev.responses || []).some((r) => r.id === savedResponse.id);
@@ -291,8 +290,10 @@ const ExpertDiseaseCaseDetail = () => {
                             .filter(Boolean),
                     };
                 });
+                await fetchDetail(true);
             }
         } catch (error) {
+            if (activeCaseId.current !== caseId) return;
             console.error('Lỗi gửi phản hồi:', error);
             message.error(error.response?.data?.message || 'Không thể gửi phản hồi. Vui lòng thử lại.');
             // Revert optimistic message and restore user text if network failed
@@ -305,7 +306,7 @@ const ExpertDiseaseCaseDetail = () => {
             });
             setResponseMessage(text);
         } finally {
-            setSubmitting(false);
+            if (activeCaseId.current === caseId) setSubmitting(false);
         }
     };
 
@@ -316,7 +317,45 @@ const ExpertDiseaseCaseDetail = () => {
         }
     };
 
+    /** Freeze the case, suspension IDs and displayed production version for confirmation. */
+    const openCare = () => {
+        setCareAction(caseData.care.canMonitor ? 'MONITOR' : 'RESUME_PRODUCTION');
+        setCareReason('');
+        setCareContext({ ...caseData.care, updatedAt: caseData.updatedAt,
+            holds: caseData.productionHolds.filter(row => caseData.care.holdIds.includes(row.id)) });
+        setCareConfirm(false);
+    };
+    /** Require a second confirmation before resuming production and discard stale decisions on conflict. */
+    const confirmCare = async () => {
+        if (careBusy || careReason.trim().length < 5) return;
+        if (careAction === 'RESUME_PRODUCTION' && !careConfirm) { setCareConfirm(true); return; }
+        setCareBusy(true);
+        try {
+            const response = await expertDiseaseCaseAPI.care(caseId, { action: careAction,
+                reason: careReason.trim(), expectedUpdatedAt: careContext.updatedAt,
+                episodeId: careContext.episodeId,
+                ...(careAction === 'RESUME_PRODUCTION' && { confirmResume: true,
+                    expectedProduction: { id: careContext.production.protocolId, updatedAt: careContext.production.protocolUpdatedAt } }),
+                releaseHoldIds: careAction === 'RESUME_PRODUCTION' ? careContext.holdIds : [] });
+            if (activeCaseId.current !== caseId) return;
+            message.success(response.data.data.productionActive ? 'Đã cho phép phác đồ nuôi chạy tiếp.'
+                : 'Đã lưu quyết định tiếp tục theo dõi, tạm hoãn phác đồ nuôi.');
+            setCareAction(null);
+            await fetchDetail(true);
+        } catch (error) {
+            if (activeCaseId.current !== caseId) return;
+            message.error(error.response?.data?.message || 'Không thể lưu quyết định chăm sóc');
+            if (error.response?.status === 409) {
+                setCareAction(null);
+                await fetchDetail(true);
+            }
+        } finally { if (activeCaseId.current === caseId) setCareBusy(false); }
+    };
+
+    /** Submit the clinical conclusion with explicit consent when no production plan can continue. */
     const handleConfirmResolve = async () => {
+        if (resolving) return;
+        if (resolutionContext?.confirmWithoutProduction && !resolveConfirmed) return;
         if (!resolutionSummary.trim() || resolutionSummary.trim().length < 5) {
             message.warning('Vui lòng nhập kết luận & kết quả xử lý (tối thiểu 5 ký tự)');
             return;
@@ -326,7 +365,10 @@ const ExpertDiseaseCaseDetail = () => {
             setResolving(true);
             const res = await expertDiseaseCaseAPI.resolve(caseId, {
                 resolutionSummary: resolutionSummary.trim(),
+                expectedUpdatedAt: resolutionContext.updatedAt,
+                ...(resolutionContext.confirmWithoutProduction && { confirmWithoutProduction: true }),
             });
+            if (activeCaseId.current !== caseId) return;
 
             if (res.data?.success) {
                 message.success('Đã đóng ca bệnh thành công');
@@ -334,10 +376,12 @@ const ExpertDiseaseCaseDetail = () => {
                 await fetchDetail(true);
             }
         } catch (error) {
+            if (activeCaseId.current !== caseId) return;
             console.error('Lỗi giải quyết ca bệnh:', error);
             message.error(error.response?.data?.message || 'Không thể đánh dấu giải quyết');
+            if (error.response?.status === 409) { setIsResolveModalOpen(false); await fetchDetail(true); }
         } finally {
-            setResolving(false);
+            if (activeCaseId.current === caseId) setResolving(false);
         }
     };
 
@@ -374,22 +418,8 @@ const ExpertDiseaseCaseDetail = () => {
     const statusHistory = caseData.statusHistory || [];
     const attachments = caseData.attachments || [];
 
-    // Enforce BR-CASE-03: block resolution while treatment protocol remains incomplete
-    const runningTreatment = protocols.find(
-        (p) => p.status === 'APPROVED' && (!p.metrics || p.metrics.completedCount < p.metrics.totalSchedules)
-    );
-    const pendingTreatment = protocols.find(
-        (p) => p.status === 'PENDING_APPROVAL' || p.status === 'DRAFT'
-    );
-    const resolveBlock = runningTreatment
-        ? 'Phác đồ điều trị đang chạy — chờ hoàn tất hoặc dừng khẩn cấp trước khi đóng ca.'
-        : pendingTreatment
-          ? (pendingTreatment.status === 'DRAFT'
-                ? 'Còn phác đồ điều trị đang soạn thảo.'
-                : 'Còn phác đồ điều trị đang chờ chủ trại duyệt.')
-          : null;
+    const resolveBlock = caseResolutionBlock(caseData.status, protocols, caseData.productionHolds, caseData.resolution);
 
-    const approvedProtocol = protocols.find((p) => p.status === 'APPROVED');
     const symptoms = snapshot.observedSigns || snapshot.symptoms || [];
 
     const tabItems = [
@@ -398,7 +428,7 @@ const ExpertDiseaseCaseDetail = () => {
             label: `Trao đổi · ${responses.length}`,
             children: (
                 <div className="p-4 sm:p-5">
-                    {/* Mô tả của KTV */}
+                    {/* Technician observations */}
                     <div className="rounded-xl bg-[#f6f9fc] p-3.5 mb-4 border border-[#eef1f7]">
                         <Label>Mô tả của KTV</Label>
                         <p className="m-0 text-[13px] text-[#0f1c2e] leading-relaxed">
@@ -418,7 +448,7 @@ const ExpertDiseaseCaseDetail = () => {
                         )}
                     </div>
 
-                    {/* Timeline trao đổi with smooth scroll container */}
+                    {/* Case conversation */}
                     <div
                         ref={chatContainerRef}
                         className="flex flex-col gap-2.5 max-h-[500px] overflow-y-auto scroll-smooth pr-1 scrollbar-thin"
@@ -426,12 +456,13 @@ const ExpertDiseaseCaseDetail = () => {
                         {responses.map((r) => {
                             const isExpert = r.author?.role === 'EXPERT' || r.author_role === 'expert';
                             const isUrgent = r.responseType === 'EMERGENCY_ALERT' || r.response_type === 'emergency_alert';
+                            const isCare = Boolean(r.careAction);
                             const authorName = r.author?.fullName || r.author_name || 'Người dùng';
                             const initials = authorName.split(' ').filter(Boolean).slice(-1)[0]?.[0]?.toUpperCase() || (isExpert ? 'A' : 'T');
 
                             return (
                                 <div
-                                    key={r.id}
+                                    key={r.id} data-care-action={r.careAction || undefined}
                                     className={`flex gap-2.5 ${isExpert ? 'flex-row-reverse' : ''}`}
                                 >
                                     <Avatar
@@ -446,7 +477,8 @@ const ExpertDiseaseCaseDetail = () => {
                                     </Avatar>
                                     <div
                                         className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-xs ${
-                                            isUrgent
+                                            isCare ? 'bg-[#fff7e6] border border-[#e6ad45]'
+                                                : isUrgent
                                                 ? 'bg-[#fbe6ea] border border-[#d43b57]/30'
                                                 : isExpert
                                                   ? 'bg-[#e2f6f3]'
@@ -462,7 +494,7 @@ const ExpertDiseaseCaseDetail = () => {
                                                     isUrgent ? 'text-[#d43b57]' : 'text-[#6a7994]'
                                                 }`}
                                             >
-                                                {responseTypeLabels[r.responseType || r.response_type] || r.responseType}
+                                                {isCare ? 'Quyết định chăm sóc' : responseTypeLabels[r.responseType || r.response_type] || r.responseType}
                                             </span>
                                             {r.isOptimistic ? (
                                                 <span className="text-[#0f9b8e] flex items-center gap-1 font-normal text-[10.5px]">
@@ -480,9 +512,10 @@ const ExpertDiseaseCaseDetail = () => {
                                         {Array.isArray(r.attachments) && r.attachments.length > 0 && (
                                             <div className="mt-2 flex flex-wrap gap-2">
                                                 {r.attachments.map((att, aIdx) => {
-                                                    const url = typeof att === 'string' ? att : att.url || att.filePath || att.link;
-                                                    const name = typeof att === 'string' ? `Đính kèm ${aIdx + 1}` : att.fileName || att.name || `Đính kèm ${aIdx + 1}`;
-                                                    const isImg = url && (/\.(jpg|jpeg|png|webp|gif)$/i.test(url) || att.fileType?.startsWith('image/'));
+                                                    const attachment = responseAttachment(att);
+                                                    if (!attachment) return null;
+                                                    const { url, isImage: isImg } = attachment;
+                                                    const name = attachment.label;
                                                     if (isImg) {
                                                         return (
                                                             <Image
@@ -517,62 +550,21 @@ const ExpertDiseaseCaseDetail = () => {
                         <div ref={chatBottomRef} />
                     </div>
 
-                    {/* Form gửi phản hồi của Chuyên gia */}
+                    {/* Expert conversation input */}
                     {!isResolved && (
                         <div className="mt-4 rounded-xl border border-[#e5e8f0] p-3 bg-white shadow-xs">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Segmented
-                                    size="small"
-                                    value={responseType}
-                                    onChange={(v) => {
-                                        setResponseType(v);
-                                        if (v === 'EXPERT_INSTRUCTION') {
-                                            setSwitchToMonitoring(true);
-                                        }
-                                    }}
-                                    options={[
-                                        { value: 'EXPERT_ASSESSMENT', label: 'Đánh giá chuyên môn' },
-                                        { value: 'EXPERT_INSTRUCTION', label: 'Chỉ dẫn xử lý' },
-                                        { value: 'REQUEST_INFO', label: 'Yêu cầu bổ sung' },
-                                    ]}
-                                />
-                                {responseType === 'REQUEST_INFO' && caseData.status !== 'IN_TREATMENT' && (
-                                    <span className="text-[11.5px] text-[#d98314]">
-                                        Ca sẽ chuyển sang “Chờ bổ sung”
-                                    </span>
-                                )}
-                            </div>
-
                             <Input.TextArea
                                 rows={3}
+                                disabled={submitting}
                                 value={responseMessage}
                                 onChange={(e) => setResponseMessage(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 maxLength={500}
-                                placeholder={
-                                    responseType === 'REQUEST_INFO'
-                                        ? 'Nêu rõ thông tin cần KTV bổ sung: ảnh cận, chỉ số nước theo giờ, số tôm chết… (Nhấn Ctrl + Enter để gửi)'
-                                        : responseType === 'EXPERT_INSTRUCTION'
-                                          ? 'Chỉ dẫn xử lý cụ thể cho KTV… (Nhấn Ctrl + Enter để gửi)'
-                                          : 'Nhận định nguyên nhân, mức độ, hướng xử lý… (Nhấn Ctrl + Enter để gửi)'
-                                }
+                                placeholder="Nhập nội dung trao đổi với KTV… (Ctrl + Enter để gửi)"
                             />
 
                             <div className="flex items-center justify-between mt-2.5">
-                                {responseType === 'EXPERT_INSTRUCTION' && caseData.status !== 'IN_TREATMENT' ? (
-                                    <Checkbox
-                                        checked={switchToMonitoring}
-                                        onChange={(e) => setSwitchToMonitoring(e.target.checked)}
-                                    >
-                                        <span className="text-[12px]">
-                                            Chuyển ca sang “Theo dõi” (không cần thuốc)
-                                        </span>
-                                    </Checkbox>
-                                ) : (
-                                    <span className="text-[11px] text-[#8796ae]">
-                                        Nhấn <kbd className="px-1.5 py-0.5 rounded bg-[#f1f5f9] border border-[#e2e8f0] font-mono text-[10px]">Ctrl + Enter</kbd> để gửi
-                                    </span>
-                                )}
+                                <span className="text-[11px] text-[#8796ae]">Trao đổi không làm đổi trạng thái ca.</span>
                                 <div className="flex items-center gap-3">
                                     <span className={`text-[11.5px] font-mono ${responseMessage.length >= 500 ? 'text-[#d43b57] font-semibold' : 'text-[#8796ae]'}`}>
                                         {responseMessage.length}/500
@@ -601,114 +593,7 @@ const ExpertDiseaseCaseDetail = () => {
         {
             key: 'treatment',
             label: `Phác đồ điều trị · ${protocols.length}`,
-            children: (
-                <div className="p-4 sm:p-5">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="text-[12px] text-[#6a7994]">
-                            {approvedProtocol ? (
-                                <>
-                                    Đang áp dụng <b className="text-[#0f1c2e]">v{approvedProtocol.versionNo}</b> · duyệt {fmtDate(approvedProtocol.approvedAt || approvedProtocol.updatedAt)}
-                                </>
-                            ) : (
-                                'Chưa có phác đồ điều trị được duyệt'
-                            )}
-                        </div>
-                        {!isResolved && (
-                            pendingTreatment ? (
-                                <Tooltip
-                                    title={
-                                        pendingTreatment.status === 'DRAFT'
-                                            ? 'Ca bệnh đang có phác đồ đang soạn thảo'
-                                            : 'Ca bệnh đang có phác đồ chờ duyệt'
-                                    }
-                                >
-                                    <span>
-                                        <Button
-                                            type="primary"
-                                            icon={<PlusOutlined />}
-                                            disabled
-                                            className="h-9! rounded-xl! px-4! text-[13px]! font-medium!"
-                                        >
-                                            Tạo phác đồ điều trị
-                                        </Button>
-                                    </span>
-                                </Tooltip>
-                            ) : (
-                                <Button
-                                    type="primary"
-                                    icon={<PlusOutlined />}
-                                    onClick={() => message.info('Chức năng tạo phác đồ điều trị thuộc phân hệ Phác đồ điều trị')}
-                                    className="h-9! rounded-xl! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-[13px]! font-medium! text-white! shadow-none! hover:opacity-90! transition-opacity"
-                                >
-                                    Tạo phác đồ điều trị
-                                </Button>
-                            )
-                        )}
-                    </div>
-
-                    {!protocols.length ? (
-                        <Empty
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="Chưa có phác đồ điều trị"
-                        />
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {protocols.map((p) => {
-                                const isApproved = p.status === 'APPROVED';
-                                const completed = p.metrics?.completedCount ?? 0;
-                                const total = p.metrics?.totalSchedules ?? 0;
-
-                                return (
-                                    <div
-                                        key={p.id}
-                                        className={`grid grid-cols-[48px_1fr] gap-3 items-center rounded-xl border px-3.5 py-3 ${
-                                            isApproved
-                                                ? 'border-[#0f9b8e]/40 bg-[#e2f6f3]/40'
-                                                : 'border-[#e5e8f0] bg-white'
-                                        }`}
-                                    >
-                                        <div className="font-mono text-[13px] font-semibold text-[#3a4a63] text-center">
-                                            v{p.versionNo}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-semibold text-[13px] text-[#0f1c2e] truncate">
-                                                    {p.title}
-                                                </span>
-                                                <ProtocolTag s={p.status} />
-                                            </div>
-                                            <div className="text-[11.5px] text-[#6a7994] mt-0.5">
-                                                {p.stages?.length || 1} giai đoạn · {p.items?.length || 0} hạng mục ·{' '}
-                                                {p.submittedAt
-                                                    ? `gửi ${fmtDateTime(p.submittedAt)}`
-                                                    : `sửa ${fmtDateTime(p.updatedAt || p.createdAt)}`}
-                                                {p.status === 'REJECTED' && p.rejectionReason && (
-                                                    <span className="text-[#d43b57]"> · {p.rejectionReason}</span>
-                                                )}
-                                            </div>
-
-                                            {isApproved && total > 0 && (
-                                                <Progress
-                                                    percent={Math.round((completed / total) * 100)}
-                                                    size="small"
-                                                    className="!m-0 !mt-1 max-w-80"
-                                                    format={() => `${completed}/${total} lịch`}
-                                                />
-                                            )}
-
-                                            {p.status === 'ABORTED' && p.abortReason && (
-                                                <div className="mt-1 text-[11px] text-[#d43b57]">
-                                                    <StopOutlined /> Dừng khẩn cấp: {p.abortReason}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            ),
+            children: <ExpertTreatmentProtocols key={caseId} diseaseCase={caseData} onChanged={() => fetchDetail(true)} />,
         },
         {
             key: 'history',
@@ -738,7 +623,7 @@ const ExpertDiseaseCaseDetail = () => {
                                             <CaseTag s={h.toStatus || h.to} />
                                         </div>
                                         <div className="text-[#6a7994] mt-0.5">
-                                            {h.changer?.fullName || h.by || 'Người dùng'} · {fmtDateTime(h.changedAt || h.at)}
+                                            {h.changer?.fullName || h.by || (h.changedBy ? 'Tài khoản cũ' : 'Hệ thống')} · {fmtDateTime(h.changedAt || h.at)}
                                             {h.reason && ` · ${h.reason}`}
                                         </div>
                                     </div>
@@ -772,13 +657,15 @@ const ExpertDiseaseCaseDetail = () => {
                     }
                     description={`${caseData.season?.name || 'Vụ nuôi'} — ${caseData.season?.pond?.name || 'Ao'} · DOC ${snapshot.doc || '—'} khi báo · KTV ${caseData.reporter?.fullName || '—'} · tạo ${fmtDateTime(caseData.createdAt)}`}
                     extra={
-                        !isResolved && (
+                        !isResolved && (<>
+                            {caseData.care?.available && <Button onClick={openCare}>Quyết định chăm sóc</Button>}
                             <Tooltip title={resolveBlock}>
                                 <Button
                                     type="primary"
                                     icon={<CheckCircleOutlined />}
                                     disabled={Boolean(resolveBlock)}
-                                    onClick={() => setIsResolveModalOpen(true)}
+                                    onClick={() => { setResolutionContext({ ...caseData.resolution, updatedAt: caseData.updatedAt });
+                                        setResolveConfirmed(false); setIsResolveModalOpen(true); }}
                                     className={
                                         resolveBlock
                                             ? 'h-9! rounded-xl! px-4! text-[13px]! font-medium!'
@@ -788,16 +675,18 @@ const ExpertDiseaseCaseDetail = () => {
                                     Đánh dấu đã giải quyết
                                 </Button>
                             </Tooltip>
-                        )
+                        </>)
                     }
                 />
+                {caseData.care?.productionPaused && <Alert type="warning" showIcon className="mb-4!" message="Phác đồ nuôi đang tạm hoãn" />}
+                {caseData.care?.waitingForTreatmentId && <Alert type="info" showIcon className="mb-4!" message="Đã có phác đồ điều trị tiếp theo được duyệt, đang chờ mốc bắt đầu." />}
 
                 {isResolved && (
                     <Alert
                         showIcon
                         icon={<CheckCircleFilled className="!text-[#0f9b8e] !text-base" />}
                         className="!mb-3.5 !rounded-xl !border-[#bbf0e8] !bg-[#e2f6f3] !text-[#0b7a70] [&_.ant-alert-message]:!font-semibold [&_.ant-alert-message]:!text-[#0b7a70] [&_.ant-alert-description]:!text-[#0b7a70] [&_.ant-alert-description]:!opacity-90 [&_.ant-alert-icon]:!text-[#0f9b8e]"
-                        message={`Đã giải quyết · ${fmtDateTime(caseData.resolvedAt || caseData.updatedAt)}`}
+                        message={`${['SEASON_ENDED', 'SEASON_CANCELLED'].includes(caseData.resolutionReason) ? 'Khép hành chính do đóng vụ' : caseData.resolutionReason === 'EXPERT_CONCLUDED' ? 'Đã khép chuyên môn' : 'Ca đã khép'} · ${fmtDateTime(caseData.resolvedAt || caseData.updatedAt)}`}
                         description={caseData.resolutionSummary || 'Đã kết thúc xử lý.'}
                     />
                 )}
@@ -808,7 +697,7 @@ const ExpertDiseaseCaseDetail = () => {
                     <Panel pad={false}>
                         <Tabs
                             activeKey={activeTab}
-                            onChange={setActiveTab}
+                            onChange={changeTab}
                             className="[&_.ant-tabs-nav]:!px-4 [&_.ant-tabs-nav]:!mb-0"
                             items={tabItems}
                         />
@@ -816,7 +705,7 @@ const ExpertDiseaseCaseDetail = () => {
 
                     {/* Right Column (360px): Sidebar Panels */}
                     <div className="flex flex-col gap-3.5">
-                        {/* Panel 1: Gợi ý AI khi tạo ca */}
+                        {/* Diagnosis captured when the case was opened */}
                         {snapshot.aiDiagnosis && (
                             <Panel
                                 title={
@@ -844,13 +733,13 @@ const ExpertDiseaseCaseDetail = () => {
                             </Panel>
                         )}
 
-                        {/* Panel 2: SnapshotPanel */}
-                        <SnapshotPanel
+                        {/* Water and health observations */}
+                        <ExpertCaseSnapshot
                             c={caseData}
                             current={caseData.latestMetrics?.water || caseData.latestWaterLog}
                         />
 
-                        {/* Panel 3: Ảnh đính kèm */}
+                        {/* Case attachments */}
                         {attachments.length > 0 && (
                             <Panel title={`Ảnh đính kèm · ${attachments.length}`}>
                                 <Image.PreviewGroup>
@@ -874,7 +763,32 @@ const ExpertDiseaseCaseDetail = () => {
                     </div>
                 </div>
 
-                {/* Modal Đánh dấu ca đã giải quyết */}
+                <Modal open={Boolean(careAction)} title={careConfirm ? 'Xác nhận cho phác đồ nuôi chạy tiếp' : 'Quyết định chăm sóc'}
+                    okText={careConfirm ? 'Xác nhận chạy tiếp' : 'Lưu quyết định'} cancelText={careConfirm ? 'Xem lại' : 'Quay lại'}
+                    confirmLoading={careBusy} closable={!careBusy} maskClosable={!careBusy} keyboard={!careBusy}
+                    cancelButtonProps={{ disabled: careBusy }} okButtonProps={{ disabled: careReason.trim().length < 5
+                        || careAction === 'RESUME_PRODUCTION' && !careContext?.production?.canResume }}
+                    onCancel={() => careConfirm ? setCareConfirm(false) : setCareAction(null)} onOk={confirmCare}>
+                    <label htmlFor="case-care-action" className="block mb-2">Hướng xử lý</label>
+                    <Select id="case-care-action" className="w-full mb-3" value={careAction} onChange={value => { setCareAction(value); setCareConfirm(false); }} disabled={careBusy || careConfirm}
+                        options={[{ value: 'MONITOR', label: 'Tiếp tục theo dõi, tạm hoãn phác đồ nuôi', disabled: !careContext?.canMonitor },
+                            { value: 'RESUME_PRODUCTION', label: 'Cho phép phác đồ nuôi chạy tiếp' }]} />
+                    {careAction === 'RESUME_PRODUCTION' && <>
+                        <Alert type={careContext?.production?.canResume ? 'info' : 'warning'} showIcon className="mb-3!"
+                            message={careContext?.production?.canResume
+                                ? `${careContext.production.protocolTitle || 'Phác đồ nuôi'} · v${careContext.production.versionNo || '—'}. Chỉ tiếp tục các cữ tương lai, từ ${fmtDateTime(careContext.production.nextScheduledAt)}. Không làm bù cữ đã hủy.`
+                                : careContext?.production?.message || 'Chưa đủ điều kiện chạy tiếp phác đồ nuôi.'}
+                            description={careConfirm && <div>Quyết định này kết thúc các tạm hoãn của ca:
+                                <ul className="mt-1 mb-0 pl-5 list-disc">{careContext.holds.map(row => <li key={row.id}>{row.reason}</li>)}</ul></div>}
+                            action={!careContext?.production?.canResume && <Button disabled={careBusy}
+                                onClick={() => navigate(`/expert/seasons/${caseData.season.id}?tab=protocols${['NO_PROTOCOL', 'NO_FUTURE_OCCURRENCE'].includes(careContext?.production?.code) ? '&create=1' : ''}`)}>
+                                {['NO_PROTOCOL', 'NO_FUTURE_OCCURRENCE'].includes(careContext?.production?.code) ? 'Tạo phác đồ nuôi' : 'Kiểm tra phác đồ nuôi'}</Button>} />
+                    </>}
+                    <label htmlFor="case-care-reason" className="block mb-2">Lý do và chỉ dẫn chăm sóc</label>
+                    <Input.TextArea id="case-care-reason" value={careReason} disabled={careBusy || careConfirm}
+                        onChange={event => setCareReason(event.target.value)} rows={4} maxLength={450} showCount />
+                </Modal>
+                {/* Clinical resolution confirmation */}
                 <ResolveModal
                     open={isResolveModalOpen}
                     resolving={resolving}
@@ -882,137 +796,15 @@ const ExpertDiseaseCaseDetail = () => {
                     onConfirm={handleConfirmResolve}
                     summary={resolutionSummary}
                     setSummary={setResolutionSummary}
+                    confirmWithoutProduction={resolutionContext?.confirmWithoutProduction}
+                    confirmed={resolveConfirmed} onConfirmed={setResolveConfirmed}
                 />
             </div>
         </ConfigProvider>
     );
 };
 
-/** Snapshot lúc báo ca so với đo mới nhất matching Figma */
-function SnapshotPanel({ c, current }) {
-    const s = c.caseSnapshot || {};
-    const health = s.shrimpHealth || s.health || {};
-    const water = s.waterIndicators || s.water || {};
-
-    const rows = [
-        {
-            k: 'dissolvedOxygenMgL',
-            fallbackK: 'dissolved_oxygen_mg_l',
-            label: 'DO',
-            unit: 'mg/L',
-            bad: (v) => v < 4,
-        },
-        {
-            k: 'ph',
-            fallbackK: 'ph',
-            label: 'pH',
-            unit: '',
-            bad: (v) => v < 7.5 || v > 8.5,
-        },
-        {
-            k: 'temperatureC',
-            fallbackK: 'temperature_c',
-            label: 'Nhiệt độ',
-            unit: '°C',
-            bad: (v) => v < 28 || v > 32,
-        },
-        {
-            k: 'nh3MgL',
-            fallbackK: 'nh3_mg_l',
-            label: 'NH₃',
-            unit: 'mg/L',
-            bad: (v) => v > 0.1,
-        },
-        {
-            k: 'no2MgL',
-            fallbackK: 'no2_mg_l',
-            label: 'NO₂',
-            unit: 'mg/L',
-            bad: (v) => v > 1,
-        },
-        {
-            k: 'alkalinityMgLCaCO3',
-            fallbackK: 'alkalinity_mg_l',
-            label: 'Kiềm',
-            unit: 'mg/L',
-            bad: (v) => v < 100,
-        },
-        {
-            k: 'salinityPpt',
-            fallbackK: 'salinity_ppt',
-            label: 'Độ mặn',
-            unit: '‰',
-            bad: (v) => v < 10,
-        },
-    ];
-
-    const healthStatus = health.healthStatus || health.health_status || null;
-    const avgWeight = health.avgWeightG ?? health.avg_weight_g ?? null;
-    const biomass = health.estimatedBiomassKg ?? health.estimated_biomass_kg ?? null;
-    const mortality = health.mortality7d ?? health.mortality_7d ?? null;
-
-    const healthMetricsParts = [
-        avgWeight != null ? `${avgWeight} g` : null,
-        biomass != null ? `${biomass} kg` : null,
-        mortality != null ? `chết 7d ${mortality}` : null,
-    ].filter(Boolean);
-
-    return (
-        <Panel title="Ảnh chụp dữ liệu khi báo ca">
-            <div className="flex items-center justify-between mb-2.5">
-                {healthStatus ? (
-                    <HealthTag s={healthStatus} />
-                ) : (
-                    <span className="text-[12px] text-[#8796ae]">Chưa có đánh giá sức khỏe</span>
-                )}
-                <span className="text-[12px] text-[#6a7994] font-mono">
-                    {healthMetricsParts.length > 0 ? healthMetricsParts.join(' · ') : 'Chưa có số liệu tôm'}
-                </span>
-            </div>
-            <table className="w-full text-[12px]">
-                <thead>
-                    <tr className="text-[#6a7994] text-left">
-                        <th className="font-medium pb-1.5">Chỉ số</th>
-                        <th className="font-medium pb-1.5 text-right">Khi báo</th>
-                        {current && <th className="font-medium pb-1.5 text-right">Hiện tại</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r) => {
-                        const aVal = water[r.k] ?? water[r.fallbackK];
-                        const hasA = aVal != null && aVal !== '';
-                        const aBad = hasA && r.bad(Number(aVal));
-
-                        const bVal = current ? (current[r.k] ?? current[r.fallbackK]) : undefined;
-                        const hasB = bVal != null && bVal !== '';
-                        const bBad = hasB && r.bad(Number(bVal));
-
-                        return (
-                            <tr key={r.label} className="border-t border-[#eef1f7]">
-                                <td className="py-1.5 text-[#3a4a63]">{r.label}</td>
-                                <td className={`py-1.5 text-right font-mono ${aBad ? 'text-[#d43b57] font-semibold' : ''}`}>
-                                    {aBad && <ExclamationCircleFilled className="mr-1 text-[10px]" />}
-                                    {hasA ? `${aVal} ${r.unit}`.trim() : '—'}
-                                </td>
-                                {current && (
-                                    <td className={`py-1.5 text-right font-mono ${hasB ? (bBad ? 'text-[#d43b57] font-semibold' : 'text-[#0f9b8e]') : ''}`}>
-                                        {hasB ? bVal : '—'}
-                                    </td>
-                                )}
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-            {current && (
-                <div className="text-[11px] text-[#6a7994] mt-2">
-                    <ClockCircleOutlined /> Hiện tại: đo {fmtDateTime(current.recordedAt || current.recorded_at || new Date().toISOString())}
-                </div>
-            )}
-        </Panel>
-    );
-}
-
+/** Require explicit consent when clinical closure also ends a suspension without resuming production. */
 function ResolveModal({
     open,
     resolving,
@@ -1020,6 +812,7 @@ function ResolveModal({
     onConfirm,
     summary,
     setSummary,
+    confirmWithoutProduction, confirmed, onConfirmed,
 }) {
     return (
         <Modal
@@ -1030,7 +823,7 @@ function ResolveModal({
             cancelText="Hủy"
             confirmLoading={resolving}
             okButtonProps={{
-                disabled: !summary.trim(),
+                disabled: !summary.trim() || confirmWithoutProduction && !confirmed,
                 className: !summary.trim()
                     ? 'rounded-xl! h-9! px-4!'
                     : 'rounded-xl! h-9! px-4! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! text-white! shadow-none! hover:opacity-90!',
@@ -1041,8 +834,12 @@ function ResolveModal({
             onOk={onConfirm}
         >
             <p className="text-[13px] text-[#6a7994] mt-0 mb-3">
-                Ca đã đóng không thể mở lại; nếu tái phát KTV tạo ca mới liên kết ca này.
+                Ca đã đóng không thể mở lại. Nháp cuối chưa gửi sẽ được xóa nếu đủ điều kiện; các kế hoạch chưa áp dụng khác được hủy và giữ lịch sử.
             </p>
+            {confirmWithoutProduction && <Alert type="warning" showIcon className="mb-3!"
+                message="Không còn lịch nuôi để tiếp tục. Khép ca sẽ kết thúc tạm hoãn của đợt điều trị này, không sinh thêm lịch nuôi."
+                description={<Checkbox checked={confirmed} onChange={event => onConfirmed(event.target.checked)}>
+                    Tôi xác nhận khép ca và không tiếp tục phác đồ nuôi cũ.</Checkbox>} />}
             <div className="flex items-center justify-between mb-1">
                 <Label>Kết luận & kết quả xử lý (bắt buộc)</Label>
                 <span className={`text-[11.5px] font-mono ${summary.length >= 500 ? 'text-[#d43b57] font-semibold' : 'text-[#8796ae]'}`}>
