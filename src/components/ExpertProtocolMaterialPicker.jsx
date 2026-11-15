@@ -57,6 +57,7 @@ const groups = [
 const primaryButton =
     'h-9! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-white!';
 
+/** Collect proposal evidence without creating a catalog product or manufacturer. */
 const MaterialRecommendation = ({
     environment,
     feedOnly,
@@ -88,6 +89,7 @@ const MaterialRecommendation = ({
     const unit = Form.useWatch('unit', form);
     const packaged = ['PACK', 'BOTTLE'].includes(unit);
     const uploading = files.some((file) => file.status !== 'done');
+    /** Report upload progress and retain the uploaded label image for proposal selection. */
     const uploadImage = async ({ file, onSuccess, onError, onProgress }) => {
         try {
             const response = await cloudinaryAPI.uploadImage(
@@ -105,8 +107,10 @@ const MaterialRecommendation = ({
             }
         }
     };
+    /** Return a complete proposal with its manufacturer choice and uploaded label evidence. */
     const submit = (values) => {
-        const missing = proposalMissingFields({ ...values, manufacturerId: manufacturerMode === 'existing' ? values.manufacturerId : null,
+        const imageUrls = files.map((file) => file.response?.secure_url || file.url);
+        const missing = proposalMissingFields({ ...values, imageUrls, manufacturerId: manufacturerMode === 'existing' ? values.manufacturerId : null,
             manufacturer: manufacturerMode === 'new' ? values.manufacturer : null });
         if (missing.length) { message.error(`Hồ sơ đề xuất cần bổ sung: ${missing.join(', ')}.`); return; }
         const selectionError = templateMaterialSelectionError(values, {
@@ -127,7 +131,6 @@ const MaterialRecommendation = ({
             ]);
             return;
         }
-        const imageUrls = files.map((file) => file.response?.secure_url || file.url);
         if (uploading || imageUrls.some((url) => !url?.startsWith('https://'))) {
             message.error('Hãy tải xong ảnh hoặc xóa ảnh bị lỗi trước khi thêm vật tư.');
             return;
@@ -166,7 +169,6 @@ const MaterialRecommendation = ({
                           unit: 'KG',
                           manufacturerMode: 'new',
                           productCompliance: {
-                              regulatoryType: 'unclassified',
                               evidenceUrls: [],
                           },
                       }
@@ -202,7 +204,7 @@ const MaterialRecommendation = ({
                     />
                 </Form.Item>
                 <Form.Item name="unit" label="Đơn vị nhập kho" rules={[{ required: true }]}>
-                    <Select options={materialUnitOptions.filter(({ value }) => value !== 'PCS')} />
+                    <Select options={materialUnitOptions} />
                 </Form.Item>
                 {packaged && (
                     <>
@@ -329,7 +331,7 @@ const MaterialRecommendation = ({
                 </>
             )}
             <ProductComplianceFields requiredComplete />
-            <Form.Item label="Ảnh vật tư tham khảo (Tùy chọn)">
+            <Form.Item label="Ảnh nhãn vật tư" required>
                 <Upload
                     listType="picture-card"
                     accept="image/jpeg,image/png,image/webp"
@@ -376,7 +378,7 @@ const MaterialRecommendation = ({
                 </Upload>
                 <Text className="text-xs! text-[#8796ae]!">
                     {
-                        'Tối đa 3 ảnh JPG, PNG hoặc WebP, mỗi ảnh tối đa 5 MB. Ảnh được lưu cùng đề xuất.'
+                        'Bắt buộc 1–3 ảnh nhãn đọc rõ thông tin, định dạng JPG, PNG hoặc WebP; mỗi ảnh tối đa 5 MB. Ảnh được lưu cùng đề xuất.'
                     }
                 </Text>
             </Form.Item>

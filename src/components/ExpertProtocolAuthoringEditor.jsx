@@ -32,6 +32,7 @@ import {
     QuestionCircleOutlined,
     SaveOutlined,
     WarningOutlined,
+    SwapOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { expertProtocolTemplateAPI } from '../apis';
@@ -59,6 +60,7 @@ import {
     copyEditorMeal,
 } from '../utils/protocolAuthoringAdapter';
 import { treatmentStartError } from '../utils/productionProtocolUtils';
+import { PROTOCOL_TIMING } from '../constants/productionProtocol';
 import InputNumber from './ProtocolNumberInput';
 import ExpertProtocolQuickBuilder from './ExpertProtocolQuickBuilder';
 import ProtocolProductImages from './ProtocolProductImages';
@@ -74,12 +76,14 @@ const primaryButton =
 const key = () => crypto.randomUUID();
 const newMeal = (time) => ({ key: key(), time, items: [] });
 const clockValue = (time) => (time ? dayjs(`2000-01-01T${time}`) : null);
+/** Create a local editor item with default dose settings and a new item identity. */
 const newMaterial = (product) => ({
     key: key(),
     product,
     operationType: product.category === 'FEED' ? 'FEEDING' : product.category,
     doseValue: null,
     dailyDoseIncrement: 0,
+    dueAtMinutes: PROTOCOL_TIMING.defaultMinutes,
     doseUnit: getMaterialDoseUnits(product)[0].value,
     doseBasis: 'FIXED_QUANTITY',
     instructions: '',
@@ -104,6 +108,7 @@ const ActionButton = ({ label, icon, onClick, danger = false, disabled }) => (
     </Tooltip>
 );
 
+/** Keep item-level editing separate from whole-prescription updates. */
 const MaterialRow = ({
     item,
     startDay,
@@ -111,6 +116,7 @@ const MaterialRow = ({
     environment,
     onChange,
     onDelete,
+    onReplace,
     cultureOffset = 0,
     production = true,
     dayLabel = 'DOC',
@@ -135,7 +141,9 @@ const MaterialRow = ({
     const environmentError = environment
         ? getEnvironmentRepeatError(item, { startDay, endDay })
         : null;
-    const warning = item.product.unavailable
+    const warning = item.product.needsReview
+        ? 'Vật tư đã thay đổi. Vui lòng xem lại và chọn lại vật tư.'
+        : item.product.unavailable
         ? 'Vật tư đã bị xóa/lưu trữ. Hãy chọn lại vật tư.'
         : item.product.safety?.status !== 'VERIFIED' &&
             item.product.safety &&
@@ -291,6 +299,11 @@ const MaterialRow = ({
                 />
             </Tooltip>
             <ActionButton
+                label={`Chọn lại ${item.product.name}`}
+                icon={<SwapOutlined />}
+                onClick={onReplace}
+            />
+            <ActionButton
                 label={`Xóa ${item.product.name}`}
                 icon={<DeleteOutlined />}
                 danger
@@ -299,12 +312,12 @@ const MaterialRow = ({
             <Flex gap={6} align="center" className="basis-full! pl-16! max-sm:pl-0!">
                 <Text className="text-xs!">Khoảng thực hiện (phút)</Text>
                 <InputNumber
-                    min={0}
-                    max={2147483647}
+                    min={PROTOCOL_TIMING.minMinutes}
+                    max={PROTOCOL_TIMING.maxMinutes}
                     precision={0}
                     size="small"
-                    value={item.dueAtMinutes}
-                    onChange={(dueAtMinutes) => onChange({ ...item, dueAtMinutes })}
+                    value={item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes}
+                    onChange={(dueAtMinutes) => onChange({ ...item, dueAtMinutes: dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes })}
                     aria-label={`Khoảng thực hiện ${item.product.name}`}
                 />
             </Flex>
@@ -613,12 +626,14 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         };
     }, [application, treatment, templateSearch, templatePage, revision]);
     useEffect(() => () => templateRequest.current?.abort(), []);
+    /** Load the selected template before offering its content for operational authoring. */
     const loadSourceTemplate = (id) => {
         if (!id) {
             setSourceTemplate(null);
             setSourceVersion(undefined);
             return;
         }
+        /** Ignore aborted template responses so an earlier selection cannot replace the current editor. */
         const apply = async () => {
             templateRequest.current?.abort();
             const controller = new AbortController();
@@ -665,12 +680,14 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             });
         else void apply();
     };
+    /** Reuse payload validation before allowing the current stages to be extended. */
     const assertStagesComplete = (values, candidate) => {
         if (!candidate.length) return;
         if (application)
             editorProtocolPayload(values, candidate, application, { progressive: true });
         else buildTemplateCreatePayload(values, candidate);
     };
+    /** Keep meals in time order after a stage edit so display order matches serialization order. */
     const updateStage = (id, change) =>
         setStages((current) =>
             current.map((stage) => {
@@ -684,6 +701,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 };
             }),
         );
+    /** Update the selected meal or environment item without replacing unrelated stage content. */
     const updateItem = (target, changes) =>
         updateStage(target.stageKey, (stage) =>
             target.mealKey
@@ -709,6 +727,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                       ),
                   },
         );
+    /** Remove only the selected meal or environmental item without changing other stage content. */
     const deleteItem = (target) =>
         updateStage(target.stageKey, (stage) =>
             target.mealKey
@@ -735,21 +754,28 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         }
         setPicker(target);
     };
+    /** Reject duplicate meal materials and clear stale proposal identity when replacing a selection. */
     const selectMaterial = (product) => {
         const stage = stages.find((item) => item.key === picker.stageKey);
         const meal = stage?.meals.find((item) => item.key === picker.mealKey);
         if (
             meal?.items.some((item) =>
-                product.id
+                item.key !== picker.itemKey && (product.id
                     ? item.product.id === product.id
                     : !item.product.id &&
                       item.product.name.trim().toLocaleLowerCase('vi') ===
-                          product.name.trim().toLocaleLowerCase('vi'),
+                          product.name.trim().toLocaleLowerCase('vi')),
             )
         ) {
             message.info(
                 'Vật tư này đã có trong cữ. Anh/chị chỉnh liều hoặc ngày áp dụng ngay tại dòng hiện có.',
             );
+            return;
+        }
+        if (picker.itemKey) {
+            updateItem(picker, { product, operationType: product.category === 'FEED' ? 'FEEDING' : product.category,
+                originalRecommendation: undefined, recommendedManufacturerId: undefined });
+            setPicker(null);
             return;
         }
         const material = newMaterial(product);
@@ -789,6 +815,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         );
         setPicker(null);
     };
+    /** Require the applicable farm, species and template reference inputs before authoring stages. */
     const validateAuthoringContext = async () => {
         await form.validateFields(
             application ? ['farmId', 'shrimpType'] : ['farmId', 'shrimpType', 'referencePostCount'],
@@ -817,6 +844,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             setAddingStage(false);
         }
     };
+    /** Validate the current scope before appending an editable stage and its initial meal. */
     const addStage = () =>
         appendValidatedStage(() => {
             const species = form.getFieldValue('shrimpType');
@@ -844,6 +872,10 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             ...current,
             meals: [...current.meals, newMeal(freshMealTime(current.meals))],
         }));
+    /**
+     * Validate the copied continuation together with existing stages before adding it to the
+     * editor.
+     */
     const copyStage = (source) =>
         appendValidatedStage(() => {
             const candidate = copyEditorStage(source, stages.at(-1).endDay + 1);
@@ -851,6 +883,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             setStages((current) => [...current, candidate]);
             setExpandedStageKeys((current) => [...current, candidate.key]);
         });
+    /** Confirm before discarding unsaved authoring changes. */
     const confirmClose = () => {
         if (saving || templateLoading) return;
         if (
@@ -868,6 +901,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             });
         else onClose();
     };
+    /** Confirm before discarding material selections tied to the previous farm. */
     const changeFarm = (farmId) => {
         // Detached templates can keep farm-independent recommendations.
         if (
@@ -911,6 +945,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             },
         });
     };
+    /** Validate the shared editor before saving a template or an operational prescription. */
     const submit = async (values, submitForApproval = false) => {
         if (submitLock.current || templateLoading) return;
         setSaveError(null);
@@ -1006,6 +1041,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 environment={!mealKey}
                 onChange={(change) => updateItem(target, change)}
                 onDelete={() => deleteItem(target)}
+                onReplace={() => openPicker(target)}
                 cultureOffset={cultureOffset}
                 production={!treatment}
                 dayLabel={dayLabel}
@@ -1022,7 +1058,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
     return (
         <Drawer
             open
-            width={1080}
+            width={1200}
             closeIcon={<CloseOutlined />}
             onClose={confirmClose}
             maskClosable={!saving}

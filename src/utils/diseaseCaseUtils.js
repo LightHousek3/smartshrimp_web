@@ -6,6 +6,7 @@ export const waterWarning = (raw, threshold) => {
         || (threshold.max != null && value > threshold.max);
 };
 
+/** Read supported attachment shapes while rejecting executable URL schemes. */
 export const responseAttachment = attachment => {
     const entry = typeof attachment === 'string' ? { fileUrl: attachment } : attachment;
     const url = entry?.fileUrl ?? entry?.url ?? entry?.filePath ?? entry?.link;
@@ -19,14 +20,12 @@ export const responseAttachment = attachment => {
     };
 };
 
-export const caseResolutionBlock = (status, protocols = [], holds = []) => {
-    if (holds.length) return 'Cần gỡ giữ phác đồ nuôi bằng chỉ dẫn trong ca trước khi khép chuyên môn.';
-    if (status === 'WAITING_FOR_INFO') return 'Cần xử lý yêu cầu thông tin đang chờ trước khi khép ca.';
-    if (status === 'IN_TREATMENT' || protocols.some(protocol => ['APPROVED', 'ACTIVE'].includes(protocol.status))) {
-        return 'Còn phác đồ đã duyệt chưa có kết quả kết thúc điều trị. Số lịch đã sinh không phản ánh toàn bộ liệu trình.';
-    }
-    if (protocols.some(protocol => ['DRAFT', 'REJECTED', 'PENDING_APPROVAL'].includes(protocol.status))) {
-        return 'Cần xử lý hết bản nháp, bị từ chối hoặc đang chờ duyệt trước khi khép ca.';
+/** Prefer server resolution guards; retain conservative checks for older detail responses. */
+export const caseResolutionBlock = (status, protocols = [], holds = [], resolution) => {
+    if (resolution) return resolution.blockedReason || null;
+    if (holds.length) return 'Cần gỡ giữ phác đồ nuôi bằng quyết định chăm sóc trước khi khép ca.';
+    if (status === 'IN_TREATMENT' || protocols.some(protocol => protocol.status === 'ACTIVE')) {
+        return 'Cần kết thúc hoặc dừng phác đồ đang có hiệu lực trước khi khép ca.';
     }
     return null;
 };

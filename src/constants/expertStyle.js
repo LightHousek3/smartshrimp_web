@@ -32,7 +32,7 @@ export const expertStyle = {
     itemBasis: 'w-[130px]!',
     itemAdvanced: 'mt-2 grid grid-cols-2 gap-x-3 border-t border-[#eef1f7] px-1.5 pt-3 [&_.ant-form-item]:mb-3! max-[760px]:grid-cols-1',
     addStage: 'h-11! w-full!',
-    viewMeta: 'mb-6 grid grid-cols-[1.4fr_0.8fr_1.2fr] gap-x-6 gap-y-2.5 text-[13px] [&_span]:mr-1.5 [&_span]:text-[#6a7994] max-[760px]:grid-cols-1',
+    viewMeta: 'mb-6 grid grid-cols-2 gap-x-6 gap-y-2.5 text-[13px] [&>div]:min-w-0 [&_span]:mr-1.5 [&_span]:text-[#6a7994] max-[760px]:grid-cols-1',
     viewMeal: 'grid grid-cols-[88px_minmax(0,1fr)] gap-3 border-b border-[#eef1f7] px-4 py-2.5',
     viewChips: 'flex flex-wrap gap-1.5',
     viewChip: 'flex min-h-[42px] items-center gap-2 rounded-lg border border-[#e5e8f0] px-2.5 py-1.5 text-xs',

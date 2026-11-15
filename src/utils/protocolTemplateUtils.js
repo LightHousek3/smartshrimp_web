@@ -9,11 +9,14 @@ import {
     suggestProtocolRange,
 } from './protocolAuthoringDefaults.js';
 import { divideDailyDose } from './protocolDoseAllocation.js';
+import { PROTOCOL_TIMING } from '../constants/productionProtocol.js';
+import { executionWindowMinutes } from './protocolTiming.js';
 const invalidDataMessage = 'Dữ liệu phác đồ mẫu không hợp lệ.';
 const isInteger = (value, minimum) =>
     Number.isInteger(value) && value >= minimum;
 const isFarm = (farm) =>
     typeof farm?.id === 'string' && typeof farm?.name === 'string';
+/** Retain inactive template farm labels when the live farm identity is no longer available. */
 const hasTemplateFarm = (row) =>
     isFarm(row.farm) ||
     (row.status === 'inactive' &&
@@ -23,7 +26,7 @@ const hasTemplateFarm = (row) =>
 /** Display small mass/volume quantities without rounding a valid dose to zero. */
 export const getDoseInputValues = (item, requestedUnit) => {
     let unit = requestedUnit ?? item.doseUnit;
-    const factors = { KG: 1000, G: 1, L: 1000, ML: 1, PCS: 1 };
+    const factors = { KG: 1000, G: 1, L: 1000, ML: 1 };
     if (
         item.doseBasis !== 'PERCENT_BIOMASS' &&
         requestedUnit === undefined &&
@@ -34,7 +37,7 @@ export const getDoseInputValues = (item, requestedUnit) => {
     )
         unit = unit === 'KG' ? 'G' : 'ML';
     const factor =
-        item.doseBasis === 'PERCENT_BIOMASS'
+        item.doseBasis === 'PERCENT_BIOMASS' || item.doseUnit === unit
             ? 1
             : factors[item.doseUnit] / factors[unit];
     return {
@@ -48,6 +51,7 @@ export const getDoseInputValues = (item, requestedUnit) => {
         ),
     };
 };
+/** Reject stage day bounds that overlap an adjacent stage. */
 export const getStageDocError = (stages, index) => {
     const stage = stages[index];
     if (!isInteger(stage.startDay, 1) || stage.startDay > 3650)
@@ -183,6 +187,7 @@ export const getSuggestedFeedDose = ({
         doseUnit: suggested.doseUnit,
     };
 };
+/** Keep environment recurrence within its selected application window. */
 export const getEnvironmentRepeatError = (item, stage) => {
     if (
         !isInteger(item.firstDay, stage.startDay) ||
@@ -220,6 +225,7 @@ const isTemplate = (row) =>
     row.allowedVariancePct >= 0 &&
     row.allowedVariancePct <= 100;
 
+/** Validate both template rows and pagination metadata before rendering the list. */
 export const parseProtocolTemplatePage = (response) => {
     const { data, meta } = response ?? {};
     if (
@@ -273,8 +279,8 @@ export const materialUnitOptions = [
     { value: 'ML', label: 'ml' },
     { value: 'PACK', label: 'gói' },
     { value: 'BOTTLE', label: 'chai' },
-    { value: 'PCS', label: 'cái' },
 ];
+/** Use package conversion units when offering compatible mass or volume dose units. */
 export const getMaterialDoseUnits = (product) => {
     const unit = ['PACK', 'BOTTLE'].includes(product.unit)
         ? product.conversionUnit
@@ -283,9 +289,10 @@ export const getMaterialDoseUnits = (product) => {
         ? ['KG', 'G']
         : ['ML', 'L'].includes(unit)
           ? ['L', 'ML']
-          : ['PCS'];
+          : [];
     return materialUnitOptions.filter((option) => units.includes(option.value));
 };
+/** Offer biomass-based doses only when the culture-day boundary permits them. */
 export const getMaterialDoseBases = (
     product,
     startDay,
@@ -319,6 +326,7 @@ export const getMaterialDoseBases = (
         : [fixed];
 };
 
+/** Reject malformed farm options before they enter authoring state. */
 export const parseTemplateCreationOptions = (response) => {
     if (
         response?.success !== true ||
@@ -329,6 +337,7 @@ export const parseTemplateCreationOptions = (response) => {
     }
     return response.data;
 };
+/** Validate material rows and catalog pagination together at the API boundary. */
 export const parseTemplateMaterialPage = (response) => {
     const { data, meta } = response ?? {};
     if (
@@ -357,6 +366,7 @@ export const parseTemplateMaterialPage = (response) => {
     return { rows: data, meta };
 };
 
+/** Validate saved editor structure before it replaces the current authoring state. */
 export const parseTemplateEditor = (response) => {
     const data = response?.data;
     if (
@@ -395,6 +405,7 @@ export const parseTemplateEditor = (response) => {
     return data;
 };
 
+/** Merge stage contents by meal time and material recurrence without duplicating applications. */
 const mergeEditorStages = (left, right) => {
     const merged = { ...left, endDay: right.endDay, meals: [], environment: [] };
     const meals = new Map();
@@ -510,7 +521,7 @@ export const getTemplateEditorStages = (items) => {
                         Math.max(item.startDay, phase.startDay)
                     ),
                     dailyDoseIncrement: item.dailyDoseIncrement ?? 0,
-                    dueAtMinutes: item.dueAtMinutes ?? null,
+                    dueAtMinutes: item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes,
                     doseUnit: item.doseUnit,
                     instructions: item.instructions || '',
                 };
@@ -626,10 +637,10 @@ const unitLabels = {
     ML: 'ml',
     PACK: 'gói',
     BOTTLE: 'chai',
-    PCS: 'cái',
 };
 const doseNumber = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 4 });
 
+/** Validate template metadata, duration and item details as one response contract. */
 export const parseProtocolTemplateDetail = (response) => {
     const { data } = response ?? {};
     if (
@@ -676,6 +687,7 @@ export const parseProtocolTemplateDetail = (response) => {
 export const nextRepeatDay = (anchor, interval, startDay) =>
     anchor + Math.max(0, Math.ceil((startDay - anchor) / interval)) * interval;
 
+/** Permit daily increments only for fixed-quantity feed items. */
 export const assertMaterialDailyIncrement = (item, environment = false) => {
     const increment = item.dailyDoseIncrement ?? 0;
     if (item.linearDaily && increment <= 0)
@@ -693,7 +705,9 @@ export const buildTemplateCreatePayload = (values, stages) => {
         throw new Error('Mẫu cần từ 1 đến 120 giai đoạn.');
     let previousEnd = 0;
     let itemCount = 0;
+    /** Validate each selected material and its dose window before serializing template content. */
     const mapMaterial = (item, startDay, environment = false) => {
+        const dueAtMinutes = executionWindowMinutes(item.dueAtMinutes);
         if (!item.product.id) {
             const missing = proposalMissingFields(item.product);
             if (missing.length) throw new Error(`${item.product.name}: cần bổ sung ${missing.join(', ')}.`);
@@ -733,7 +747,8 @@ export const buildTemplateCreatePayload = (values, stages) => {
         itemCount += 1;
         return {
             ...(item.product.id
-                ? { productId: item.product.id }
+                ? { productId: item.product.id,
+                    ...(item.product.materialRevision && { productRevision: item.product.materialRevision }) }
                 : {
                       recommendation: {
                           name: item.product.name,
@@ -773,7 +788,7 @@ export const buildTemplateCreatePayload = (values, stages) => {
             doseBasis: item.doseBasis,
             doseValue: item.doseValue,
             dailyDoseIncrement: increment,
-            dueAtMinutes: item.dueAtMinutes ?? null,
+            dueAtMinutes,
             doseUnit: item.doseUnit,
             instructions: item.instructions || null,
         };
@@ -930,6 +945,10 @@ export const formatTemplateDose = ({ doseBasis, doseValue, doseUnit }) => {
     return dose;
 };
 
+/**
+ * Preview the daily dose increment from the item start using the configured four-decimal
+ * precision.
+ */
 export const templateDoseAtDay = (item, day) =>
     Number(
         (

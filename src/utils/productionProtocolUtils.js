@@ -1,6 +1,7 @@
 import { allowedDoseBases, OPERATION_LABELS, UNIT_LABELS } from '../constants/productionProtocol.js';
 import { editableCompliance, templateMaterialSelectionError } from './materialCompliance.js';
 import { getMaterialDoseUnits } from './protocolTemplateUtils.js';
+import { executionWindowMinutes } from './protocolTiming.js';
 
 export const expectedHarvestDoc = ({ stockingDate, expectedEndDate } = {}) => {
     if (!stockingDate || !expectedEndDate) return null;
@@ -9,6 +10,7 @@ export const expectedHarvestDoc = ({ stockingDate, expectedEndDate } = {}) => {
     return Number.isInteger(doc) && doc >= 1 ? doc : null;
 };
 
+/** Check production coverage against the season's expected harvest day when available. */
 export const protocolHarvestCoverageError = (stages, season) => {
     const minimumDoc = expectedHarvestDoc(season);
     if (minimumDoc == null) return null;
@@ -18,6 +20,7 @@ export const protocolHarvestCoverageError = (stages, season) => {
         : null;
 };
 
+/** Disable catalog choices that conflict with the selected operation and protocol type. */
 export const productionMaterialOptions = (products, { contentVersion = 1, environment = false, production = true } = {}) =>
     products.map((product) => {
         const error = contentVersion === 2 ? templateMaterialSelectionError({ ...product,
@@ -39,6 +42,7 @@ export const emptyItem = () => ({ operationType: 'FEEDING', productId: null,
     doseBasis: 'FIXED_QUANTITY', doseValue: '', doseUnit: 'KG', instructions: null });
 export const emptyStage = () => ({ startDoc: 1, endDoc: 7, meals: [] });
 export const emptyMeal = (index = 0) => ({ mealNumber: index + 1, plannedTime: null, items: [] });
+/** Report intersecting valid day ranges without hiding individual day-input errors. */
 export const stageOverlapError = (stages) => {
     for (let index = 0; index < stages.length; index++) {
         const stage = stages[index];
@@ -61,6 +65,7 @@ export const cloneGroup = (value) => {
     const group = 'meals' in value || 'items' in value || 'operationType' in value;
     return Object.fromEntries(Object.entries(value).filter(([key]) => !group || key !== 'id').map(([key, entry]) => [key, cloneGroup(entry)]));
 };
+/** Convert saved offsets to displayed days while retaining recurrence and dose anchors. */
 export const protocolToForm = (detail) => ({
     contentVersion: detail?.contentVersion ?? 1,
     title: detail?.title || '', summary: detail?.summary || '',
@@ -97,6 +102,7 @@ const decimal = (value, digits, scale, label, zero = false) => {
         || (!zero && Number(str) <= 0)) fail(`${label}: số thập phân không hợp lệ, tối đa ${scale} chữ số sau dấu chấm.`);
     return str;
 };
+/** Compare treatment start against the Vietnamese stocking date and optional submission time. */
 export const treatmentStartError = (value, season, { future = false, now = new Date() } = {}) => {
     if (value == null) return future ? 'Chọn mốc bắt đầu điều trị trước khi gửi duyệt.' : null;
     const start = new Date(value);
@@ -108,6 +114,7 @@ export const treatmentStartError = (value, season, { future = false, now = new D
     return null;
 };
 
+/** Validate editor values and preserve anchor semantics when constructing the API payload. */
 export const protocolPayload = (values, revision, season) => {
     const treatment = season?.protocolType === 'TREATMENT';
     const startError = treatment ? treatmentStartError(values.treatmentStartAt, season) : null;
@@ -157,11 +164,12 @@ export const protocolPayload = (values, revision, season) => {
                         if ((recommendedProductName || '').length > 255) fail(`${itemLabel}: tên vật tư tối đa 255 ký tự.`);
                         if ((item.instructions || '').length > 4000) fail(`${itemLabel}: hướng dẫn tối đa 4000 ký tự.`);
                         const advanced = contentVersion === 2 ? {
+                            ...(item.productId && item.productRevision && { productRevision: item.productRevision }),
                             firstDayOffset: first, lastDayOffset: last,
                             recurrenceAnchorOffset: integer(item.recurrenceAnchorDoc ?? first + 1, 1, first + 1, `${itemLabel} mốc chu kỳ`) - 1,
                             doseAnchorOffset: integer(item.doseAnchorDoc ?? first + 1, 1, first + 1, `${itemLabel} mốc liều`) - 1,
                             dailyDoseIncrement: decimal(item.dailyDoseIncrement ?? '0', 10, 4, `${itemLabel} tăng liều`, true),
-                            dueAtMinutes: item.dueAtMinutes == null ? null : integer(item.dueAtMinutes, 0, 2147483647, `${itemLabel} khoảng thực hiện`),
+                            dueAtMinutes: executionWindowMinutes(item.dueAtMinutes, `${itemLabel} khoảng thực hiện`),
                             recommendedManufacturerId: item.recommendedManufacturerId ?? null,
                             recommendedProductDetails: item.recommendedProductDetails?.proposed ? { proposed: {
                                 ...structuredClone(item.recommendedProductDetails.proposed),

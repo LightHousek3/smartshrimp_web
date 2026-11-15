@@ -13,14 +13,10 @@ import {
 } from '../utils/notificationUtils.js';
 import { apiClient, deviceId } from '../config/index.js';
 import { RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
-import {
-    parseRagDocumentResponse,
-    validateRagDocument,
-} from '../utils/ragDocumentUtils.js';
+import { parseRagDocumentResponse, validateRagDocument } from '../utils/ragDocumentUtils.js';
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env?.VITE_CLOUDINARY_CLOUD_NAME || '';
-const CLOUDINARY_UPLOAD_PRESET =
-    import.meta.env?.VITE_CLOUDINARY_UPLOAD_PRESET || '';
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env?.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 // Authentication API
 const authAPI = {
@@ -43,8 +39,7 @@ const authAPI = {
      * POST /auth/activation/request-otp
      * Request an OTP for account activation.
      */
-    requestActivationOtp: (email) =>
-        apiClient.post('/auth/activation/request-otp', { email }),
+    requestActivationOtp: (email) => apiClient.post('/auth/activation/request-otp', { email }),
     /**
      * POST /auth/activation/verify-otp
      * Verify the activation OTP and obtain an action token.
@@ -55,8 +50,7 @@ const authAPI = {
      * POST /auth/activation/complete
      * Complete account activation with the verified action token.
      */
-    activateAccount: (payload) =>
-        apiClient.post('/auth/activation/complete', payload),
+    activateAccount: (payload) => apiClient.post('/auth/activation/complete', payload),
     /**
      * POST /auth/forgot-password/request-otp
      * Request an OTP for password recovery.
@@ -73,8 +67,7 @@ const authAPI = {
      * POST /auth/forgot-password/reset
      * Set a new password with the verified action token.
      */
-    resetPassword: (payload) =>
-        apiClient.post('/auth/forgot-password/reset', payload),
+    resetPassword: (payload) => apiClient.post('/auth/forgot-password/reset', payload),
 };
 
 // Personal profile API
@@ -93,8 +86,7 @@ const profileAPI = {
      * PATCH /profile/password
      * Change the password and identify the current device.
      */
-    changePassword: (payload) =>
-        apiClient.patch('/profile/password', { ...payload, deviceId }),
+    changePassword: (payload) => apiClient.patch('/profile/password', { ...payload, deviceId }),
 };
 
 const expertDashboardAPI = {
@@ -110,10 +102,8 @@ const expertSeasonAPI = {
      * GET /expert/seasons
      * Fetch assigned seasons with query filters and optional cancellation.
      */
-    getAssignedSeasons: (params, signal) =>
-        apiClient.get('/expert/seasons', { params, signal }),
-    getSeason: (seasonId, signal) =>
-        apiClient.get(`/expert/seasons/${seasonId}`, { signal }),
+    getAssignedSeasons: (params, signal) => apiClient.get('/expert/seasons', { params, signal }),
+    getSeason: (seasonId, signal) => apiClient.get(`/expert/seasons/${seasonId}`, { signal }),
     /** GET /expert/seasons/:seasonId/metrics — focused detail-tab data, cancellable on navigation. */
     getMetrics: (seasonId, signal) =>
         apiClient.get(`/expert/seasons/${seasonId}/metrics`, { signal }),
@@ -126,40 +116,29 @@ const expertProductionProtocolAPI = {
             signal,
         }),
     detail: (seasonId, protocolId, signal) =>
-        apiClient.get(
-            `/expert/seasons/${seasonId}/production-protocols/${protocolId}`,
-            { signal }
-        ),
+        apiClient.get(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, { signal }),
     create: (seasonId, body) =>
-        apiClient.post(
-            `/expert/seasons/${seasonId}/production-protocols`,
-            body
-        ),
+        apiClient.post(`/expert/seasons/${seasonId}/production-protocols`, body),
     update: (seasonId, protocolId, body) =>
-        apiClient.patch(
-            `/expert/seasons/${seasonId}/production-protocols/${protocolId}`,
-            body
-        ),
-    cancel: (seasonId, protocolId, body) =>
-        apiClient.post(
-            `/expert/seasons/${seasonId}/production-protocols/${protocolId}/cancel`,
-            body
-        ),
+        apiClient.patch(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, body),
+    remove: (seasonId, protocolId, body) =>
+        apiClient.delete(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, {
+            data: body,
+        }),
     submit: (seasonId, protocolId, body) =>
         apiClient.post(
             `/expert/seasons/${seasonId}/production-protocols/${protocolId}/submit`,
-            body
+            body,
         ),
     templates: (seasonId, params, signal) =>
-        apiClient.get(
-            `/expert/seasons/${seasonId}/production-protocol-templates`,
-            { params, signal }
-        ),
+        apiClient.get(`/expert/seasons/${seasonId}/production-protocol-templates`, {
+            params,
+            signal,
+        }),
     templateDetail: (seasonId, templateId, signal) =>
-        apiClient.get(
-            `/expert/seasons/${seasonId}/production-protocol-templates/${templateId}`,
-            { signal }
-        ),
+        apiClient.get(`/expert/seasons/${seasonId}/production-protocol-templates/${templateId}`, {
+            signal,
+        }),
     products: (seasonId, params, signal) =>
         apiClient.get(`/expert/seasons/${seasonId}/products`, {
             params,
@@ -167,18 +146,25 @@ const expertProductionProtocolAPI = {
         }),
 };
 
-
 const expertTreatmentProtocolAPI = {
-    context: (caseId, signal) => apiClient.get(`/expert/disease-cases/${caseId}/protocols/context`, { signal }),
-    detail: (caseId, protocolId, signal) => apiClient.get(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { signal }),
+    context: (caseId, signal) =>
+        apiClient.get(`/expert/disease-cases/${caseId}/protocols/context`, { signal }),
+    detail: (caseId, protocolId, signal) =>
+        apiClient.get(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { signal }),
     create: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols`, body),
-    update: (caseId, protocolId, body) => apiClient.patch(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, body),
-    cancel: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/cancel`, body),
-    submit: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/submit`, body),
-    stop: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
+    update: (caseId, protocolId, body) =>
+        apiClient.patch(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, body),
+    remove: (caseId, protocolId, body) =>
+        apiClient.delete(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { data: body }),
+    submit: (caseId, protocolId, body) =>
+        apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/submit`, body),
+    stop: (caseId, protocolId, body) =>
+        apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
 };
 
 const expertDiseaseCaseAPI = {
+    /** Confirm care against the displayed case, suspension and production revisions. */
+    care: (caseId, data) => apiClient.post(`/expert/disease-cases/${caseId}/care`, data),
     /**
      * GET /expert/disease-cases
      * List assigned disease cases with query filters.
@@ -191,7 +177,7 @@ const expertDiseaseCaseAPI = {
     detail: (caseId, signal) => apiClient.get(`/expert/disease-cases/${caseId}`, { signal }),
     /**
      * POST /expert/disease-cases/:caseId/responses
-     * Send response to disease case.
+     * Send ordinary conversation without changing the clinical state.
      */
     respond: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/responses`, body),
     /**
@@ -201,7 +187,7 @@ const expertDiseaseCaseAPI = {
     resolve: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/resolve`, body),
     /**
      * POST /expert/disease-cases/:caseId/protocols/:protocolId/abort
-     * Emergency abort a treatment protocol.
+     * Stop a running treatment or cancel an approved plan using its confirmed revision.
      */
     abortProtocol: (caseId, protocolId, body) =>
         apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
@@ -265,7 +251,7 @@ const notificationAPI = {
             `/notifications/${encodeURIComponent(notificationId)}`,
             {
                 signal,
-            }
+            },
         );
         return parseNotificationDetail(response.data);
     },
@@ -289,9 +275,7 @@ const cloudinaryAPI = {
     upload: (file, { resourceType = 'image', folder, onProgress } = {}) => {
         if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
             return Promise.reject(
-                new Error(
-                    'Missing VITE_CLOUDINARY_CLOUD_NAME or VITE_CLOUDINARY_UPLOAD_PRESET'
-                )
+                new Error('Missing VITE_CLOUDINARY_CLOUD_NAME or VITE_CLOUDINARY_UPLOAD_PRESET'),
             );
         }
 
@@ -308,11 +292,9 @@ const cloudinaryAPI = {
             {
                 onUploadProgress: (event) => {
                     if (!event.total) return;
-                    onProgress?.(
-                        Math.round((event.loaded / event.total) * 100)
-                    );
+                    onProgress?.(Math.round((event.loaded / event.total) * 100));
                 },
-            }
+            },
         );
     },
     /**
@@ -335,15 +317,9 @@ const cloudinaryDocumentClient = axios.create({ withCredentials: false });
  * Check receipt fields and return the public ID, version and signature for
  * the backend to verify before it accepts the upload.
  */
-const uploadCloudinaryDocument = async (
-    file,
-    upload,
-    { signal, onProgress } = {}
-) => {
+const uploadCloudinaryDocument = async (file, upload, { signal, onProgress } = {}) => {
     if (
-        !/^https:\/\/api\.cloudinary\.com\/v1_1\/[a-zA-Z0-9_-]+\/raw\/upload$/.test(
-            upload?.url
-        ) ||
+        !/^https:\/\/api\.cloudinary\.com\/v1_1\/[a-zA-Z0-9_-]+\/raw\/upload$/.test(upload?.url) ||
         upload.fields?.type !== 'authenticated' ||
         upload.fields?.overwrite !== 'false'
     ) {
@@ -351,25 +327,16 @@ const uploadCloudinaryDocument = async (
     }
     const body = new FormData();
     body.append('file', file);
-    for (const key of [
-        'public_id',
-        'timestamp',
-        'type',
-        'overwrite',
-        'api_key',
-        'signature',
-    ]) {
+    for (const key of ['public_id', 'timestamp', 'type', 'overwrite', 'api_key', 'signature']) {
         body.append(key, String(upload.fields[key]));
     }
     // Older backend instances may still issue intents without an asset folder.
-    if (upload.fields.asset_folder)
-        body.append('asset_folder', upload.fields.asset_folder);
+    if (upload.fields.asset_folder) body.append('asset_folder', upload.fields.asset_folder);
     const { data } = await cloudinaryDocumentClient.post(upload.url, body, {
         signal,
         timeout: RAG_DOCUMENT_RULES.uploadTimeoutMs,
         onUploadProgress: ({ loaded, total }) => {
-            if (total)
-                onProgress?.(Math.min(100, Math.round((loaded / total) * 100)));
+            if (total) onProgress?.(Math.min(100, Math.round((loaded / total) * 100)));
         },
     });
     if (
@@ -411,7 +378,7 @@ const ragDocumentAPI = {
             session,
             onSession,
             reuploadId,
-        } = {}
+        } = {},
     ) => {
         const problem = validateRagDocument(file);
         if (problem) throw new Error(problem);
@@ -421,7 +388,7 @@ const ragDocumentAPI = {
             const bytes = await file.arrayBuffer();
             const hash = await crypto.subtle.digest('SHA-256', bytes);
             const fileHash = Array.from(new Uint8Array(hash), (byte) =>
-                byte.toString(16).padStart(2, '0')
+                byte.toString(16).padStart(2, '0'),
             ).join('');
             signal?.throwIfAborted();
             const { data: envelope } = await apiClient.post(
@@ -438,23 +405,18 @@ const ragDocumentAPI = {
                     fileSize: file.size,
                     fileHash,
                 },
-                { signal }
+                { signal },
             );
             const intent = envelope?.data;
-            if (
-                !envelope?.success ||
-                typeof intent?.id !== 'string' ||
-                !intent.upload
-            ) {
+            if (!envelope?.success || typeof intent?.id !== 'string' || !intent.upload) {
                 throw new Error('Không thể tạo phiên tải lên tài liệu.');
             }
             try {
                 onPhase?.('uploading');
-                const receipt = await uploadCloudinaryDocument(
-                    file,
-                    intent.upload,
-                    { signal, onProgress }
-                );
+                const receipt = await uploadCloudinaryDocument(file, intent.upload, {
+                    signal,
+                    onProgress,
+                });
                 current = {
                     id: intent.id,
                     receipt,
@@ -478,26 +440,19 @@ const ragDocumentAPI = {
             }
         }
         onPhase?.('confirming');
-        const action =
-            current.kind === 'reupload'
-                ? 'complete-reupload'
-                : 'complete-upload';
+        const action = current.kind === 'reupload' ? 'complete-reupload' : 'complete-upload';
         const { data } = await apiClient.post(
             `${ragDocumentEndpoint}/${current.id}/${action}`,
             current.receipt,
-            { signal }
+            { signal },
         );
-        return parseRagDocumentResponse(
-            data,
-            current.originalFilename || file.name
-        );
+        return parseRagDocumentResponse(data, current.originalFilename || file.name);
     },
     /**
      * POST /admin/rag/documents/:id/cancel-upload
      * Cancel an unfinished upload and let the backend schedule cleanup.
      */
-    cancelUpload: (id) =>
-        apiClient.post(`${ragDocumentEndpoint}/${id}/cancel-upload`),
+    cancelUpload: (id) => apiClient.post(`${ragDocumentEndpoint}/${id}/cancel-upload`),
     /**
      * GET /admin/rag/documents
      * Return the response envelope containing documents and pagination metadata.
@@ -509,8 +464,7 @@ const ragDocumentAPI = {
      * Return document details from the response data.
      */
     get: async (id, signal) =>
-        (await apiClient.get(`${ragDocumentEndpoint}/${id}`, { signal })).data
-            .data,
+        (await apiClient.get(`${ragDocumentEndpoint}/${id}`, { signal })).data.data,
     /**
      * PATCH /admin/rag/documents/:id
      * Update document metadata or retrieval availability and return the document.
@@ -521,8 +475,7 @@ const ragDocumentAPI = {
      * POST /admin/rag/documents/:id/retry
      * Queue a failed document for processing again and return the document.
      */
-    retry: async (id) =>
-        (await apiClient.post(`${ragDocumentEndpoint}/${id}/retry`)).data.data,
+    retry: async (id) => (await apiClient.post(`${ragDocumentEndpoint}/${id}/retry`)).data.data,
     /**
      * GET /admin/rag/documents/:id/file
      * Return the original file as a Blob. Decode JSON error blobs so callers
@@ -539,9 +492,7 @@ const ragDocumentAPI = {
         } catch (error) {
             if (error.response?.data instanceof Blob) {
                 try {
-                    error.response.data = JSON.parse(
-                        await error.response.data.text()
-                    );
+                    error.response.data = JSON.parse(await error.response.data.text());
                 } catch {
                     /* Keep the original error if the server did not return JSON. */
                 }
@@ -555,7 +506,7 @@ const expertProtocolTemplateAPI = {
     updateStatus: async (templateId, status, expectedVersionNo) => {
         const response = await apiClient.patch(
             `/expert/protocol-templates/${encodeURIComponent(templateId)}/status`,
-            { status, expectedVersionNo }
+            { status, expectedVersionNo },
         );
         const result = response.data?.data;
         if (
@@ -568,59 +519,43 @@ const expertProtocolTemplateAPI = {
         return result;
     },
     deleteTemplate: (templateId, expectedVersionNo) =>
-        apiClient.delete(
-            `/expert/protocol-templates/${encodeURIComponent(templateId)}`,
-            { data: { expectedVersionNo } }
-        ),
+        apiClient.delete(`/expert/protocol-templates/${encodeURIComponent(templateId)}`, {
+            data: { expectedVersionNo },
+        }),
     getEditor: async (templateId, signal) => {
         const response = await apiClient.get(
             `/expert/protocol-templates/${encodeURIComponent(templateId)}/editor`,
-            { signal }
+            { signal },
         );
         return parseTemplateEditor(response.data);
     },
     updateTemplate: async (templateId, body) => {
         const response = await apiClient.put(
             `/expert/protocol-templates/${encodeURIComponent(templateId)}`,
-            body
+            body,
         );
-        if (
-            response.data?.success !== true ||
-            typeof response.data.data?.id !== 'string'
-        )
+        if (response.data?.success !== true || typeof response.data.data?.id !== 'string')
             throw new Error('Phản hồi cập nhật mẫu không hợp lệ.');
         return response.data.data;
     },
     getCreationOptions: async (signal) => {
-        const response = await apiClient.get(
-            '/expert/protocol-templates/creation-options',
-            {
-                signal,
-            }
-        );
+        const response = await apiClient.get('/expert/protocol-templates/creation-options', {
+            signal,
+        });
         return parseTemplateCreationOptions(response.data);
     },
     getMaterials: async (params, signal) => {
-        const response = await apiClient.get(
-            '/expert/protocol-templates/materials',
-            {
-                params,
-                signal,
-            }
-        );
+        const response = await apiClient.get('/expert/protocol-templates/materials', {
+            params,
+            signal,
+        });
         return parseTemplateMaterialPage(response.data);
     },
     createTemplate: async (body) => {
-        const response = await apiClient.post(
-            '/expert/protocol-templates',
-            body
-        );
-        if (
-            response.data?.success !== true ||
-            typeof response.data.data?.id !== 'string'
-        ) {
+        const response = await apiClient.post('/expert/protocol-templates', body);
+        if (response.data?.success !== true || typeof response.data.data?.id !== 'string') {
             throw new Error(
-                'Phản hồi lưu mẫu không hợp lệ. Vui lòng kiểm tra danh sách trước khi lưu lại.'
+                'Phản hồi lưu mẫu không hợp lệ. Vui lòng kiểm tra danh sách trước khi lưu lại.',
             );
         }
         return response.data.data;
@@ -635,7 +570,7 @@ const expertProtocolTemplateAPI = {
     getTemplate: async (templateId, signal) => {
         const response = await apiClient.get(
             `/expert/protocol-templates/${encodeURIComponent(templateId)}`,
-            { signal }
+            { signal },
         );
         return parseProtocolTemplateDetail(response.data);
     },
