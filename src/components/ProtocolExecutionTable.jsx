@@ -55,7 +55,7 @@ const ProtocolExecutionTable = ({ rows = [], asOf, coverage, treatmentStartAt })
         </Space>
         <Typography.Paragraph type="secondary">
             Dữ liệu tại {dateText(asOf)} · {filtered.length}/{rows.length} lịch đã sinh.
-            {coverage && ` Toàn liệu trình: ${coverage.acceptedCount}/${coverage.expectedCount} lần đạt điều kiện hoàn tất.`}
+            {coverage && ` Toàn liệu trình: ${coverage.acceptedCount}/${coverage.expectedCount} lần đúng giờ và lượng trong ngưỡng. Số liệu này không quyết định thời điểm kết thúc phác đồ.`}
         </Typography.Paragraph>
         <Table rowKey="id" dataSource={filtered} columns={columns} scroll={{ x: 850 }}
             locale={{ emptyText: 'Không có lịch phù hợp với bộ lọc.' }}

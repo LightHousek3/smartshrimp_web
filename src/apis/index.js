@@ -140,11 +140,8 @@ const expertProductionProtocolAPI = {
             `/expert/seasons/${seasonId}/production-protocols/${protocolId}`,
             body
         ),
-    cancel: (seasonId, protocolId, body) =>
-        apiClient.post(
-            `/expert/seasons/${seasonId}/production-protocols/${protocolId}/cancel`,
-            body
-        ),
+    remove: (seasonId, protocolId, body) =>
+        apiClient.delete(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, { data: body }),
     submit: (seasonId, protocolId, body) =>
         apiClient.post(
             `/expert/seasons/${seasonId}/production-protocols/${protocolId}/submit`,
@@ -173,12 +170,14 @@ const expertTreatmentProtocolAPI = {
     detail: (caseId, protocolId, signal) => apiClient.get(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { signal }),
     create: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols`, body),
     update: (caseId, protocolId, body) => apiClient.patch(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, body),
-    cancel: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/cancel`, body),
+    remove: (caseId, protocolId, body) => apiClient.delete(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { data: body }),
     submit: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/submit`, body),
     stop: (caseId, protocolId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
 };
 
 const expertDiseaseCaseAPI = {
+    /** Confirm care against the displayed case, suspension and production revisions. */
+    care: (caseId, data) => apiClient.post(`/expert/disease-cases/${caseId}/care`, data),
     /**
      * GET /expert/disease-cases
      * List assigned disease cases with query filters.
@@ -191,7 +190,7 @@ const expertDiseaseCaseAPI = {
     detail: (caseId, signal) => apiClient.get(`/expert/disease-cases/${caseId}`, { signal }),
     /**
      * POST /expert/disease-cases/:caseId/responses
-     * Send response to disease case.
+     * Send ordinary conversation without changing the clinical state.
      */
     respond: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/responses`, body),
     /**
@@ -201,7 +200,7 @@ const expertDiseaseCaseAPI = {
     resolve: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/resolve`, body),
     /**
      * POST /expert/disease-cases/:caseId/protocols/:protocolId/abort
-     * Emergency abort a treatment protocol.
+     * Stop a running treatment or cancel an approved plan using its confirmed revision.
      */
     abortProtocol: (caseId, protocolId, body) =>
         apiClient.post(`/expert/disease-cases/${caseId}/protocols/${protocolId}/abort`, body),
@@ -652,7 +651,7 @@ const adminDashboardAPI = {
     },
 };
 
-/* ─── Exports ───────────────────────────────────────────────── */
+// API clients.
 export {
     expertTreatmentProtocolAPI,
     adminDashboardAPI,

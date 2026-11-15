@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Card, Empty, Flex, Form, Input, Modal, Pagination, Space, Tag, Tooltip, Typography } from 'antd';
+import { useSearchParams } from 'react-router-dom';
+import { Alert, App, Button, Card, Empty, Flex, Modal, Pagination, Space, Tag, Tooltip, Typography } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons';
 import { expertProductionProtocolAPI as api, expertSeasonAPI } from '../apis';
 import Loading from './Loading';
@@ -16,23 +17,27 @@ const dateText = (value) => {
 };
 /** Load and manage production protocols only when this tab is opened. */
 const ExpertSeasonProtocols = ({ seasonId }) => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const { message } = App.useApp();
     const [page, setPage] = useState(1);
     const [revision, setRevision] = useState(0);
     const [state, setState] = useState({ key: null });
-    const [dialog, setDialog] = useState(null);
-    const [cancelTarget, setCancelTarget] = useState(null);
-    const [cancelBusy, setCancelBusy] = useState(false);
-    const [cancelError, setCancelError] = useState(null);
+    const [dialog, setDialog] = useState(() => searchParams.get('create') === '1' ? { mode: 'create' } : null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [deleteError, setDeleteError] = useState(null);
     const [submitTarget, setSubmitTarget] = useState(null);
     const [submitBusy, setSubmitBusy] = useState(false);
     const [submitError, setSubmitError] = useState(null);
-    const [cancelForm] = Form.useForm();
     const dialogRequest = useRef(null);
-    const cancelPending = useRef(false);
+    const deletePending = useRef(false);
     const submitPending = useRef(false);
     const alive = useRef(true);
     const key = `${seasonId}:${page}:${revision}`;
+    useEffect(() => {
+        if (searchParams.get('create') !== '1') return;
+        setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('create'); return next; }, { replace: true });
+    }, [searchParams, setSearchParams]);
     useEffect(() => {
         alive.current = true;
         return () => { alive.current = false; dialogRequest.current?.abort(); };
@@ -46,6 +51,7 @@ const ExpertSeasonProtocols = ({ seasonId }) => {
         return () => controller.abort();
     }, [seasonId, page, revision, key]);
     const refresh = () => setRevision((value) => value + 1);
+    /** Open details immediately and ignore cancelled requests when the selected version changes. */
     const openDialog = async (protocolId, mode = 'view') => {
         dialogRequest.current?.abort();
         if (!protocolId) { setDialog({ mode: 'create' }); return; }
@@ -62,23 +68,26 @@ const ExpertSeasonProtocols = ({ seasonId }) => {
         } catch (error) { if (!controller.signal.aborted) setDialog({ mode, protocolId, error: protocolError(error) }); }
     };
     const closeDialog = () => { dialogRequest.current?.abort(); setDialog(null); };
-    const confirmCancel = (row) => { cancelForm.resetFields(); setCancelError(null); setCancelTarget(row); };
-    const cancel = async () => {
-        if (cancelPending.current) return;
-        cancelPending.current = true;
-        setCancelBusy(true); setCancelError(null);
+    const confirmDelete = row => { setDeleteError(null); setDeleteTarget(row); };
+    /** Delete the confirmed draft revision and close details before refreshing the version list. */
+    const removeDraft = async () => {
+        if (deletePending.current) return;
+        deletePending.current = true;
+        setDeleteBusy(true); setDeleteError(null);
         try {
-            const { reason } = await cancelForm.validateFields();
-            await api.cancel(seasonId, cancelTarget.id, { revision: cancelTarget.revision, reason: reason.trim() });
+            await api.remove(seasonId, deleteTarget.id, { revision: deleteTarget.revision });
             if (!alive.current) return;
-            setCancelTarget(null); message.success('Đã hủy bản nháp.'); refresh();
+            if (dialog?.detail?.id === deleteTarget.id) closeDialog();
+            if (state.rows.length === 1 && page > 1) setPage(value => value - 1);
+            setDeleteTarget(null); message.success('Đã xóa bản nháp.'); refresh();
         } catch (error) {
-            if (alive.current && !error.errorFields) {
-                setCancelError(`${protocolError(error)}${error.response?.status === 409 ? ' Đóng hộp thoại và mở lại từ danh sách mới nhất để kiểm tra trạng thái.' : ''}`);
+            if (alive.current) {
+                setDeleteError(`${protocolError(error)}${error.response?.status === 409 ? ' Đóng hộp thoại và mở lại từ danh sách mới nhất để kiểm tra trạng thái.' : ''}`);
                 if (error.response?.status === 409) refresh();
             }
-        } finally { cancelPending.current = false; if (alive.current) setCancelBusy(false); }
+        } finally { deletePending.current = false; if (alive.current) setDeleteBusy(false); }
     };
+    /** Submit the displayed revision and refresh the list without accepting duplicate clicks. */
     const submit = async () => {
         if (submitPending.current) return;
         submitPending.current = true; setSubmitBusy(true); setSubmitError(null);
@@ -128,28 +137,26 @@ const ExpertSeasonProtocols = ({ seasonId }) => {
                     <Tooltip title="Xem phác đồ"><Button type="text" shape="circle" aria-label={`Xem phiên bản ${row.versionNo}`} icon={<EyeOutlined />} onClick={() => openDialog(row.id)} /></Tooltip>
                     {row.availableActions.update && <Tooltip title="Chỉnh sửa"><Button type="text" shape="circle" aria-label={`Sửa phiên bản ${row.versionNo}`} icon={<EditOutlined />} onClick={() => openDialog(row.id, 'edit')} /></Tooltip>}
                     {row.availableActions.submit && <Tooltip title="Gửi duyệt"><Button type="text" shape="circle" aria-label={`Gửi duyệt phiên bản ${row.versionNo}`} icon={<SendOutlined />} onClick={() => confirmSubmit(row)} /></Tooltip>}
-                    {row.availableActions.cancel && <Tooltip title="Hủy bản nháp"><Button type="text" shape="circle" danger aria-label={`Hủy phiên bản ${row.versionNo}`} icon={<DeleteOutlined />} onClick={() => confirmCancel(row)} /></Tooltip>}
+                    {row.availableActions.delete && <Tooltip title="Xóa nháp"><Button type="text" shape="circle" danger aria-label={`Xóa nháp phiên bản ${row.versionNo}`} icon={<DeleteOutlined />} onClick={() => confirmDelete(row)} /></Tooltip>}
                 </Space>
             </div>)}</Flex>
             {meta.totalResults > 20 && <Pagination className="mt-4!" current={page} total={meta.totalResults} pageSize={20} showSizeChanger={false} onChange={setPage} />}
         </Card>
-        {(dialog?.loading || dialog?.error) && <Modal open footer={null} onCancel={closeDialog} title="Phác đồ nuôi">
-            {dialog.loading ? <Loading tip="Đang tải chi tiết" /> : <Alert type="error" message={dialog.error}
-                action={<Button onClick={() => openDialog(dialog.protocolId, dialog.mode)}>Thử lại</Button>} />}
-        </Modal>}
-        {dialog?.detail && dialog.mode === 'view' && <ExpertProductionProtocolDetail detail={dialog.detail} onClose={closeDialog} onEdit={() => openDialog(dialog.detail.id, 'edit')} onSubmit={() => confirmSubmit(dialog.detail)} submitBusy={submitBusy} />}
-        {dialog && !dialog.loading && !dialog.error && dialog.mode !== 'view' && <ExpertProductionProtocolForm
+        {dialog && (dialog.loading || dialog.error || dialog.mode === 'view') && <ExpertProductionProtocolDetail
+            detail={dialog.detail} loading={dialog.loading} error={dialog.error}
+            onRetry={() => openDialog(dialog.protocolId, dialog.mode)} onClose={closeDialog}
+            onEdit={() => openDialog(dialog.detail.id, 'edit')} onDelete={() => confirmDelete(dialog.detail)}
+            onSubmit={() => confirmSubmit(dialog.detail)} submitBusy={submitBusy || deleteBusy} />}
+        {dialog && !dialog.loading && !dialog.error && dialog.mode !== 'view' && !readOnly
+            && (dialog.mode !== 'create' || season.availableActions.create) && <ExpertProductionProtocolForm
             key={`${seasonId}:${dialog.detail?.id || 'new'}:${dialog.detail?.revision || 0}`} seasonId={seasonId} season={season}
             detail={dialog.detail} onClose={closeDialog} onSaved={() => { closeDialog(); refresh(); }}
             onReload={(id) => { closeDialog(); refresh(); if (id) openDialog(id, 'edit'); }} />}
-        <Modal open={Boolean(cancelTarget)} title="Hủy bản nháp phác đồ nuôi?" okText="Xác nhận hủy" cancelText="Quay lại" okButtonProps={{ danger: true }}
-            confirmLoading={cancelBusy} closable={!cancelBusy} maskClosable={!cancelBusy} keyboard={!cancelBusy}
-            onCancel={() => { if (!cancelBusy) setCancelTarget(null); }} onOk={cancel}>
-            <Typography.Paragraph>{cancelTarget?.title} — v{cancelTarget?.versionNo}. Nội dung và lịch sử sẽ được giữ lại.</Typography.Paragraph>
-            {cancelError && <Alert type="error" message={cancelError} className="mb-3!" />}
-            <Form form={cancelForm} layout="vertical" disabled={cancelBusy}><Form.Item name="reason" label="Lý do hủy" rules={[{ required: true, whitespace: true, max: 2000, message: 'Nhập lý do hủy, tối đa 2000 ký tự.' }]}>
-                <Input.TextArea autoFocus maxLength={2000} rows={3} />
-            </Form.Item></Form>
+        <Modal open={Boolean(deleteTarget)} title="Xóa bản nháp phác đồ nuôi?" okText="Xóa nháp" cancelText="Quay lại" okButtonProps={{ danger: true }}
+            confirmLoading={deleteBusy} closable={!deleteBusy} maskClosable={!deleteBusy} keyboard={!deleteBusy}
+            onCancel={() => { if (!deleteBusy) setDeleteTarget(null); }} onOk={removeDraft}>
+            <Typography.Paragraph>{deleteTarget?.title} — v{deleteTarget?.versionNo}. Bản nháp chưa gửi sẽ bị xóa; lần tạo tiếp theo có thể dùng lại số phiên bản này.</Typography.Paragraph>
+            {deleteError && <Alert type="error" message={deleteError} className="mb-3!" />}
         </Modal>
         <Modal open={Boolean(submitTarget)} title="Gửi phác đồ cho chủ trại duyệt?" okText="Gửi duyệt" cancelText="Quay lại" confirmLoading={submitBusy}
             okButtonProps={{ className: PROTOCOL_PRIMARY_BUTTON }} closable={!submitBusy} maskClosable={!submitBusy} keyboard={!submitBusy}

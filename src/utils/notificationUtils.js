@@ -67,10 +67,26 @@ const referencePath = (basePath, referenceId) => {
     return id ? `${basePath}/${encodeURIComponent(id)}` : null;
 };
 
+/** Route notices by typed references, leaving missing or unsupported destinations non-navigable. */
 export const getNotificationDestination = (notification) => {
     if (!notification) return null;
 
     const { type, referenceType, referenceId } = notification;
+    if (type === 'SYSTEM' && referenceType === 'disease_case') {
+        return { path: referencePath('/expert/disease-cases', referenceId), label: 'Xem ca và quyết định chăm sóc' };
+    }
+    if (type === 'OPERATION_CANCELLED' && referenceType === 'aquaculture_season') {
+        const path = referencePath('/expert/seasons', referenceId);
+        return { path: path && `${path}?tab=protocols`, label: 'Xem vụ nuôi bị ảnh hưởng' };
+    }
+    if (type === 'SYSTEM' && referenceType === 'season_protocol_material') {
+        const path = referencePath('/expert/seasons', referenceId);
+        return { path: path && `${path}?tab=protocols`, label: 'Xem phác đồ liên quan' };
+    }
+    if (type === 'SYSTEM' && referenceType === 'disease_case_material') {
+        const path = referencePath('/expert/disease-cases', referenceId);
+        return { path: path && `${path}?tab=treatment`, label: 'Xem phác đồ điều trị' };
+    }
     if (type === 'SYSTEM' && referenceType === 'production_protocol_template') {
         return {
             path: referencePath('/expert/protocols', referenceId),
@@ -108,6 +124,7 @@ export const getNotificationDestination = (notification) => {
     return null;
 };
 
+/** Validate notification rows and cursor metadata before appending them to the loaded list. */
 export const parseNotificationPage = (payload) => {
     const items = payload?.data;
     const meta = payload?.meta;
@@ -127,6 +144,7 @@ export const parseNotificationPage = (payload) => {
     };
 };
 
+/** Require the read timestamp and detail content returned by the notification detail endpoint. */
 export const parseNotificationDetail = (payload) => {
     const item = payload?.data;
     if (!validSummary(item) || typeof item.readAt !== 'string' ||
@@ -137,6 +155,7 @@ export const parseNotificationDetail = (payload) => {
     return item;
 };
 
+/** Accept only a valid affected count and timestamp from the bulk read operation. */
 export const parseMarkAllNotificationsRead = (payload) => {
     const result = payload?.data;
     if (!result || !Number.isInteger(result.updatedCount) || result.updatedCount < 0 ||

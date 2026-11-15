@@ -1,14 +1,17 @@
 import { protocolPayload, treatmentStartError } from './productionProtocolUtils.js';
 import { getApplicationDays, nextRepeatDay, assertMaterialDailyIncrement } from './protocolTemplateUtils.js';
 import { proposalMissingFields, templateMaterialSelectionError } from './materialCompliance.js';
+import { PROTOCOL_TIMING } from '../constants/productionProtocol.js';
 
 const key = () => crypto.randomUUID();
 const numeric = value => value == null ? null : Number(value);
+/** Restore proposal content without catalog identity, retaining deleted-product markers. */
 const productFor = item => {
     if (!item.productId && item.recommendedProductDetails?.proposed) {
         const proposal = structuredClone(item.recommendedProductDetails.proposed);
         return { ...proposal, category: proposal.category.toUpperCase(), unit: proposal.unit.toUpperCase(),
-            conversionUnit: proposal.conversionUnit?.toUpperCase() ?? null };
+            conversionUnit: proposal.conversionUnit?.toUpperCase() ?? null,
+            unavailable: Boolean(item.recommendedProductDetails.review?.deletedProductId) };
     }
     const product = { ...item.materialSnapshot, ...item.product, id: item.productId };
     return { ...product, name: product.name || item.recommendedProductName || 'Vật tư cũ',
@@ -24,7 +27,7 @@ export const protocolToEditorStages = detail => (detail?.stages || []).map(stage
         const items = meal.items.map(item => ({ key: item.id || key(), id: item.id, product: productFor(item),
             operationType: item.operationType, doseBasis: item.doseBasis, doseValue: numeric(item.doseValue),
             doseUnit: item.doseUnit, dailyDoseIncrement: numeric(item.dailyDoseIncrement) || 0,
-            dueAtMinutes: item.dueAtMinutes ?? null, instructions: item.instructions || '',
+            dueAtMinutes: item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes, instructions: item.instructions || '',
             firstDay: (item.firstDayOffset ?? stage.startDayOffset) + 1,
             lastDay: (item.lastDayOffset ?? stage.endDayOffset) + 1, repeatIntervalDays: item.repeatIntervalDays,
             recurrenceAnchorDay: (item.recurrenceAnchorOffset ?? item.firstDayOffset ?? stage.startDayOffset) + 1,
@@ -62,6 +65,7 @@ export const copyEditorMeal = (meal, time) => ({
 /** Convert explicit selected days into compact rules without resetting a recurrence or dose anchor. */
 export const editorProtocolPayload = (values, stages, application, { progressive = false, submitForApproval = false } = {}) => {
     const { season, detail } = application;
+    /** Split selected days into saved intervals while retaining dose anchors and catalog revisions. */
     const toItems = (item, stage, environment = false) => {
         assertMaterialDailyIncrement(item, environment);
         const selectionError = templateMaterialSelectionError(item.product, { environment, production: season.protocolType !== 'TREATMENT', protocolLabel: 'phác đồ' });
@@ -76,12 +80,13 @@ export const editorProtocolPayload = (values, stages, application, { progressive
         return intervals.map(([first, last], index) => ({
             ...(item.id && index === 0 ? { id: item.id } : {}), operationType: item.product.category === 'FEED' ? 'FEEDING' : item.product.category,
             productId: item.product.id || null,
+            ...(item.product.id && { productRevision: item.product.materialRevision }),
             ...(!item.product.id ? { recommendedProductDetails: { proposed: item.product },
                 recommendedProductName: item.product.name, recommendedCategory: item.product.category,
                 recommendedManufacturerId: item.product.manufacturerId || null } : item.originalRecommendation ? {
                 recommendedProductDetails: item.originalRecommendation, recommendedManufacturerId: item.recommendedManufacturerId } : {}),
             doseBasis: item.doseBasis, doseValue: decimal(item.doseValue), doseUnit: item.doseUnit,
-            dailyDoseIncrement: decimal(item.dailyDoseIncrement ?? 0), dueAtMinutes: item.dueAtMinutes ?? null,
+            dailyDoseIncrement: decimal(item.dailyDoseIncrement ?? 0), dueAtMinutes: item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes,
             instructions: item.instructions || null, firstDoc: first, lastDoc: last,
             repeatIntervalDays: item.applicationDays || environment && item.repeatIntervalDays == null ? 1 : item.repeatIntervalDays ?? 1,
             recurrenceAnchorDoc: item.applicationDays ? first : item.recurrenceAnchorDay ?? item.firstDay ?? stage.startDay,
@@ -122,6 +127,7 @@ export const editorProtocolPayload = (values, stages, application, { progressive
 export const copyEditorStage = (source, startDay) => {
     const endDay = startDay + source.endDay - source.startDay;
     if (endDay > 3650) throw new Error('Giai đoạn sao chép vượt phạm vi ngày cho phép.');
+    /** Advance copied doses and application windows while assigning fresh editor identities. */
     const copyItem = item => {
         const rest = structuredClone(item);
         for (const field of ['id', 'originalMealId', 'originalRecommendation']) delete rest[field];

@@ -5,11 +5,14 @@ import ProtocolMaterialDetail from '../../components/ProtocolMaterialDetail';
 import ProtocolExecutionTable from '../../components/ProtocolExecutionTable';
 import { DOSE_LABELS, OPERATION_COLORS, OPERATION_LABELS, PROTOCOL_PRIMARY_BUTTON, PROTOCOL_STATUS_COLORS, PROTOCOL_STATUS_LABELS, PROTOCOL_THEME, UNIT_LABELS } from '../../constants/productionProtocol';
 import { expertStyle as styles } from '../../constants/expertStyle';
+import Loading from '../../components/Loading';
 
 const dateText = (value) => value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
-const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, onCancel, onStop, onRefresh, submitBusy = false }) => {
-    const treatment = detail.protocolType === 'TREATMENT';
+/** Use one loaded prescription snapshot for content and execution tabs. */
+const ExpertProductionProtocolDetail = ({ detail, loading = false, error, title = 'Chi tiết phác đồ nuôi', onRetry, onClose, onEdit, onSubmit, onDelete, onStop, onRefresh, submitBusy = false }) => {
+    const treatment = detail?.protocolType === 'TREATMENT';
     const [material, setMaterial] = useState(null);
+    const pending = loading || error || !detail;
     const inspect = (item, showProposal = false) => {
         const proposal = item.recommendedProductDetails?.proposed;
         const product = item.materialSnapshot ?? item.product;
@@ -18,17 +21,21 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, onC
             : product ? { ...product, productCompliance: product.compliance ?? product.productCompliance } : null);
     };
     return <ConfigProvider theme={PROTOCOL_THEME}>
-    <Drawer open width={880} className={styles.drawer} onClose={onClose} title={<Space wrap>
+    <Drawer open width={880} className={styles.drawer} rootClassName="[&_.ant-drawer-content-wrapper]:max-w-full!"
+        classNames={{ body: pending ? 'flex! flex-col!' : undefined }}
+        closable={!submitBusy} maskClosable={!submitBusy} keyboard={!submitBusy} onClose={onClose} title={pending ? detail?.title || title : <Space wrap>
         <span className={styles.mono}>v{detail.versionNo}</span><span>{detail.title}</span>
         <Tag className={styles.pill} color={PROTOCOL_STATUS_COLORS[detail.status]}>{PROTOCOL_STATUS_LABELS[detail.status]}</Tag>
-    </Space>} extra={<Space>
-        {detail.availableActions.update && <Button icon={<EditOutlined />} onClick={onEdit}>Chỉnh sửa</Button>}
-        {detail.availableActions.submit && <Button type="primary" className={PROTOCOL_PRIMARY_BUTTON} icon={<SendOutlined />} loading={submitBusy} onClick={onSubmit}>Gửi duyệt</Button>}
-        {(detail.availableActions.cancel || detail.availableActions.withdraw) && onCancel && <Button onClick={onCancel}>Hủy / thu hồi</Button>}
-        {detail.availableActions.stop && onStop && <Button danger onClick={onStop}>Dừng điều trị</Button>}
+    </Space>} extra={!pending && <Space>
+        {detail.availableActions.update && onEdit && <Button icon={<EditOutlined />} onClick={onEdit} disabled={submitBusy}>Chỉnh sửa</Button>}
+        {detail.availableActions.submit && onSubmit && <Button type="primary" className={PROTOCOL_PRIMARY_BUTTON} icon={<SendOutlined />} loading={submitBusy} onClick={onSubmit}>Gửi duyệt</Button>}
+        {detail.availableActions.delete && onDelete && <Button danger onClick={onDelete} disabled={submitBusy}>Xóa nháp</Button>}
+        {detail.availableActions.stop && onStop && <Button danger onClick={onStop} disabled={submitBusy}>{detail.status === 'APPROVED' ? 'Hủy kế hoạch điều trị' : 'Dừng điều trị'}</Button>}
         {onRefresh && <Button onClick={onRefresh} disabled={submitBusy}>Làm mới</Button>}
     </Space>}>
-        <Tabs items={[{ key: 'content', label: 'Nội dung', children: <>
+        {pending ? error ? <Alert type="error" showIcon message={error} action={<Button onClick={onRetry}>Thử lại</Button>} />
+            : <Loading className="min-h-0! w-full! flex-1!" tip="Đang tải chi tiết phác đồ" />
+            : <Tabs items={[{ key: 'content', label: 'Nội dung', children: <>
         {detail.rejectionReason && <Alert type="error" showIcon className="mb-4! rounded-[14px]! p-5!" message="Chủ trại từ chối" description={detail.rejectionReason} />}
         {detail.status === 'ABORTED' && (
             <Alert
@@ -41,8 +48,8 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, onC
         )}
         <div className={styles.viewMeta}>
             <div><span>Loại:</span>{treatment ? 'Phác đồ điều trị' : 'Phác đồ nuôi'}</div><div><span>Ngưỡng sai lệch:</span>{detail.allowedVariancePct == null ? 'Chưa cấu hình (bản cũ)' : `±${detail.allowedVariancePct}%`}</div><div><span>Sinh lịch trước:</span>{detail.rollingWindowDays} ngày</div>
-            {treatment && <div><span>Bắt đầu điều trị:</span>{dateText(detail.treatmentStartAt)}</div>}
-            <div><span>Gửi duyệt:</span>{dateText(detail.submittedAt)}</div><div><span>Duyệt:</span>{dateText(detail.reviewedAt)}</div>
+            {treatment && <div className="whitespace-nowrap"><span>Bắt đầu điều trị:</span>{dateText(detail.treatmentStartAt)}</div>}
+            <div className="whitespace-nowrap"><span>Gửi duyệt:</span>{dateText(detail.submittedAt)}</div><div className="whitespace-nowrap"><span>Duyệt:</span>{dateText(detail.reviewedAt)}</div>
             <div><span>Phiên bản:</span>v{detail.versionNo}</div>
             <div><span>Nguồn:</span>{detail.sourceTemplateSnapshot ? `${detail.sourceTemplateSnapshot.title} · v${detail.sourceTemplateVersionNo}` : detail.sourceTemplateId ? 'Mẫu cũ · chưa xác định phiên bản nguồn' : 'Tạo trực tiếp'}</div>
             <div className="col-span-full"><span>Ghi chú:</span>{detail.summary || '—'}</div>
@@ -95,7 +102,7 @@ const ExpertProductionProtocolDetail = ({ detail, onClose, onEdit, onSubmit, onC
                 {entry.reason && <Typography.Paragraph>{entry.reason}</Typography.Paragraph>}
             </> }))} /></>}
         </> }, ...(treatment ? [{ key: 'execution', label: 'Thực hiện', children:
-            <ProtocolExecutionTable key={detail.id} rows={detail.executionRows} coverage={detail.coverage} asOf={detail.asOf} treatmentStartAt={detail.treatmentStartAt} /> }] : [])]} />
+            <ProtocolExecutionTable key={detail.id} rows={detail.executionRows} coverage={detail.coverage} asOf={detail.asOf} treatmentStartAt={detail.treatmentStartAt} /> }] : [])]} />}
     </Drawer>
     {material && <ProtocolMaterialDetail product={material} onClose={() => setMaterial(null)} />}
 </ConfigProvider>;
