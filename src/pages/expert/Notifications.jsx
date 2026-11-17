@@ -16,6 +16,7 @@ import {
     NOTIFICATION_CHANGED_EVENT,
 } from '../../utils/notificationUtils';
 import { formatNotificationTime, getNotificationKind } from '../../utils/notificationView';
+import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 
 const STATUS_OPTIONS = [
     { label: 'Tất cả trạng thái', value: 'all' },
@@ -64,6 +65,7 @@ const getErrorMessage = (error, fallback) =>
 
 const Notifications = () => {
     const navigate = useNavigate();
+    const navigateToNotification = useNotificationNavigation();
     const { notificationId } = useParams();
     const { message } = App.useApp();
     const [revision, setRevision] = useState(0);
@@ -223,7 +225,7 @@ const Notifications = () => {
 
     const openRelatedPage = async (item) => {
         const destination = getNotificationDestination(item);
-        if (!destination?.path || openingTargetId) return;
+        if (!destination || openingTargetId) return;
         setOpeningTargetId(item.id);
         try {
             if (!item.readAt) {
@@ -234,7 +236,7 @@ const Notifications = () => {
                         current.id === detail.id ? { ...current, readAt: detail.readAt } : current),
                 }));
             }
-            navigate(destination.path);
+            await navigateToNotification(item);
         } catch (requestError) {
             message.error(getErrorMessage(requestError, 'Không thể mở nội dung liên quan.'));
         } finally {
@@ -268,17 +270,17 @@ const Notifications = () => {
     const rangeEnd = Math.min(page * pageSize, list.totalResults);
 
     return (
-        <div className="w-full p-7 max-[900px]:px-5 max-[900px]:pt-[84px] max-[900px]:pb-6 max-[720px]:px-3">
-            <header className="mb-4 flex min-h-[74px] items-start justify-between gap-5 max-[720px]:flex-col max-[720px]:items-stretch max-[720px]:gap-3">
-                <div>
-                    <h1 className="m-0 font-['Sora',_'Plus_Jakarta_Sans',_sans-serif] text-[23px] leading-[1.4] font-[750] text-[#0f1c2e] max-[720px]:text-xl">
+        <div className="w-full min-w-0 text-[#0f1c2e]">
+            <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <h1 className="m-0 font-['Sora',_'Plus_Jakarta_Sans',_sans-serif] text-[22px] leading-6.875 font-bold text-[#0f1c2e]">
                         Tất cả thông báo
                     </h1>
-                    <p className="mt-[3px] mb-0 text-xs leading-[1.6] text-[#6a7994]">
+                    <p className="mt-1 mb-0 text-[13px] leading-5.25 text-[#6a7994]">
                         Ca bệnh, kết quả duyệt phác đồ và thay đổi phân công vụ nuôi liên quan đến bạn.
                     </p>
                 </div>
-                <div className="flex items-center gap-[9px] max-[720px]:justify-end">
+                <div className="flex shrink-0 items-center gap-[9px]">
                     <Tooltip title="Tải lại danh sách">
                         <Button
                             className="min-h-[38px]! border-[#dbe4ed]! bg-[rgba(255,255,255,0.92)]! text-xs! text-[#40546b]! shadow-[0_3px_10px_rgba(15,28,46,0.04)]!"
@@ -301,7 +303,7 @@ const Notifications = () => {
             </header>
 
             <section
-                className="overflow-hidden rounded-[15px] border border-[#dfe8f0] bg-white shadow-[0_8px_25px_rgba(44,75,104,0.06)]"
+                className="w-full min-w-0 overflow-hidden rounded-[14px] border border-[#e5e8f0] bg-white shadow-[0_1px_1px_rgba(15,28,46,0.04)]"
                 aria-labelledby="notification-list-title"
             >
                 <div className="flex min-h-[62px] items-center justify-between gap-4 border-b border-[#e7edf3] px-4 py-2.5 max-[720px]:flex-col max-[720px]:items-stretch max-[720px]:px-3 max-[720px]:py-[13px]">
@@ -332,7 +334,7 @@ const Notifications = () => {
                     </div>
                 </div>
 
-                <div className="min-h-[420px]" aria-live="polite">
+                <div aria-live="polite">
                     {loading ? (
                         <div className="grid min-h-[360px] place-items-center"><Spin tip="Đang tải thông báo" /></div>
                     ) : error ? (
@@ -404,14 +406,14 @@ const Notifications = () => {
                                                 onClick={() => openDetail(item.id)}
                                             />
                                         </Tooltip>
-                                        <Tooltip title={destination?.path ? destination.label : 'Không có liên kết'}>
+                                        <Tooltip title={destination ? destination.label : 'Không có liên kết'}>
                                             <Button
                                                 type="text"
-                                                aria-label={destination?.path
+                                                aria-label={destination
                                                     ? `${destination.label}: ${item.title}`
                                                     : `Không có liên kết: ${item.title}`}
                                                 icon={<ArrowRightOutlined />}
-                                                disabled={!destination?.path}
+                                                disabled={!destination}
                                                 loading={openingTargetId === item.id}
                                                 onClick={() => openRelatedPage(item)}
                                             />
@@ -495,12 +497,13 @@ const Notifications = () => {
                         <div className="mt-6 border-t border-[#e7edf3] pt-[15px] text-[11px] text-[#708096]">
                             Đã đọc lúc {formatDate(selectedDetail.readAt, 'HH:mm dd/MM/yyyy')}
                         </div>
-                        {detailDestination?.path ? (
+                        {detailDestination ? (
                             <Button
                                 className="mt-7 min-h-[45px]! w-full rounded-[11px]! border-0! bg-[linear-gradient(135deg,#247cc3,#168f82)]! text-[13px]! font-[750]! shadow-[0_9px_18px_rgba(36,124,195,0.18)]!"
                                 type="primary"
                                 size="large"
-                                onClick={() => navigate(detailDestination.path)}
+                                loading={openingTargetId === selectedDetail.id}
+                                onClick={() => openRelatedPage(selectedDetail)}
                             >
                                 {detailDestination.label} <ArrowRightOutlined />
                             </Button>

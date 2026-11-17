@@ -10,11 +10,9 @@ import { io } from 'socket.io-client';
 import { notificationAPI } from '../apis';
 import { getAccessToken, SOCKET_BASE_URL } from '../config';
 import { useAuth } from '../contexts/useAuth';
-import {
-    getNotificationDestination,
-    NOTIFICATION_CHANGED_EVENT,
-} from '../utils/notificationUtils';
+import { NOTIFICATION_CHANGED_EVENT } from '../utils/notificationUtils';
 import { formatNotificationTime, getNotificationKind } from '../utils/notificationView';
+import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
 
 const emptyList = { items: [], totalResults: 0, hasNextPage: false, nextCursor: null };
 const iconColorClassNames = {
@@ -42,6 +40,7 @@ const ExpertNotificationBell = ({ onUnreadCountChange }) => {
     const { account } = useAuth();
     const { message } = App.useApp();
     const navigate = useNavigate();
+    const navigateToNotification = useNotificationNavigation();
     const [open, setOpen] = useState(false);
     const [revision, setRevision] = useState(0);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -191,10 +190,10 @@ const ExpertNotificationBell = ({ onUnreadCountChange }) => {
         setOpeningId(item.id);
         try {
             const detail = await notificationAPI.getNotification(item.id);
-            const destination = getNotificationDestination(detail);
             setOpen(false);
             refresh();
-            navigate(destination?.path || `/expert/notifications/${encodeURIComponent(item.id)}`);
+            const opened = await navigateToNotification(detail);
+            if (!opened) navigate(`/expert/notifications/${encodeURIComponent(item.id)}`);
         } catch (error) {
             message.error(getErrorMessage(error, 'Không thể mở thông báo. Vui lòng thử lại.'));
         } finally {

@@ -26,6 +26,7 @@ import {
     CheckOutlined,
     CloseOutlined,
     EditOutlined,
+    EyeOutlined,
     PlusOutlined,
     ReloadOutlined,
     SearchOutlined,
@@ -40,6 +41,21 @@ import { formatDate } from '../../utils/dateUtils';
 const { Text, Title } = Typography;
 
 const PAGE_SIZE = 10;
+
+const accountListStyles = {
+    primaryButton: `${adminStyles.primaryButton} h-9! rounded-[10px]! px-4! text-[13px]! font-normal!`,
+    search: `${adminStyles.search} h-9! max-w-full! rounded-[10px]! border-[#e5e8f0]! text-[13px]! [&_.ant-input]:text-[13px]!`,
+    filter: 'h-9! max-w-full! [&_.ant-select-selector]:rounded-[10px]! [&_.ant-select-selector]:border-[#e5e8f0]! [&_.ant-select-selection-item]:text-[13px]!',
+    panel: [
+        adminStyles.tableShell,
+        '@container w-full rounded-[14px]! border-[#e5e8f0]! shadow-[0_1px_1px_rgba(15,28,46,0.04)]!',
+        '[&_.ant-table-thead>tr>th]:bg-[#f7faff]! [&_.ant-table-thead>tr>th]:border-[#e5e8f0]!',
+        '[&_.ant-table-tbody>tr]:cursor-pointer [&_.ant-table-tbody>tr>td]:h-[67px] [&_.ant-table-tbody>tr>td]:border-[#e5e8f0]!',
+        '[&_.ant-table-pagination]:min-h-[68px]! [&_.ant-table-pagination]:py-4!',
+        '[&_:is(.ant-pagination-item,.ant-pagination-prev,.ant-pagination-next)]:h-9! [&_:is(.ant-pagination-item,.ant-pagination-prev,.ant-pagination-next)]:min-w-9! [&_:is(.ant-pagination-item,.ant-pagination-prev,.ant-pagination-next)]:rounded-[10px]! [&_:is(.ant-pagination-item,.ant-pagination-prev,.ant-pagination-next)]:leading-[34px]!',
+        '[&_.ant-pagination-total-text]:text-[13px]!',
+    ].join(' '),
+};
 
 const ACCOUNT_ROLES = Object.freeze({
     ADMIN: 'ADMIN',
@@ -276,10 +292,20 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange, onAccou
             width={440}
             destroyOnClose
             footer={
-                account &&
-                account.role !== ACCOUNT_ROLES.ADMIN &&
-                account.status !== ACCOUNT_STATUSES.PENDING_ACTIVATION ? (
-                    <Button block onClick={() => onStatusChange(account)}>
+                account?.status === ACCOUNT_STATUSES.PENDING_ACTIVATION ? (
+                    <Button
+                        className={accountListStyles.primaryButton}
+                        type="primary"
+                        block
+                        icon={<SendOutlined />}
+                        loading={resending}
+                        disabled={updatingEmail}
+                        onClick={handleResendActivation}
+                    >
+                        Gửi lại lời mời kích hoạt
+                    </Button>
+                ) : account && account.role !== ACCOUNT_ROLES.ADMIN ? (
+                    <Button className={accountListStyles.primaryButton} type="primary" block onClick={() => onStatusChange(account)}>
                         Thay đổi trạng thái tài khoản
                     </Button>
                 ) : null
@@ -411,17 +437,6 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange, onAccou
                                     Tài khoản chờ kích hoạt. Bạn có thể sửa email và gửi lại lời
                                     mời.
                                 </Text>
-                                <Button
-                                    className={adminStyles.primaryButton}
-                                    type="primary"
-                                    block
-                                    icon={<SendOutlined />}
-                                    loading={resending}
-                                    disabled={updatingEmail}
-                                    onClick={handleResendActivation}
-                                >
-                                    Gửi lại lời mời kích hoạt
-                                </Button>
                             </div>
                         </>
                     )}
@@ -927,7 +942,7 @@ const AccountList = () => {
             {
                 title: 'Tên / Email',
                 key: 'identity',
-                width: 270,
+                width: 240,
                 fixed: 'left',
                 sorter: true,
                 sortOrder: identitySortOrder,
@@ -1023,63 +1038,35 @@ const AccountList = () => {
                 ),
             },
             {
-                title: '',
+                title: 'Thao tác',
                 key: 'actions',
-                width: 210,
+                width: 80,
                 fixed: 'right',
-                align: 'right',
-                render: (_, account) => {
-                    const isAdmin = account.role === ACCOUNT_ROLES.ADMIN;
-                    const isPending = account.status === ACCOUNT_STATUSES.PENDING_ACTIVATION;
-                    const isDisabled = isAdmin || isPending;
-                    const disabledReason = isAdmin
-                        ? 'Không thể đổi trạng thái Quản trị viên'
-                        : isPending
-                          ? 'Tài khoản đang chờ người dùng kích hoạt qua email'
-                          : '';
-
-                    const changeStatusButton = (
+                align: 'center',
+                render: (_, account) => (
+                    <Tooltip title="Xem chi tiết">
                         <Button
+                            type="text"
+                            shape="circle"
                             size="small"
-                            disabled={isDisabled}
+                            className="inline-flex! size-8! items-center! justify-center! p-0! text-[14px]! text-[#6a7994]! hover:bg-[#edf5ff]! hover:text-[#1d7ad6]!"
+                            icon={<EyeOutlined />}
+                            aria-label={`Xem chi tiết tài khoản ${account.fullName || account.email}`}
                             onClick={(event) => {
                                 event.stopPropagation();
-                                openStatusModal(account);
+                                openDetail(account);
                             }}
-                        >
-                            Đổi trạng thái
-                        </Button>
-                    );
-
-                    return (
-                        <Flex
-                            justify="flex-end"
-                            align="center"
-                            gap={6}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {isDisabled ? (
-                                <Tooltip title={disabledReason}>
-                                    <span>{changeStatusButton}</span>
-                                </Tooltip>
-                            ) : (
-                                changeStatusButton
-                            )}
-                            <Button
-                                size="small"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    openDetail(account);
-                                }}
-                            >
-                                Chi tiết
-                            </Button>
-                        </Flex>
-                    );
-                },
+                        />
+                    </Tooltip>
+                ),
             },
         ],
-        [openDetail, openStatusModal, identitySortOrder, pageRoles, pageStatuses],
+        [
+            openDetail,
+            identitySortOrder,
+            pageRoles,
+            pageStatuses,
+        ],
     );
 
     const handleTableChange = (_pagination, filters, sorter) => {
@@ -1095,16 +1082,11 @@ const AccountList = () => {
     const pendingTotal = summary.pending;
 
     return (
-        <section className="flex min-w-0 flex-col">
-            <Flex
-                className="mb-[18px] max-[900px]:items-center! max-[600px]:items-start! [&_.ant-typography]:m-0! [&_h3.ant-typography]:font-[Sora,Plus_Jakarta_Sans,sans-serif]! [&_h3.ant-typography]:text-[22px]! [&_h3.ant-typography]:leading-[1.35]! [&_h3.ant-typography]:text-[#0f1c2e]! [&_.ant-typography-secondary]:text-[13px]! max-[600px]:[&_h3.ant-typography]:text-[19px]! max-[600px]:[&_.ant-typography-secondary]:block max-[600px]:[&_.ant-typography-secondary]:mt-0.5! max-[600px]:[&_.ant-typography-secondary]:text-xs!"
-                justify="space-between"
-                align="flex-start"
-                gap={16}
-            >
-                <div>
-                    <Title level={3}>Quản lý tài khoản</Title>
-                    <Text type="secondary">
+        <section className="flex w-full min-w-0 flex-col text-[#0f1c2e]">
+            <Flex className="mb-5!" justify="space-between" align="end" wrap gap={12}>
+                <div className="min-w-0">
+                    <Title level={1} className="m-0! font-['Sora','Plus_Jakarta_Sans',sans-serif]! text-[22px]! leading-6.875! font-bold! text-[#0f1c2e]!">Quản lý tài khoản</Title>
+                    <Text type="secondary" className="mt-1! block! text-[13px]! leading-5.25! text-[#6a7994]!">
                         {summary.total || meta.totalResults} tài khoản trong hệ thống
                         {pendingTotal > 0 && (
                             <>
@@ -1120,7 +1102,7 @@ const AccountList = () => {
                     </Text>
                 </div>
                 <Button
-                    className={`${adminStyles.primaryButton} min-h-[38px]! px-4! max-[600px]:w-10! max-[600px]:min-w-10! max-[600px]:px-0! max-[600px]:[&_.ant-btn-icon]:me-0! max-[600px]:[&>span:not(.ant-btn-icon)]:hidden`}
+                    className={`${accountListStyles.primaryButton} shrink-0`}
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setCreateOpen(true)}
@@ -1129,58 +1111,55 @@ const AccountList = () => {
                 </Button>
             </Flex>
 
-            <Flex className="mb-4" gap={10} wrap="wrap">
-                <Input
-                    className={adminStyles.search}
-                    prefix={<SearchOutlined />}
-                    placeholder="Tìm tên, email, số điện thoại"
-                    value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
-                    allowClear
-                    maxLength={255}
-                />
-                <Select
-                    className={adminStyles.filter}
-                    value={role}
-                    onChange={setRole}
-                    options={ROLE_FILTER_OPTIONS}
-                    aria-label="Lọc theo vai trò"
-                />
-                <Select
-                    className={adminStyles.statusFilter}
-                    value={status}
-                    onChange={setStatus}
-                    options={STATUS_FILTER_OPTIONS}
-                    aria-label="Lọc theo trạng thái"
-                />
-            </Flex>
+            <div className={accountListStyles.panel} role="region" aria-label="Danh sách tài khoản">
+                <Flex className="min-h-[61px]! rounded-t-[14px]! border-b! border-[#eef1f7]! px-4! py-3!" align="center" gap={8} wrap>
+                    <Input
+                        className={accountListStyles.search}
+                        prefix={<SearchOutlined />}
+                        placeholder="Tìm tên, email, số điện thoại"
+                        value={searchInput}
+                        onChange={(event) => setSearchInput(event.target.value)}
+                        allowClear
+                        maxLength={255}
+                        aria-label="Tìm tài khoản theo tên, email hoặc số điện thoại"
+                    />
+                    <Select
+                        className={`${adminStyles.filter} ${accountListStyles.filter}`}
+                        value={role}
+                        onChange={setRole}
+                        options={ROLE_FILTER_OPTIONS}
+                        aria-label="Lọc theo vai trò"
+                    />
+                    <Select
+                        className={`${adminStyles.statusFilter} ${accountListStyles.filter}`}
+                        value={status}
+                        onChange={setStatus}
+                        options={STATUS_FILTER_OPTIONS}
+                        aria-label="Lọc theo trạng thái"
+                    />
+                </Flex>
 
-            {error && (
-                <Alert
-                    className="mb-3.5"
-                    type="error"
-                    showIcon
-                    message={error}
-                    action={
-                        <Button
-                            size="small"
-                            icon={<ReloadOutlined />}
-                            onClick={() => loadPage(page, { force: true })}
-                        >
-                            Thử lại
-                        </Button>
-                    }
-                />
-            )}
+                {error && (
+                    <Alert
+                        className="mx-4 my-3"
+                        type="error"
+                        showIcon
+                        message={error}
+                        action={
+                            <Button size="small" icon={<ReloadOutlined />} onClick={() => loadPage(page, { force: true })}>
+                                Thử lại
+                            </Button>
+                        }
+                    />
+                )}
 
-            <div className={`${adminStyles.tableShell} [&_.ant-table-tbody>tr]:cursor-pointer`}>
                 <Table
                     dataSource={accounts}
                     columns={columns}
                     rowKey="id"
                     size="middle"
                     loading={loading}
-                    scroll={{ x: 1120 }}
+                    scroll={{ x: 1100 }}
                     locale={{
                         filterConfirm: 'OK',
                         filterReset: 'Reset',
@@ -1202,8 +1181,8 @@ const AccountList = () => {
                         showSizeChanger: false,
                         showLessItems: true,
                         responsive: true,
-                        size: 'small',
-                        showTotal: (total, range) => `${range[0]}–${range[1]} / ${total} tài khoản`,
+                        showTotal: (total, range) =>
+                            `${range[0]}–${range[1]} / ${total} tài khoản`,
                         onChange: (nextPage) => loadPage(nextPage),
                     }}
                     onChange={handleTableChange}
