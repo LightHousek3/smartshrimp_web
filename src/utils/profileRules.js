@@ -1,4 +1,5 @@
 export const PROFILE_RULES = Object.freeze({
+    emailMaxLength: 254,
     fullNameMinLength: 2,
     fullNameMaxLength: 50,
     passwordMinLength: 6,
@@ -10,6 +11,27 @@ const VIETNAMESE_MOBILE_PATTERN = /^0(?:3[2-9]|5[25689]|7[06789]|8[1-9]|9[0-46-9
 
 const characterCount = (value) => Array.from(value).length;
 const utf8ByteLength = (value) => new TextEncoder().encode(value).length;
+
+export const validateEmail = (value = '') => {
+    const email = value.trim();
+    if (!email) return 'Vui lòng nhập email.';
+    if (email.length > PROFILE_RULES.emailMaxLength)
+        return `Email không được vượt quá ${PROFILE_RULES.emailMaxLength} ký tự.`;
+    const parts = email.split('@');
+    const local = parts[0];
+    const domain = parts[1] || '';
+    const labels = domain.split('.');
+    const validLocal = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/i;
+    const validLabel = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+    return parts.length === 2 &&
+        local.length <= 64 &&
+        validLocal.test(local) &&
+        labels.length >= 2 &&
+        labels.every((label) => validLabel.test(label)) &&
+        /^[a-z]/i.test(labels.at(-1))
+        ? null
+        : 'Email không hợp lệ.';
+};
 
 export const normalizeFullName = (value = '') =>
     value.normalize('NFC').trim().replace(/\s+/gu, ' ');

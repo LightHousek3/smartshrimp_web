@@ -243,6 +243,13 @@ input:focus-visible {
     font-weight: 600;
 }
 
+.login-submit .ant-btn-icon {
+    display: inline-flex;
+    width: 18px;
+    justify-content: center;
+    margin-inline-end: 12px;
+}
+
 .login-actions {
     display: flex;
     align-items: center;

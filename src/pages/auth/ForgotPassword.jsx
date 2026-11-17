@@ -1,7 +1,7 @@
 import { Form } from 'antd';
 import { SafetyOutlined, SendOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { PROFILE_RULES, validatePassword } from '../../utils/profileRules';
+import { PROFILE_RULES, validateEmail, validatePassword } from '../../utils/profileRules';
 import {
     FlowHeader,
     FormPanel,
@@ -17,7 +17,7 @@ import { fieldValidator } from '../../utils/formUtils';
 import { useVerificationFlow } from '../../hooks/useVerificationFlow';
 import { VerificationSuccess, VerificationGuidance } from '../../components/VerificationResult';
 
-const EMAIL_MAX_LENGTH = 320;
+const EMAIL_MAX_LENGTH = PROFILE_RULES.emailMaxLength;
 const STEP_LABELS = ['Email', 'OTP', 'Mật khẩu'];
 const CARD_HEIGHTS = [480, 480, 523];
 
@@ -52,14 +52,7 @@ const EmailStep = ({ form, loading, onBack, onSubmit }) => (
                     className="mb-4!"
                     validateFirst
                     normalize={(value) => value?.trim().toLowerCase()}
-                    rules={[
-                        { required: true, message: 'Vui lòng nhập địa chỉ email.' },
-                        { type: 'email', message: 'Email không hợp lệ.' },
-                        {
-                            max: EMAIL_MAX_LENGTH,
-                            message: `Email không được vượt quá ${EMAIL_MAX_LENGTH} ký tự.`,
-                        },
-                    ]}
+                    rules={[{ validator: fieldValidator(validateEmail) }]}
                 >
                     <VerificationInput
                         placeholder="ban@trangtrai.vn"
@@ -160,18 +153,42 @@ const ForgotPasswordFlow = () => {
     const [detailsForm] = Form.useForm();
     const navigate = useNavigate();
     const flow = useVerificationFlow({ activation: false, emailForm, otpForm, detailsForm });
-    return <VerificationShell minHeight={CARD_HEIGHTS[flow.step] || 480}>
-        {flow.step === 0 && <EmailStep form={emailForm} loading={flow.submitting}
-            onBack={() => navigate('/login')} onSubmit={flow.requestOtp} />}
-        {flow.step === 1 && <OtpVerificationStep email={flow.email} form={otpForm}
-            loading={flow.submitting} resendLoading={flow.resendLoading} resendSeconds={flow.resendSeconds}
-            onBack={flow.backToEmail} onResend={flow.resendOtp} onSubmit={flow.verifyOtp}
-            currentStep={1} stepLabels={STEP_LABELS} />}
-        {flow.step === 2 && <NewPasswordStep form={detailsForm} loading={flow.submitting}
-            onBack={flow.backToEmail} onSubmit={flow.complete} />}
-        {flow.step === 3 && <VerificationSuccess activation={false} email={flow.email} />}
-        <VerificationGuidance code={flow.errorCode} email={flow.email} />
-    </VerificationShell>;
+    return (
+        <VerificationShell minHeight={CARD_HEIGHTS[flow.step] || 480}>
+            {flow.step === 0 && (
+                <EmailStep
+                    form={emailForm}
+                    loading={flow.submitting}
+                    onBack={() => navigate('/login')}
+                    onSubmit={flow.requestOtp}
+                />
+            )}
+            {flow.step === 1 && (
+                <OtpVerificationStep
+                    email={flow.email}
+                    form={otpForm}
+                    loading={flow.submitting}
+                    resendLoading={flow.resendLoading}
+                    resendSeconds={flow.resendSeconds}
+                    onBack={flow.backToEmail}
+                    onResend={flow.resendOtp}
+                    onSubmit={flow.verifyOtp}
+                    currentStep={1}
+                    stepLabels={STEP_LABELS}
+                />
+            )}
+            {flow.step === 2 && (
+                <NewPasswordStep
+                    form={detailsForm}
+                    loading={flow.submitting}
+                    onBack={flow.backToEmail}
+                    onSubmit={flow.complete}
+                />
+            )}
+            {flow.step === 3 && <VerificationSuccess activation={false} email={flow.email} />}
+            <VerificationGuidance code={flow.errorCode} email={flow.email} />
+        </VerificationShell>
+    );
 };
 const ForgotPassword = () => {
     const location = useLocation();

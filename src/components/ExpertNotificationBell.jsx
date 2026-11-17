@@ -340,10 +340,17 @@ const ExpertNotificationBell = ({ onUnreadCountChange }) => {
             content={content}
             overlayClassName={popoverClassName}
         >
-            <Badge count={unreadCount} overflowCount={99} size="small">
+            <Badge
+                count={unreadCount}
+                overflowCount={99}
+                size="small"
+                color="#e73558"
+                offset={[-4, 4]}
+            >
                 <Button
-                    className="expert-notification-trigger size-11! rounded-[13px]! border! border-[rgba(119,161,211,0.32)]! bg-[rgba(255,255,255,0.84)]! text-[21px]! text-[#247cc3]! shadow-[0_6px_18px_rgba(42,60,84,0.1)]! hover:bg-white! hover:text-[#0f62b4]! focus-visible:bg-white! focus-visible:text-[#0f62b4]!"
+                    className="expert-notification-trigger size-10! rounded-full! border! border-[#e2e8f0]! bg-white! text-sm! text-[#1e293b]! shadow-[0_1px_2px_rgba(15,23,42,0.05)]! hover:bg-[#f8fafc]! hover:text-[#1e293b]! focus-visible:bg-white! focus-visible:text-[#1e293b]!"
                     type="text"
+                    shape="circle"
                     icon={<BellOutlined />}
                     aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo'}
                     aria-expanded={open}
