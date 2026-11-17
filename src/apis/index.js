@@ -10,6 +10,7 @@ import {
     parseMarkAllNotificationsRead,
     parseNotificationDetail,
     parseNotificationPage,
+    parseNotificationReferenceContext,
 } from '../utils/notificationUtils.js';
 import { apiClient, deviceId } from '../config/index.js';
 import { RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
@@ -231,6 +232,13 @@ const adminAccountAPI = {
 };
 
 const notificationAPI = {
+    getReferenceContext: async (notificationId, signal) => {
+        const response = await apiClient.get(
+            `/notifications/${encodeURIComponent(notificationId)}/reference-context`,
+            { signal },
+        );
+        return parseNotificationReferenceContext(response.data);
+    },
     /**
      * GET /notifications
      * Validate and return the parsed notification page.
