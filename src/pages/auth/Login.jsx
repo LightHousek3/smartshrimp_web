@@ -4,6 +4,8 @@ import { CheckOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/useAuth';
 import { BRAND_LOGO_URL, getRoleHomePath } from '../../constants/portal';
+import { PROFILE_RULES, validateEmail } from '../../utils/profileRules';
+import { fieldValidator, getApiErrorMessage } from '../../utils/formUtils';
 
 const passwordByteLength = (value) => new TextEncoder().encode(value || '').length;
 
@@ -23,11 +25,7 @@ const Login = () => {
             message.success('Đăng nhập thành công!');
             navigate(getRoleHomePath(account.role), { replace: true });
         } catch (error) {
-            const errorMessage =
-                error.response?.data?.message ||
-                error.message ||
-                'Đăng nhập thất bại. Vui lòng thử lại!';
-            message.error(errorMessage);
+            message.error(getApiErrorMessage(error, 'Đăng nhập thất bại. Vui lòng thử lại!'));
         } finally {
             setSubmitting(false);
         }
@@ -38,7 +36,7 @@ const Login = () => {
             <section className="login-shell" aria-labelledby="login-title">
                 <div className="login-brand">
                     <img src={BRAND_LOGO_URL} alt="SmartShrimp" className="login-logo" />
-                    <p>Nền tảng vận hành &amp; tư vấn kỹ thuật nuôi tôm thông minh</p>
+                    <p>Hệ thống vận hành &amp; tư vấn kỹ thuật nuôi tôm thông minh</p>
                 </div>
 
                 <div className="login-card">
@@ -46,7 +44,9 @@ const Login = () => {
 
                     <Form
                         name="smartshrimp-login"
-                        initialValues={{ email: (searchParams.get('email') || '').trim().toLowerCase() }}
+                        initialValues={{
+                            email: (searchParams.get('email') || '').trim().toLowerCase(),
+                        }}
                         layout="vertical"
                         autoComplete="on"
                         requiredMark={false}
@@ -56,12 +56,9 @@ const Login = () => {
                         <Form.Item
                             name="email"
                             label="Email"
+                            validateFirst
                             normalize={(value) => value?.trim().toLowerCase()}
-                            rules={[
-                                { required: true, message: 'Vui lòng nhập email!' },
-                                { type: 'email', message: 'Email không hợp lệ!' },
-                                { max: 320, message: 'Email không được vượt quá 320 ký tự!' },
-                            ]}
+                            rules={[{ validator: fieldValidator(validateEmail) }]}
                         >
                             <Input
                                 prefix={<MailOutlined />}
@@ -70,7 +67,7 @@ const Login = () => {
                                 inputMode="email"
                                 autoCapitalize="none"
                                 spellCheck={false}
-                                maxLength={320}
+                                maxLength={PROFILE_RULES.emailMaxLength}
                             />
                         </Form.Item>
 
@@ -103,7 +100,7 @@ const Login = () => {
                                 type="primary"
                                 htmlType="submit"
                                 className="btn-grad login-submit"
-                                icon={<CheckOutlined style={{ marginRight: '12px' }} />}
+                                icon={<CheckOutlined />}
                                 loading={submitting}
                             >
                                 Đăng nhập

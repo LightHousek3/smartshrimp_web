@@ -31,7 +31,8 @@ import {
     SearchOutlined,
     SendOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { PROFILE_RULES, validateEmail } from '../../utils/profileRules';
+import { fieldValidator, getApiErrorMessage } from '../../utils/formUtils';
 import { adminStyles } from './adminStyles';
 import { adminAccountAPI } from '../../apis';
 import { formatDate } from '../../utils/dateUtils';
@@ -94,10 +95,7 @@ const CREATABLE_ROLE_OPTIONS = [
     { value: ACCOUNT_ROLES.EXPERT, label: ROLE_LABELS[ACCOUNT_ROLES.EXPERT] },
 ];
 
-const ROLE_FILTER_OPTIONS = [
-    { value: '', label: 'Tất cả vai trò' },
-    ...CREATABLE_ROLE_OPTIONS,
-];
+const ROLE_FILTER_OPTIONS = [{ value: '', label: 'Tất cả vai trò' }, ...CREATABLE_ROLE_OPTIONS];
 
 const STATUS_FILTER_OPTIONS = [
     { value: '', label: 'Tất cả trạng thái' },
@@ -126,63 +124,32 @@ const getInitial = (account) => {
 
 const formatDateTime = (value) => (value ? formatDate(value, 'HH:mm dd/MM/yyyy') || '—' : '—');
 
-const API_ERROR_MESSAGES = Object.freeze({
-    'Email is already in use': 'Email này đã được sử dụng.',
-    'Managing owner must be a farm owner': 'Chủ quản phải là tài khoản Chủ trang trại.',
-    'Managing owner must be active': 'Chủ quản phải đang ở trạng thái hoạt động.',
-    'Account not found': 'Không tìm thấy tài khoản.',
-    'Please wait before resending the activation email':
-        'Vui lòng đợi trước khi gửi lại email kích hoạt.',
-    'Only pending accounts can receive an activation email':
-        'Chỉ tài khoản chờ kích hoạt mới có thể nhận email này.',
-    'Unable to send the activation email': 'Không thể gửi email kích hoạt lúc này.',
-    'New status must be different from the current status':
-        'Trạng thái mới phải khác trạng thái hiện tại.',
-    'Pending accounts must be activated through email verification':
-        'Tài khoản chờ kích hoạt phải được kích hoạt qua email.',
-    'Admin account status cannot be changed here': 'Không thể đổi trạng thái tài khoản Admin.',
-    'Assigned staff must be replaced before deactivation':
-        'Nhân sự đang được phân công phải được thay thế trước khi vô hiệu hóa.',
-    'Owner staff must be disabled or transferred before deactivation':
-        'Cần vô hiệu hóa hoặc chuyển nhân sự của chủ trại trước.',
-    'Owner with an open season cannot be deactivated':
-        'Không thể vô hiệu hóa chủ trại đang có vụ nuôi mở.',
-    'Only pending accounts can be updated':
-        'Chỉ có thể cập nhật tài khoản đang chờ kích hoạt.',
-    'Account updated and activation invitation sent successfully':
-        'Đã cập nhật email và gửi lại lời mời kích hoạt.',
-});
-
-const getErrorMessage = (error, fallback) => {
-    const apiMessage = error?.response?.data?.message;
-    return API_ERROR_MESSAGES[apiMessage] || apiMessage || error?.message || fallback;
-};
+const getErrorMessage = getApiErrorMessage;
 
 const RoleTag = ({ role }) => (
-    <Tag className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!" color={ROLE_COLORS[role] || 'default'}>
+    <Tag
+        className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!"
+        color={ROLE_COLORS[role] || 'default'}
+    >
         {ROLE_LABELS[role] || role}
     </Tag>
 );
 
 const StatusTag = ({ status }) => (
-    <Tag className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!" color={STATUS_COLORS[status] || 'default'}>
+    <Tag
+        className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!"
+        color={STATUS_COLORS[status] || 'default'}
+    >
         {STATUS_LABELS[status] || status}
     </Tag>
 );
 
-const AccountDetailDrawer = ({
-    accountId,
-    open,
-    onClose,
-    onStatusChange,
-    onAccountUpdated,
-}) => {
+const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange, onAccountUpdated }) => {
     const { message } = App.useApp();
     const [account, setAccount] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [resending, setResending] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(0);
     const [isEditingEmail, setIsEditingEmail] = useState(false);
     const [editEmail, setEditEmail] = useState('');
     const [updatingEmail, setUpdatingEmail] = useState(false);
@@ -216,27 +183,12 @@ const AccountDetailDrawer = ({
         return () => window.clearTimeout(timeoutId);
     }, [loadAccount, open]);
 
-    useEffect(() => {
-        if (resendCooldown <= 0) return undefined;
-
-        const intervalId = window.setInterval(
-            () => setResendCooldown((seconds) => Math.max(0, seconds - 1)),
-            1000,
-        );
-        return () => window.clearInterval(intervalId);
-    }, [resendCooldown]);
-
     const handleResendActivation = async () => {
-        if (!account || resending || resendCooldown > 0) return;
+        if (!account || resending) return;
 
         setResending(true);
         try {
-            const response = await adminAccountAPI.resendActivation(account.id);
-            const availableAt = response.data?.data?.resendAvailableAt;
-            const seconds = availableAt
-                ? Math.max(1, Math.ceil(dayjs(availableAt).diff(dayjs(), 'second', true)))
-                : 60;
-            setResendCooldown(seconds);
+            await adminAccountAPI.resendActivation(account.id);
             message.success('Đã gửi lại email kích hoạt.');
         } catch (requestError) {
             message.error(getErrorMessage(requestError, 'Không thể gửi lại email kích hoạt.'));
@@ -259,17 +211,9 @@ const AccountDetailDrawer = ({
 
     const handleSaveEmail = async () => {
         const trimmedEmail = editEmail.trim().toLowerCase();
-        if (!trimmedEmail) {
-            setEmailError('Vui lòng nhập email.');
-            return;
-        }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(trimmedEmail)) {
-            setEmailError('Email không hợp lệ.');
-            return;
-        }
-        if (trimmedEmail.length > 320) {
-            setEmailError('Email không được vượt quá 320 ký tự.');
+        const validationMessage = validateEmail(trimmedEmail);
+        if (validationMessage) {
+            setEmailError(validationMessage);
             return;
         }
 
@@ -283,13 +227,13 @@ const AccountDetailDrawer = ({
             setAccount((prev) => ({ ...prev, ...updated }));
             setIsEditingEmail(false);
 
-            const availableAt = updated?.activation?.resendAvailableAt;
-            const seconds = availableAt
-                ? Math.max(1, Math.ceil(dayjs(availableAt).diff(dayjs(), 'second', true)))
-                : 60;
-            setResendCooldown(seconds);
-
-            message.success('Đã cập nhật email và gửi lại lời mời kích hoạt.');
+            if (updated?.activationEmailSent === false) {
+                message.warning(
+                    'Đã cập nhật email nhưng chưa gửi được lời mời. Anh/chị có thể bấm gửi lại.',
+                );
+            } else {
+                message.success('Đã cập nhật email và gửi lại lời mời kích hoạt.');
+            }
             onAccountUpdated?.(updated);
         } catch (requestError) {
             const msg = getErrorMessage(requestError, 'Không thể cập nhật email.');
@@ -306,7 +250,10 @@ const AccountDetailDrawer = ({
                 {getInitial(account)}
             </Avatar>
             <div className="flex min-w-0 flex-col gap-1 [&>.ant-typography]:m-0! [&>.ant-typography]:text-[15px]! [&>.ant-typography]:text-[#0f1c2e]">
-                <Text strong className={!account.fullName ? 'font-normal! text-[#6a7994]! italic' : ''}>
+                <Text
+                    strong
+                    className={!account.fullName ? 'font-normal! text-[#6a7994]! italic' : ''}
+                >
                     {account.fullName || 'Chưa kích hoạt'}
                 </Text>
                 <Space size={4} wrap>
@@ -370,7 +317,7 @@ const AccountDetailDrawer = ({
                                         disabled={updatingEmail}
                                         status={emailError ? 'error' : ''}
                                         placeholder="user@example.com"
-                                        maxLength={320}
+                                        maxLength={PROFILE_RULES.emailMaxLength}
                                         autoFocus
                                         className="h-8! flex-1 rounded-md! font-[Consolas,monospace] text-[13px]!"
                                     />
@@ -389,10 +336,7 @@ const AccountDetailDrawer = ({
                                     />
                                 </Flex>
                                 {emailError && (
-                                    <Text
-                                        type="danger"
-                                        className="mt-1 block text-xs!"
-                                    >
+                                    <Text type="danger" className="mt-1 block text-xs!">
                                         {emailError}
                                     </Text>
                                 )}
@@ -407,7 +351,9 @@ const AccountDetailDrawer = ({
                                         <Button
                                             size="small"
                                             className={adminStyles.iconButton}
-                                            icon={<EditOutlined className="text-[13px] text-[#1677ff]" />}
+                                            icon={
+                                                <EditOutlined className="text-[13px] text-[#1677ff]" />
+                                            }
                                             onClick={handleStartEditEmail}
                                         />
                                     </Tooltip>
@@ -416,7 +362,12 @@ const AccountDetailDrawer = ({
                         )}
                     </div>
 
-                    <Descriptions className={adminStyles.descriptions} column={1} size="small" colon={false}>
+                    <Descriptions
+                        className={adminStyles.descriptions}
+                        column={1}
+                        size="small"
+                        colon={false}
+                    >
                         <Descriptions.Item label="ID">{account.id}</Descriptions.Item>
                         <Descriptions.Item label="Số điện thoại">
                             {account.phone || '—'}
@@ -457,22 +408,19 @@ const AccountDetailDrawer = ({
                             <Divider className="mt-[18px]! mb-4!" />
                             <div className="flex flex-col gap-[11px] [&>.ant-typography]:m-0! [&>.ant-typography]:text-xs! [&>.ant-typography]:leading-[1.55]! [&>.ant-typography]:text-[#6a7994]!">
                                 <Text type="secondary">
-                                    Tài khoản chờ kích hoạt. Bạn có thể sửa email và gửi lại lời mời.
+                                    Tài khoản chờ kích hoạt. Bạn có thể sửa email và gửi lại lời
+                                    mời.
                                 </Text>
                                 <Button
                                     className={adminStyles.primaryButton}
                                     type="primary"
                                     block
-                                    icon={
-                                        resendCooldown > 0 ? <ReloadOutlined /> : <SendOutlined />
-                                    }
+                                    icon={<SendOutlined />}
                                     loading={resending}
-                                    disabled={resendCooldown > 0}
+                                    disabled={updatingEmail}
                                     onClick={handleResendActivation}
                                 >
-                                    {resendCooldown > 0
-                                        ? `Gửi lại sau ${resendCooldown}s`
-                                        : 'Gửi lại email kích hoạt'}
+                                    Gửi lại lời mời kích hoạt
                                 </Button>
                             </div>
                         </>
@@ -488,10 +436,7 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
     const { message } = App.useApp();
     const [submitting, setSubmitting] = useState(false);
     const selectedStatus = Form.useWatch('status', form);
-    const options = useMemo(
-        () => (account ? NEXT_STATUSES[account.status] || [] : []),
-        [account],
-    );
+    const options = useMemo(() => (account ? NEXT_STATUSES[account.status] || [] : []), [account]);
 
     useEffect(() => {
         if (open && account) {
@@ -570,11 +515,7 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
                         </Flex>
                     </div>
 
-                    <Form
-                        form={form}
-                        layout="vertical"
-                        initialValues={{ status: options[0] }}
-                    >
+                    <Form form={form} layout="vertical" initialValues={{ status: options[0] }}>
                         <Form.Item
                             name="status"
                             label="Trạng thái mới"
@@ -597,7 +538,11 @@ const ChangeStatusModal = ({ account, initialStatus, open, onClose, onChanged })
                             className="mb-[22px]!"
                             label="Lý do thay đổi"
                             rules={[
-                                { required: true, whitespace: true, message: 'Vui lòng nhập lý do.' },
+                                {
+                                    required: true,
+                                    whitespace: true,
+                                    message: 'Vui lòng nhập lý do.',
+                                },
                                 { min: 5, message: 'Lý do cần có ít nhất 5 ký tự.' },
                                 { max: 500, message: 'Lý do không được vượt quá 500 ký tự.' },
                             ]}
@@ -676,10 +621,17 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
 
             setSubmitting(true);
             const response = await adminAccountAPI.createAccount(payload);
-            message.success('Tạo tài khoản thành công.');
+            const created = response.data?.data;
+            if (created?.activationEmailSent === false) {
+                message.warning(
+                    'Đã tạo tài khoản nhưng chưa gửi được lời mời kích hoạt. Anh/chị có thể gửi lại trong chi tiết tài khoản.',
+                );
+            } else {
+                message.success('Tạo tài khoản thành công.');
+            }
             form.resetFields();
             onClose();
-            onCreated(response.data?.data);
+            onCreated(created);
         } catch (requestError) {
             if (!requestError?.errorFields) {
                 message.error(getErrorMessage(requestError, 'Không thể tạo tài khoản.'));
@@ -733,13 +685,13 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                     name="email"
                     label="Email"
                     normalize={(value) => value?.trimStart()}
-                    rules={[
-                        { required: true, whitespace: true, message: 'Vui lòng nhập email.' },
-                        { type: 'email', message: 'Email không hợp lệ.' },
-                        { max: 320, message: 'Email không được vượt quá 320 ký tự.' },
-                    ]}
+                    rules={[{ validator: fieldValidator(validateEmail) }]}
                 >
-                    <Input placeholder="account@example.com" autoComplete="off" maxLength={320} />
+                    <Input
+                        placeholder="account@example.com"
+                        autoComplete="off"
+                        maxLength={PROFILE_RULES.emailMaxLength}
+                    />
                 </Form.Item>
 
                 <Form.Item
@@ -778,7 +730,9 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                             options={ownerOptions}
                             optionRender={(option) => (
                                 <div className="flex min-w-0 flex-col gap-px py-[3px] [&_.ant-typography]:m-0! [&_.ant-typography]:text-xs! [&_.ant-typography]:leading-[1.4]!">
-                                    <Text strong>{option.data.owner.fullName || 'Chưa cập nhật tên'}</Text>
+                                    <Text strong>
+                                        {option.data.owner.fullName || 'Chưa cập nhật tên'}
+                                    </Text>
                                     <Text type="secondary">{option.data.owner.email}</Text>
                                 </div>
                             )}
@@ -990,7 +944,9 @@ const AccountList = () => {
                         <div className="flex min-w-0 flex-col [&>.ant-typography]:m-0! [&>.ant-typography]:max-w-[205px] [&>.ant-typography]:truncate [&>.ant-typography:not(.ant-typography-secondary)]:text-[13px]! [&>.ant-typography]:leading-[1.45]! [&>.ant-typography-secondary]:font-[Consolas,monospace] [&>.ant-typography-secondary]:text-[11px]! [&>.ant-typography-secondary]:text-[#6a7994]!">
                             <Text
                                 strong={Boolean(account.fullName)}
-                                className={!account.fullName ? 'font-normal! text-[#6a7994]! italic' : ''}
+                                className={
+                                    !account.fullName ? 'font-normal! text-[#6a7994]! italic' : ''
+                                }
                             >
                                 {account.fullName || 'Chưa kích hoạt'}
                             </Text>
@@ -1048,7 +1004,10 @@ const AccountList = () => {
                 key: 'phone',
                 width: 130,
                 render: (value) => (
-                    <Text className="m-0! text-xs! text-[#52647d]! tabular-nums" type={!value ? 'secondary' : undefined}>
+                    <Text
+                        className="m-0! text-xs! text-[#52647d]! tabular-nums"
+                        type={!value ? 'secondary' : undefined}
+                    >
                         {value || '—'}
                     </Text>
                 ),
@@ -1057,7 +1016,11 @@ const AccountList = () => {
                 title: 'Đăng nhập gần nhất',
                 dataIndex: 'lastLoginAt',
                 width: 175,
-                render: (value) => <Text className="m-0! text-xs! text-[#52647d]! tabular-nums">{formatDateTime(value)}</Text>,
+                render: (value) => (
+                    <Text className="m-0! text-xs! text-[#52647d]! tabular-nums">
+                        {formatDateTime(value)}
+                    </Text>
+                ),
             },
             {
                 title: '',
@@ -1089,7 +1052,12 @@ const AccountList = () => {
                     );
 
                     return (
-                        <Flex justify="flex-end" align="center" gap={6} onClick={(e) => e.stopPropagation()}>
+                        <Flex
+                            justify="flex-end"
+                            align="center"
+                            gap={6}
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             {isDisabled ? (
                                 <Tooltip title={disabledReason}>
                                     <span>{changeStatusButton}</span>
@@ -1111,13 +1079,7 @@ const AccountList = () => {
                 },
             },
         ],
-        [
-            openDetail,
-            openStatusModal,
-            identitySortOrder,
-            pageRoles,
-            pageStatuses,
-        ],
+        [openDetail, openStatusModal, identitySortOrder, pageRoles, pageStatuses],
     );
 
     const handleTableChange = (_pagination, filters, sorter) => {
@@ -1134,7 +1096,12 @@ const AccountList = () => {
 
     return (
         <section className="flex min-w-0 flex-col">
-            <Flex className="mb-[18px] max-[900px]:items-center! max-[600px]:items-start! [&_.ant-typography]:m-0! [&_h3.ant-typography]:font-[Sora,Plus_Jakarta_Sans,sans-serif]! [&_h3.ant-typography]:text-[22px]! [&_h3.ant-typography]:leading-[1.35]! [&_h3.ant-typography]:text-[#0f1c2e]! [&_.ant-typography-secondary]:text-[13px]! max-[600px]:[&_h3.ant-typography]:text-[19px]! max-[600px]:[&_.ant-typography-secondary]:block max-[600px]:[&_.ant-typography-secondary]:mt-0.5! max-[600px]:[&_.ant-typography-secondary]:text-xs!" justify="space-between" align="flex-start" gap={16}>
+            <Flex
+                className="mb-[18px] max-[900px]:items-center! max-[600px]:items-start! [&_.ant-typography]:m-0! [&_h3.ant-typography]:font-[Sora,Plus_Jakarta_Sans,sans-serif]! [&_h3.ant-typography]:text-[22px]! [&_h3.ant-typography]:leading-[1.35]! [&_h3.ant-typography]:text-[#0f1c2e]! [&_.ant-typography-secondary]:text-[13px]! max-[600px]:[&_h3.ant-typography]:text-[19px]! max-[600px]:[&_.ant-typography-secondary]:block max-[600px]:[&_.ant-typography-secondary]:mt-0.5! max-[600px]:[&_.ant-typography-secondary]:text-xs!"
+                justify="space-between"
+                align="flex-start"
+                gap={16}
+            >
                 <div>
                     <Title level={3}>Quản lý tài khoản</Title>
                     <Text type="secondary">
@@ -1142,7 +1109,11 @@ const AccountList = () => {
                         {pendingTotal > 0 && (
                             <>
                                 {' · '}
-                                <Badge className="[&_.ant-badge-count]:bg-[#d98314]! [&_.ant-badge-count]:shadow-none!" count={pendingTotal} size="small" />{' '}
+                                <Badge
+                                    className="[&_.ant-badge-count]:bg-[#d98314]! [&_.ant-badge-count]:shadow-none!"
+                                    count={pendingTotal}
+                                    size="small"
+                                />{' '}
                                 chờ kích hoạt
                             </>
                         )}
@@ -1191,7 +1162,11 @@ const AccountList = () => {
                     showIcon
                     message={error}
                     action={
-                        <Button size="small" icon={<ReloadOutlined />} onClick={() => loadPage(page, { force: true })}>
+                        <Button
+                            size="small"
+                            icon={<ReloadOutlined />}
+                            onClick={() => loadPage(page, { force: true })}
+                        >
                             Thử lại
                         </Button>
                     }
@@ -1212,7 +1187,11 @@ const AccountList = () => {
                         emptyText: (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description={hasActiveFilters ? 'Không có tài khoản phù hợp' : 'Chưa có tài khoản'}
+                                description={
+                                    hasActiveFilters
+                                        ? 'Không có tài khoản phù hợp'
+                                        : 'Chưa có tài khoản'
+                                }
                             />
                         ),
                     }}
@@ -1224,8 +1203,7 @@ const AccountList = () => {
                         showLessItems: true,
                         responsive: true,
                         size: 'small',
-                        showTotal: (total, range) =>
-                            `${range[0]}–${range[1]} / ${total} tài khoản`,
+                        showTotal: (total, range) => `${range[0]}–${range[1]} / ${total} tài khoản`,
                         onChange: (nextPage) => loadPage(nextPage),
                     }}
                     onChange={handleTableChange}

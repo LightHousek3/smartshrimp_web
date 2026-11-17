@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = useCallback(async (credentials) => {
-        const response = await authAPI.login({ deviceId, ...credentials });
+        const response = await authAPI.login({ ...credentials, deviceId });
         const { account: authenticatedAccount, tokens } = response.data?.data || {};
 
         if (!authenticatedAccount || !tokens?.accessToken) {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as validateUuid, version as uuidVersion } from 'uuid';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import utc from 'dayjs/plugin/utc';
@@ -47,15 +47,20 @@ const settleRefreshQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-const refreshIgnoredPaths = ['/auth/login', '/auth/refresh-token', '/auth/logout',
-    '/auth/activation/', '/auth/forgot-password/'];
+const refreshIgnoredPaths = [
+    '/auth/login',
+    '/auth/refresh-token',
+    '/auth/logout',
+    '/auth/activation/',
+    '/auth/forgot-password/',
+];
 
 const shouldRefresh = (error, request) =>
     Boolean(
         request &&
-            error.response?.status === 401 &&
-            !request._retry &&
-            !refreshIgnoredPaths.some((path) => request.url?.includes(path)),
+        error.response?.status === 401 &&
+        !request._retry &&
+        !refreshIgnoredPaths.some((path) => request.url?.includes(path)),
     );
 
 apiClient.interceptors.response.use(
@@ -106,7 +111,7 @@ apiClient.interceptors.response.use(
 const DEVICE_ID_KEY = 'smartshrimp_device_id';
 let deviceId = localStorage.getItem(DEVICE_ID_KEY);
 
-if (!deviceId) {
+if (!deviceId || !validateUuid(deviceId) || uuidVersion(deviceId) !== 4) {
     deviceId = uuidv4();
     localStorage.setItem(DEVICE_ID_KEY, deviceId);
 }
