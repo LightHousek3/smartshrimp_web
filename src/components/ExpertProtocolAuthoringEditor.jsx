@@ -144,15 +144,15 @@ const MaterialRow = ({
     const warning = item.product.needsReview
         ? 'Vật tư đã thay đổi. Vui lòng xem lại và chọn lại vật tư.'
         : item.product.unavailable
-        ? 'Vật tư đã bị xóa/lưu trữ. Hãy chọn lại vật tư.'
-        : item.product.safety?.status !== 'VERIFIED' &&
-            item.product.safety &&
-            (production || item.product.safety.status !== 'TREATMENT_ONLY')
-          ? item.product.safety.reason
-          : item.product.stockQuantity !== undefined &&
-              item.product.stockQuantity <= item.product.minAlertQuantity
-            ? 'Tồn kho dưới ngưỡng cảnh báo. Mẫu không tự đặt giữ hàng.'
-            : null;
+          ? 'Vật tư đã bị xóa/lưu trữ. Hãy chọn lại vật tư.'
+          : item.product.safety?.status !== 'VERIFIED' &&
+              item.product.safety &&
+              (production || item.product.safety.status !== 'TREATMENT_ONLY')
+            ? item.product.safety.reason
+            : item.product.stockQuantity !== undefined &&
+                item.product.stockQuantity <= item.product.minAlertQuantity
+              ? 'Tồn kho dưới ngưỡng cảnh báo. Mẫu không tự đặt giữ hàng.'
+              : null;
     return (
         <Flex
             align="center"
@@ -317,7 +317,12 @@ const MaterialRow = ({
                     precision={0}
                     size="small"
                     value={item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes}
-                    onChange={(dueAtMinutes) => onChange({ ...item, dueAtMinutes: dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes })}
+                    onChange={(dueAtMinutes) =>
+                        onChange({
+                            ...item,
+                            dueAtMinutes: dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes,
+                        })
+                    }
                     aria-label={`Khoảng thực hiện ${item.product.name}`}
                 />
             </Flex>
@@ -420,7 +425,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         application?.detail?.sourceTemplateId || null,
     );
     const [sourceVersion, setSourceVersion] = useState(
-        application?.detail?.sourceTemplateVersionNo,
+        application?.detail?.sourceTemplateSnapshot?.version,
     );
     const [templateSearch, setTemplateSearch] = useState('');
     const [templatePage, setTemplatePage] = useState(1);
@@ -522,35 +527,6 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 if (application) {
                     const { season, detail } = application;
                     const loadedStages = protocolToEditorStages(detail);
-                    if (detail && detail.contentVersion !== 2) {
-                        const catalog = new Map();
-                        let page = 1,
-                            total;
-                        do {
-                            const response = await application.api.products(
-                                application.seasonId,
-                                { page, limit: 100 },
-                                controller.signal,
-                            );
-                            for (const product of response.data.data)
-                                catalog.set(product.id, product);
-                            total = response.data.meta?.totalResults || 0;
-                            page += 1;
-                        } while ((page - 1) * 100 < total && !controller.signal.aborted);
-                        if (controller.signal.aborted) return;
-                        for (const stage of loadedStages)
-                            for (const item of [
-                                ...stage.meals.flatMap((meal) => meal.items),
-                                ...stage.environment,
-                            ]) {
-                                const product = catalog.get(item.product.id);
-                                if (product)
-                                    item.product = {
-                                        ...product,
-                                        productCompliance: product.compliance,
-                                    };
-                            }
-                    }
                     initialStages.current = JSON.stringify(loadedStages);
                     setStages(loadedStages);
                     setExpandedStageKeys(loadedStages.length ? [loadedStages[0].key] : []);
@@ -759,12 +735,14 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         const stage = stages.find((item) => item.key === picker.stageKey);
         const meal = stage?.meals.find((item) => item.key === picker.mealKey);
         if (
-            meal?.items.some((item) =>
-                item.key !== picker.itemKey && (product.id
-                    ? item.product.id === product.id
-                    : !item.product.id &&
-                      item.product.name.trim().toLocaleLowerCase('vi') ===
-                          product.name.trim().toLocaleLowerCase('vi')),
+            meal?.items.some(
+                (item) =>
+                    item.key !== picker.itemKey &&
+                    (product.id
+                        ? item.product.id === product.id
+                        : !item.product.id &&
+                          item.product.name.trim().toLocaleLowerCase('vi') ===
+                              product.name.trim().toLocaleLowerCase('vi')),
             )
         ) {
             message.info(
@@ -773,8 +751,12 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             return;
         }
         if (picker.itemKey) {
-            updateItem(picker, { product, operationType: product.category === 'FEED' ? 'FEEDING' : product.category,
-                originalRecommendation: undefined, recommendedManufacturerId: undefined });
+            updateItem(picker, {
+                product,
+                operationType: product.category === 'FEED' ? 'FEEDING' : product.category,
+                originalRecommendation: undefined,
+                recommendedManufacturerId: undefined,
+            });
             setPicker(null);
             return;
         }

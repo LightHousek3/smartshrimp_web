@@ -6,11 +6,7 @@ const TASK_TYPES = new Set([
     'TASK_COMPLETED',
 ]);
 
-const OPERATION_TYPES = new Set([
-    'OPERATION_DUE',
-    'OPERATION_OVERDUE',
-    'OPERATION_CANCELLED',
-]);
+const OPERATION_TYPES = new Set(['OPERATION_DUE', 'OPERATION_OVERDUE', 'OPERATION_CANCELLED']);
 
 const SEASON_TYPES = new Set([
     'SEASON_ASSIGNMENT_CREATED',
@@ -72,8 +68,27 @@ export const getNotificationDestination = (notification) => {
     if (!notification) return null;
 
     const { type, referenceType, referenceId } = notification;
+    // Older generation notices carried a protocol ID, which cannot address a season page.
+    if (type === 'SCHEDULE_GENERATION_FAILED' && referenceType === 'protocol') return null;
+    if (type === 'TREATMENT_SCHEDULE_READY' && referenceType === 'aquaculture_season') {
+        return {
+            path: referencePath('/expert/seasons', referenceId),
+            label: 'Xem vụ nuôi đang điều trị',
+        };
+    }
     if (type === 'SYSTEM' && referenceType === 'disease_case') {
-        return { path: referencePath('/expert/disease-cases', referenceId), label: 'Xem ca và quyết định chăm sóc' };
+        return {
+            path: referencePath('/expert/disease-cases', referenceId),
+            label: 'Xem ca và quyết định chăm sóc',
+        };
+    }
+    if (
+        referenceType === 'disease_case' &&
+        (DISEASE_CASE_TYPES.has(type) ||
+            PROTOCOL_TYPES.has(type) ||
+            TREATMENT_SCHEDULE_TYPES.has(type))
+    ) {
+        return { path: referencePath('/expert/disease-cases', referenceId), label: 'Xem ca bệnh' };
     }
     if (type === 'OPERATION_CANCELLED' && referenceType === 'aquaculture_season') {
         const path = referencePath('/expert/seasons', referenceId);
@@ -128,12 +143,19 @@ export const getNotificationDestination = (notification) => {
 export const parseNotificationPage = (payload) => {
     const items = payload?.data;
     const meta = payload?.meta;
-    if (!Array.isArray(items) || !items.every(validSummary) || !meta ||
-        !Number.isInteger(meta.totalResults) || meta.totalResults < 0 ||
-        !Number.isInteger(meta.limit) || meta.limit < 1 || meta.limit > 100 ||
+    if (
+        !Array.isArray(items) ||
+        !items.every(validSummary) ||
+        !meta ||
+        !Number.isInteger(meta.totalResults) ||
+        meta.totalResults < 0 ||
+        !Number.isInteger(meta.limit) ||
+        meta.limit < 1 ||
+        meta.limit > 100 ||
         typeof meta.hasNextPage !== 'boolean' ||
-        (meta.hasNextPage && (!items.length || typeof meta.nextCursor !== 'string' ||
-            !meta.nextCursor))) {
+        (meta.hasNextPage &&
+            (!items.length || typeof meta.nextCursor !== 'string' || !meta.nextCursor))
+    ) {
         throw new Error('Dữ liệu thông báo không hợp lệ.');
     }
     return {
@@ -147,9 +169,12 @@ export const parseNotificationPage = (payload) => {
 /** Require the read timestamp and detail content returned by the notification detail endpoint. */
 export const parseNotificationDetail = (payload) => {
     const item = payload?.data;
-    if (!validSummary(item) || typeof item.readAt !== 'string' ||
+    if (
+        !validSummary(item) ||
+        typeof item.readAt !== 'string' ||
         !Object.hasOwn(item, 'content') ||
-        (item.content !== null && typeof item.content !== 'string')) {
+        (item.content !== null && typeof item.content !== 'string')
+    ) {
         throw new Error('Dữ liệu chi tiết thông báo không hợp lệ.');
     }
     return item;
@@ -158,8 +183,12 @@ export const parseNotificationDetail = (payload) => {
 /** Accept only a valid affected count and timestamp from the bulk read operation. */
 export const parseMarkAllNotificationsRead = (payload) => {
     const result = payload?.data;
-    if (!result || !Number.isInteger(result.updatedCount) || result.updatedCount < 0 ||
-        typeof result.readAt !== 'string') {
+    if (
+        !result ||
+        !Number.isInteger(result.updatedCount) ||
+        result.updatedCount < 0 ||
+        typeof result.readAt !== 'string'
+    ) {
         throw new Error('Dữ liệu cập nhật thông báo không hợp lệ.');
     }
     return result;
