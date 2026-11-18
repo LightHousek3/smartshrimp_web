@@ -23,4 +23,9 @@ export const RAG_DOCUMENT_MESSAGES = Object.freeze({
     invalidResponse: 'Phản hồi nạp tài liệu không hợp lệ. Chưa thể xác nhận kết quả.',
     unavailable: 'Không thể thêm tài liệu. Vui lòng kiểm tra kết nối và thử lại.',
     created: 'Đã thêm tài liệu vào kho kiến thức chatbot.',
+    invalidUpload: 'Thông tin tải lên Cloudinary không hợp lệ.',
+    unconfirmedUpload: 'Không thể xác nhận tệp đã tải lên Cloudinary.',
+    uploadSessionFailed: 'Không thể tạo phiên tải lên tài liệu.',
+    connectionFailed: 'Không thể kết nối. Vui lòng kiểm tra mạng và thử lại.',
+    timeout: 'Quá thời gian chờ phản hồi. Vui lòng kiểm tra trạng thái tài liệu trước khi thử lại.',
 });

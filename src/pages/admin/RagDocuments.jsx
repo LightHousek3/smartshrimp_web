@@ -4,7 +4,7 @@ import { EditOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { adminStyles } from './adminStyles';
 import { ragDocumentAPI as api } from '../../apis';
 import { RAG_DOCUMENT_CATEGORIES, RAG_DOCUMENT_MESSAGES, RAG_DOCUMENT_RULES } from '../../constants/ragDocument';
-import { getRagDocumentRecovery, validateRagDocument } from '../../utils/ragDocumentUtils';
+import { getRagDocumentErrorText, getRagDocumentRecovery, validateRagDocument } from '../../utils/ragDocumentUtils';
 
 const asset = (name) => `/assets/rag/${name.startsWith('upload-') || name.startsWith('detail-') ? '' : 'list/'}${name}.svg`;
 const Icon = ({ name, className = '' }) => <img className={`inline-block shrink-0 align-middle max-w-none ${className}`} src={asset(name)} alt="" aria-hidden="true" />;
@@ -17,7 +17,7 @@ const Status = ({ value, errorCode }) => <Tag className={`rounded-full! text-[10
     icon={value === 'READY' ? <Icon name="imgIconReact13" /> : value === 'FAILED' ? <Icon name="imgIconReact17" /> : undefined}>{value === 'FAILED' && errorCode === 'RAG_SOURCE_MISSING' ? RAG_DOCUMENT_MESSAGES.sourceMissingStatus : STATES[value]?.[0] || value}</Tag>;
 const date = (value) => value ? new Date(value).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(',', '') : '—';
 const size = (value) => `${(value / 1024 / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MiB`;
-const errorText = (error) => error?.response?.data?.message || error?.message || 'Không thể kết nối. Vui lòng thử lại.';
+const errorText = getRagDocumentErrorText;
 const busy = (row) => ['UPLOADING', 'PROCESSING', 'DELETING'].includes(row.status);
 
 export default function RagDocuments() {

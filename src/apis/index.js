@@ -13,7 +13,7 @@ import {
     parseNotificationReferenceContext,
 } from '../utils/notificationUtils.js';
 import { apiClient, deviceId } from '../config/index.js';
-import { RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
+import { RAG_DOCUMENT_MESSAGES, RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
 import { parseRagDocumentResponse, validateRagDocument } from '../utils/ragDocumentUtils.js';
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env?.VITE_CLOUDINARY_CLOUD_NAME || '';
@@ -331,7 +331,7 @@ const uploadCloudinaryDocument = async (file, upload, { signal, onProgress } = {
         upload.fields?.type !== 'authenticated' ||
         upload.fields?.overwrite !== 'false'
     ) {
-        throw new Error('Thông tin tải lên Cloudinary không hợp lệ.');
+        throw new Error(RAG_DOCUMENT_MESSAGES.invalidUpload);
     }
     const body = new FormData();
     body.append('file', file);
@@ -355,7 +355,7 @@ const uploadCloudinaryDocument = async (file, upload, { signal, onProgress } = {
         !Number.isSafeInteger(data.version) ||
         !/^[a-f0-9]{40}$/.test(data.signature || '')
     ) {
-        throw new Error('Không thể xác nhận file đã tải lên Cloudinary.');
+        throw new Error(RAG_DOCUMENT_MESSAGES.unconfirmedUpload);
     }
     return {
         publicId: data.public_id,
@@ -417,7 +417,7 @@ const ragDocumentAPI = {
             );
             const intent = envelope?.data;
             if (!envelope?.success || typeof intent?.id !== 'string' || !intent.upload) {
-                throw new Error('Không thể tạo phiên tải lên tài liệu.');
+                throw new Error(RAG_DOCUMENT_MESSAGES.uploadSessionFailed);
             }
             try {
                 onPhase?.('uploading');
