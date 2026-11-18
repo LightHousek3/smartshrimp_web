@@ -1,5 +1,16 @@
 import { RAG_DOCUMENT_MESSAGES, RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
 
+/** Keep backend and known local messages; translate transport/library failures. */
+export const getRagDocumentErrorText = (error) => {
+    const backendMessage = error?.response?.data?.message;
+    if (typeof backendMessage === 'string' && backendMessage.trim()) return backendMessage;
+    if (['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code) || error?.response?.status === 504) {
+        return RAG_DOCUMENT_MESSAGES.timeout;
+    }
+    if (Object.values(RAG_DOCUMENT_MESSAGES).includes(error?.message)) return error.message;
+    return RAG_DOCUMENT_MESSAGES.connectionFailed;
+};
+
 /** A previous missing-source error needs revalidation; it does not prove the asset is still absent. */
 export const getRagDocumentRecovery = (document) => {
     const missing = document?.errorCode === 'RAG_SOURCE_MISSING';
