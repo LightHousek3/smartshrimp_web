@@ -394,7 +394,7 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange, onAccou
                         size="small"
                         colon={false}
                     >
-                        <Descriptions.Item label="ID">{account.id}</Descriptions.Item>
+                        <Descriptions.Item label="Mã tài khoản">{account.id}</Descriptions.Item>
                         <Descriptions.Item label="Số điện thoại">
                             {account.phone || '—'}
                         </Descriptions.Item>
@@ -1161,8 +1161,8 @@ const AccountList = () => {
                     loading={loading}
                     scroll={{ x: 1100 }}
                     locale={{
-                        filterConfirm: 'OK',
-                        filterReset: 'Reset',
+                        filterConfirm: 'Áp dụng',
+                        filterReset: 'Đặt lại',
                         emptyText: (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
