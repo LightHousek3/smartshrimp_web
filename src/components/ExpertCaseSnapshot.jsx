@@ -1,123 +1,257 @@
 import { ClockCircleOutlined, ExclamationCircleFilled } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import { HealthTag, Panel } from '../pages/expert/expertUI';
 import { waterWarning } from '../utils/diseaseCaseUtils';
-import { metricDate } from '../utils/seasonMetrics';
+import { metricDate, waterRange } from '../utils/seasonMetrics';
 
-/** Compare observations using the same species policy supplied by the backend. */
+/** Helper to extract metric value across diverse property conventions */
+const extractVal = (source, keys) => {
+    if (!source || typeof source !== 'object') return undefined;
+    for (const k of keys) {
+        if (source[k] !== undefined && source[k] !== null && source[k] !== '') {
+            return source[k];
+        }
+    }
+    return undefined;
+};
+
+/** Compare water observations and shrimp health at case opening vs current */
 export default function ExpertCaseSnapshot({ c, current }) {
     const s = c.caseSnapshot || {};
-    const health = s.shrimpHealth || s.health || {};
-    const water = s.waterIndicators || s.water || {};
+    const health = s.shrimpHealth || s.health || s;
+    const snapshotWater = s.waterIndicators || s.waterQuality || s.water || s.waterLog || {};
 
     const rows = [
         {
-            k: 'dissolvedOxygenMgL',
-            fallbackK: 'dissolved_oxygen_mg_l',
-            label: 'DO',
-            unit: 'mg/L',
-        },
-        {
-            k: 'ph',
-            fallbackK: 'ph',
-            label: 'pH',
-            unit: '',
-        },
-        {
-            k: 'temperatureC',
-            fallbackK: 'temperature_c',
+            keys: ['temperatureC', 'temperature_c', 'temperature', 'temp'],
+            thresholdKey: 'temperatureC',
             label: 'Nhiệt độ',
             unit: '°C',
         },
         {
-            k: 'nh3MgL',
-            fallbackK: 'nh3_mg_l',
+            keys: ['ph', 'pH'],
+            thresholdKey: 'ph',
+            label: 'pH',
+            unit: '',
+        },
+        {
+            keys: ['dissolvedOxygenMgL', 'dissolved_oxygen_mg_l', 'doMgL', 'do_mg_l', 'do'],
+            thresholdKey: 'dissolvedOxygenMgL',
+            label: 'DO',
+            unit: 'mg/L',
+        },
+        {
+            keys: ['salinityPpt', 'salinity_ppt', 'salinity'],
+            thresholdKey: 'salinityPpt',
+            label: 'Độ mặn',
+            unit: '‰',
+        },
+        {
+            keys: ['nh3MgL', 'nh3_mg_l', 'nh3'],
+            thresholdKey: 'nh3MgL',
             label: 'NH₃',
             unit: 'mg/L',
         },
         {
-            k: 'no2MgL',
-            fallbackK: 'no2_mg_l',
+            keys: ['no2MgL', 'no2_mg_l', 'no2'],
+            thresholdKey: 'no2MgL',
             label: 'NO₂',
             unit: 'mg/L',
         },
         {
-            k: 'alkalinityMgLCaCO3',
-            fallbackK: 'alkalinity_mg_l',
+            keys: [
+                'alkalinityMgLCaCO3',
+                'alkalinity_mg_l_caco3',
+                'alkalinityMgL',
+                'alkalinity_mg_l',
+                'alkalinity',
+            ],
+            thresholdKey: 'alkalinityMgLCaCO3',
             label: 'Kiềm',
             unit: 'mg/L',
         },
         {
-            k: 'salinityPpt',
-            fallbackK: 'salinity_ppt',
-            label: 'Độ mặn',
-            unit: '‰',
+            keys: ['h2sMgL', 'h2s_mg_l', 'h2s'],
+            thresholdKey: 'h2sMgL',
+            label: 'H₂S',
+            unit: 'mg/L',
         },
-        { k: 'h2sMgL', fallbackK: 'h2s_mg_l', label: 'H₂S', unit: 'mg/L' },
     ];
 
+    const snapshotTime = s.waterRecordedAt || s.capturedAt || c.createdAt;
+    const reportedWaterTime = snapshotTime ? metricDate(snapshotTime, true) : null;
+    const currentWaterTime =
+        current?.recordedAt || current?.recorded_at
+            ? metricDate(current.recordedAt || current.recorded_at, true)
+            : null;
+
+    // A measurement in "current" is truly newer only if it has a different ID or a timestamp after case opening
+    const isNewerWaterLog = Boolean(
+        current &&
+            (!s.waterLogId || current.id !== s.waterLogId) &&
+            (current.recordedAt || current.recorded_at) &&
+            (!s.waterRecordedAt ||
+                new Date(current.recordedAt || current.recorded_at).getTime() >
+                    new Date(s.waterRecordedAt).getTime()),
+    );
+
+    const getReportedVal = (keys) => {
+        const val =
+            extractVal(snapshotWater, keys) ??
+            extractVal(s, keys) ??
+            extractVal(s.waterLog, keys);
+        if (val !== undefined) return val;
+        // If current water log is the same log referenced in snapshot, fill missing snapshot fields from it
+        if (!isNewerWaterLog && current) {
+            return extractVal(current, keys);
+        }
+        return undefined;
+    };
+
+    const getCurrentVal = (keys) => {
+        return extractVal(current, keys);
+    };
+
+    // Shrimp health data
     const healthStatus = health.healthStatus || health.health_status || null;
     const avgWeight = health.avgWeightG ?? health.avg_weight_g ?? null;
     const biomass = health.estimatedBiomassKg ?? health.estimated_biomass_kg ?? null;
-    const mortality = health.mortality7d ?? health.mortality_7d ?? null;
+    const mortality =
+        health.mortalityCount ??
+        health.mortality_count ??
+        health.mortality7d ??
+        health.mortality_7d ??
+        null;
 
-    const healthMetricsParts = [
-        avgWeight != null ? `${avgWeight} g` : null,
-        biomass != null ? `${biomass} kg` : null,
-        mortality != null ? `chết 7d ${mortality}` : null,
+    const healthParts = [
+        avgWeight != null ? `Cỡ TB: ${avgWeight} g` : null,
+        biomass != null ? `Sinh khối: ${Number(biomass).toLocaleString('vi-VN')} kg` : null,
+        mortality != null ? `Hao hụt: ${mortality} con` : null,
     ].filter(Boolean);
 
     return (
-        <Panel title="Ảnh chụp dữ liệu khi báo ca">
-            <div className="flex items-center justify-between mb-2.5">
+        <Panel title="Đối chiếu chỉ số môi trường & Sức khỏe">
+            {/* Shrimp health overview at case opening */}
+            <div className="flex items-center justify-between mb-2.5 pb-2.5 border-b border-[#eef1f7]">
                 {healthStatus ? (
                     <HealthTag s={healthStatus} />
                 ) : (
                     <span className="text-[12px] text-[#8796ae]">Chưa có đánh giá sức khỏe</span>
                 )}
-                <span className="text-[12px] text-[#6a7994] font-mono">
-                    {healthMetricsParts.length > 0 ? healthMetricsParts.join(' · ') : 'Chưa có số liệu tôm'}
+                <span className="text-[12px] text-[#475569] font-medium font-mono">
+                    {healthParts.length > 0 ? healthParts.join(' · ') : 'Chưa có số liệu tôm'}
                 </span>
             </div>
+
+            {/* Comparison table */}
             <table className="w-full text-[12px]">
                 <thead>
-                    <tr className="text-[#6a7994] text-left">
-                        <th className="font-medium pb-1.5">Chỉ số</th>
-                        <th className="font-medium pb-1.5 text-right">Khi báo</th>
-                        {current && <th className="font-medium pb-1.5 text-right">Hiện tại</th>}
+                    <tr className="text-[#6a7994] border-b border-[#eef1f7]">
+                        <th className="font-semibold pb-2 text-left">Chỉ số</th>
+                        <th className="font-semibold pb-2 text-right">Khi báo ca</th>
+                        <th className="font-semibold pb-2 text-right">Hiện tại</th>
                     </tr>
                 </thead>
                 <tbody>
                     {rows.map((r) => {
-                        const aVal = water[r.k] ?? water[r.fallbackK];
+                        const aVal = getReportedVal(r.keys);
                         const hasA = aVal != null && aVal !== '';
-                        const aBad = waterWarning(aVal, c.waterThresholds?.[r.k]);
+                        const threshold = c.waterThresholds?.[r.thresholdKey];
+                        const aBad = waterWarning(aVal, threshold);
 
-                        const bVal = current ? (current[r.k] ?? current[r.fallbackK]) : undefined;
+                        const bVal = isNewerWaterLog ? getCurrentVal(r.keys) : undefined;
                         const hasB = bVal != null && bVal !== '';
-                        const bBad = waterWarning(bVal, c.waterThresholds?.[r.k]);
+                        const bBad = waterWarning(bVal, threshold);
+
+                        const rangeStr = threshold ? waterRange(threshold) : null;
+                        const unitLabel = r.unit ? ` ${r.unit}` : '';
 
                         return (
-                            <tr key={r.label} className="border-t border-[#eef1f7]">
-                                <td className="py-1.5 text-[#3a4a63]">{r.label}</td>
-                                <td className={`py-1.5 text-right font-mono ${aBad ? 'text-[#d43b57] font-semibold' : ''}`}>
-                                    {aBad && <ExclamationCircleFilled className="mr-1 text-[10px]" />}
-                                    {hasA ? `${aVal} ${r.unit}`.trim() : '—'}
+                            <tr
+                                key={r.label}
+                                className="border-t border-[#eef1f7] hover:bg-[#fcfdfd] transition-colors"
+                            >
+                                <td className="py-2 text-[#3a4a63]">
+                                    <span className="font-medium text-[#1e293b]">{r.label}</span>
+                                    {r.unit && (
+                                        <span className="text-[11px] text-[#8796ae] ml-1">
+                                            ({r.unit})
+                                        </span>
+                                    )}
                                 </td>
-                                {current && (
-                                    <td className={`py-1.5 text-right font-mono ${hasB ? (bBad === true ? 'text-[#d43b57] font-semibold' : bBad === false ? 'text-[#0f9b8e]' : '') : ''}`}>
-                                        {hasB ? bVal : '—'}
-                                    </td>
-                                )}
+                                <td className="py-2 text-right font-mono">
+                                    {hasA ? (
+                                        <Tooltip
+                                            title={
+                                                aBad
+                                                    ? `Vượt ngưỡng an toàn (Chuẩn: ${rangeStr}${unitLabel})`
+                                                    : `Bình thường (Chuẩn: ${rangeStr}${unitLabel})`
+                                            }
+                                        >
+                                            <span
+                                                className={`inline-flex items-center gap-1 ${
+                                                    aBad
+                                                        ? 'text-[#d43b57] font-semibold'
+                                                        : 'text-[#0b7a70] font-medium'
+                                                }`}
+                                            >
+                                                {aBad && (
+                                                    <ExclamationCircleFilled className="text-[10px]" />
+                                                )}
+                                                {`${aVal} ${r.unit}`.trim()}
+                                            </span>
+                                        </Tooltip>
+                                    ) : (
+                                        <span className="text-[#8796ae]">—</span>
+                                    )}
+                                </td>
+                                <td className="py-2 text-right font-mono">
+                                    {hasB ? (
+                                        <Tooltip
+                                            title={
+                                                bBad
+                                                    ? `Vượt ngưỡng an toàn (Chuẩn: ${rangeStr}${unitLabel})`
+                                                    : `Bình thường (Chuẩn: ${rangeStr}${unitLabel})`
+                                            }
+                                        >
+                                            <span
+                                                className={`inline-flex items-center gap-1 ${
+                                                    bBad
+                                                        ? 'text-[#d43b57] font-semibold'
+                                                        : 'text-[#0b7a70] font-medium'
+                                                }`}
+                                            >
+                                                {bBad && (
+                                                    <ExclamationCircleFilled className="text-[10px]" />
+                                                )}
+                                                {`${bVal} ${r.unit}`.trim()}
+                                            </span>
+                                        </Tooltip>
+                                    ) : (
+                                        <Tooltip title={isNewerWaterLog ? 'Chưa đo chỉ số này' : 'Chưa có số đo mới kể từ lúc báo ca'}>
+                                            <span className="text-[#8796ae] cursor-default">—</span>
+                                        </Tooltip>
+                                    )}
+                                </td>
                             </tr>
                         );
                     })}
                 </tbody>
             </table>
-            {current && (
-                <div className="text-[11px] text-[#6a7994] mt-2">
-                    <ClockCircleOutlined /> Hiện tại: đo {metricDate(current.recordedAt || current.recorded_at, true)}
-                </div>
-            )}
+
+            {/* Clean, discreet timestamp footer */}
+            <div className="mt-2.5 pt-2 border-t border-[#f1f5f9] flex items-center justify-between text-[11px] text-[#8796ae]">
+                <span>
+                    <ClockCircleOutlined className="mr-1" />
+                    {reportedWaterTime ? `Đo lúc báo: ${reportedWaterTime}` : 'Chưa có số đo lúc báo'}
+                </span>
+                <span>
+                    <ClockCircleOutlined className="mr-1" />
+                    {isNewerWaterLog && currentWaterTime
+                        ? `Hiện tại: ${currentWaterTime}`
+                        : 'Hiện tại: Chưa có số đo mới'}
+                </span>
+            </div>
         </Panel>
     );
 }

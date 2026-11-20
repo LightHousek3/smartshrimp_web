@@ -72,7 +72,6 @@ const tableCellClassName =
     'h-16.75! border-b! border-[#e5e8f0]! px-4! py-3! align-middle! text-[13px]! leading-5.25! @max-[1100px]:px-2!';
 const primaryTextClassName = 'block! w-full! truncate! text-[13px]! leading-5.25! text-[#0f1c2e]!';
 const secondaryTextClassName = 'block! w-full! truncate! text-[11.5px]! leading-4.75! text-[#6a7994]!';
-const monoClassName = "font-['JetBrains_Mono',monospace]!";
 
 const pillClassName = [
     'm-0! inline-flex! min-h-5! w-fit! max-w-full! self-start! items-center! gap-1.5!',
@@ -308,35 +307,22 @@ const DiseaseCaseList = ({ seasonId }) => {
                 dataIndex: 'title',
                 key: 'title',
                 width: 300,
-                render: (title, record) => {
-                    const code = `DC-${record.id.slice(0, 4).toUpperCase()}`;
-                    const doc = record.caseSnapshot?.doc;
-                    const ai = record.caseSnapshot?.aiDiagnosis;
-
-                    return (
-                        <Flex vertical gap={0} className="min-w-0">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <Text
-                                    className={`${primaryTextClassName} font-semibold! hover:text-[#1d7ad6] transition-colors`}
-                                    ellipsis={{ tooltip: title }}
-                                >
-                                    {title}
-                                </Text>
-                                {record.needsResponse && (
-                                    <span
-                                        className="size-1.5 rounded-full bg-[#1d7ad6] shrink-0"
-                                        title="Cần phản hồi"
-                                    />
-                                )}
-                            </div>
-                            <Text className={`${secondaryTextClassName} ${monoClassName}`} ellipsis>
-                                {code}
-                                {doc != null && ` · DOC ${doc}`}
-                                {ai && ` · AI: ${ai.disease || ai.label} ${Math.round(ai.confidence <= 1 ? ai.confidence * 100 : ai.confidence)}%`}
-                            </Text>
-                        </Flex>
-                    );
-                },
+                render: (title, record) => (
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Text
+                            className={`${primaryTextClassName} font-semibold! hover:text-[#1d7ad6] transition-colors`}
+                            ellipsis={{ tooltip: title }}
+                        >
+                            {title}
+                        </Text>
+                        {record.needsResponse && (
+                            <span
+                                className="size-1.5 rounded-full bg-[#1d7ad6] shrink-0"
+                                title="Cần phản hồi"
+                            />
+                        )}
+                    </div>
+                ),
             },
             {
                 title: 'Vụ · Ao',
