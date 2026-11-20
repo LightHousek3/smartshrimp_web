@@ -896,10 +896,12 @@ const AccountList = () => {
                     status: ACCOUNT_STATUSES.PENDING_ACTIVATION,
                 }),
             ]);
+            const pending = pendingResponse.data?.meta?.totalResults || 0;
             setSummary({
                 total: allResponse.data?.meta?.totalResults || 0,
-                pending: pendingResponse.data?.meta?.totalResults || 0,
+                pending,
             });
+            window.dispatchEvent(new CustomEvent('admin-accounts-count', { detail: pending }));
         } catch {
             // The table request still provides a useful filtered total when this summary fails.
         }
@@ -930,11 +932,13 @@ const AccountList = () => {
     const handleCreated = async () => {
         pageCacheRef.current = { key: '', pages: {}, cursors: { 1: null } };
         await Promise.all([loadPage(1, { force: true }), loadSummary()]);
+        window.dispatchEvent(new Event('admin-accounts-changed'));
     };
 
     const handleStatusChanged = async () => {
         pageCacheRef.current = { key: '', pages: {}, cursors: { 1: null } };
         await Promise.all([loadPage(1, { force: true }), loadSummary()]);
+        window.dispatchEvent(new Event('admin-accounts-changed'));
     };
 
     const columns = useMemo(

@@ -73,6 +73,37 @@ const fmtDateTime = (isoString) => {
     return `${hours}:${mins} ${day}-${month}`;
 };
 
+const AI_LABEL_MAP = {
+    Healthy: 'Khỏe mạnh',
+    BG: 'Mang đen',
+    WSSV: 'Đốm trắng',
+    WSSV_BG: 'Đốm trắng và mang đen',
+};
+
+const formatAiDiagnosis = (ai) => {
+    if (!ai) return null;
+    const isUnrecognized = ai.recognitionStatus === 'UNRECOGNIZED';
+    const rawLabel = ai.disease || ai.label || ai.predictedLabel || ai.diseaseName;
+    const cleanLabel =
+        rawLabel && rawLabel !== 'undefined' && rawLabel !== 'null' ? String(rawLabel).trim() : null;
+    const displayLabel = cleanLabel ? AI_LABEL_MAP[cleanLabel] || cleanLabel : null;
+
+    const isRecognized = !isUnrecognized && Boolean(displayLabel);
+    const label = isRecognized ? displayLabel : 'Chưa nhận diện được bệnh';
+
+    const rawConf = ai.confidence != null ? Number(ai.confidence) : null;
+    const confidence =
+        rawConf != null && Number.isFinite(rawConf)
+            ? Math.round(rawConf <= 1 ? rawConf * 100 : rawConf)
+            : null;
+
+    return {
+        label,
+        isRecognized,
+        confidence,
+    };
+};
+
 const ExpertDiseaseCaseDetail = () => {
     const { caseId } = useParams();
     return <ExpertCaseDetail key={caseId} caseId={caseId} />;
@@ -246,6 +277,7 @@ const ExpertCaseDetail = ({ caseId }) => {
                 id: caseData?.expert?.id || 'expert',
                 fullName: caseData?.expert?.fullName || 'Chuyên gia',
                 role: 'EXPERT',
+                avatarUrl: caseData?.expert?.avatarUrl || null,
             },
             responseType,
             message: text,
@@ -430,7 +462,18 @@ const ExpertCaseDetail = ({ caseId }) => {
                 <div className="p-4 sm:p-5">
                     {/* Technician observations */}
                     <div className="rounded-xl bg-[#f6f9fc] p-3.5 mb-4 border border-[#eef1f7]">
-                        <Label>Mô tả của KTV</Label>
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <Avatar
+                                size={22}
+                                src={caseData.reporter?.avatarUrl || undefined}
+                                className="!bg-[#eaf4ff] !text-[#1d7ad6] shrink-0 border border-white shadow-xs font-semibold"
+                            >
+                                {caseData.reporter?.fullName?.split(' ').filter(Boolean).slice(-1)[0]?.[0]?.toUpperCase() || 'K'}
+                            </Avatar>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6a7994]">
+                                Mô tả của KTV {caseData.reporter?.fullName ? `· ${caseData.reporter.fullName}` : ''}
+                            </span>
+                        </div>
                         <p className="m-0 text-[13px] text-[#0f1c2e] leading-relaxed">
                             {caseData.description}
                         </p>
@@ -458,6 +501,11 @@ const ExpertCaseDetail = ({ caseId }) => {
                             const isUrgent = r.responseType === 'EMERGENCY_ALERT' || r.response_type === 'emergency_alert';
                             const isCare = Boolean(r.careAction);
                             const authorName = r.author?.fullName || r.author_name || 'Người dùng';
+                            const authorAvatar =
+                                r.author?.avatarUrl ||
+                                r.author_avatar_url ||
+                                (isExpert ? caseData?.expert?.avatarUrl : caseData?.reporter?.avatarUrl) ||
+                                null;
                             const initials = authorName.split(' ').filter(Boolean).slice(-1)[0]?.[0]?.toUpperCase() || (isExpert ? 'A' : 'T');
 
                             return (
@@ -466,12 +514,13 @@ const ExpertCaseDetail = ({ caseId }) => {
                                     className={`flex gap-2.5 ${isExpert ? 'flex-row-reverse' : ''}`}
                                 >
                                     <Avatar
-                                        size={32}
-                                        className={
+                                        size={34}
+                                        src={authorAvatar || undefined}
+                                        className={`shrink-0 border border-white shadow-xs font-semibold ${
                                             isExpert
                                                 ? '!bg-[#e2f6f3] !text-[#0f9b8e]'
                                                 : '!bg-[#eaf4ff] !text-[#1d7ad6]'
-                                        }
+                                        }`}
                                     >
                                         {initials}
                                     </Avatar>
@@ -706,32 +755,47 @@ const ExpertCaseDetail = ({ caseId }) => {
                     {/* Right Column (360px): Sidebar Panels */}
                     <div className="flex flex-col gap-3.5">
                         {/* Diagnosis captured when the case was opened */}
-                        {snapshot.aiDiagnosis && (
-                            <Panel
-                                title={
-                                    <span>
-                                        <RobotOutlined className="mr-1.5 text-[#7b5bd6]" />
-                                        Gợi ý AI khi tạo ca
-                                    </span>
-                                }
-                            >
-                                <div className="font-semibold text-[#0f1c2e] mb-1 text-[13px]">
-                                    {snapshot.aiDiagnosis.disease || snapshot.aiDiagnosis.label}
-                                </div>
-                                <Progress
-                                    percent={Math.round(
-                                        snapshot.aiDiagnosis.confidence <= 1
-                                            ? snapshot.aiDiagnosis.confidence * 100
-                                            : snapshot.aiDiagnosis.confidence
+                        {(snapshot.aiDiagnosis || caseData.aiDiagnosis) && (() => {
+                            const ai = formatAiDiagnosis(snapshot.aiDiagnosis || caseData.aiDiagnosis);
+                            if (!ai) return null;
+                            return (
+                                <Panel
+                                    title={
+                                        <span>
+                                            <RobotOutlined className="mr-1.5 text-[#7b5bd6]" />
+                                            Gợi ý AI khi tạo ca
+                                        </span>
+                                    }
+                                >
+                                    <div className="flex items-center justify-between mb-1 min-w-0">
+                                        <div
+                                            className={`font-semibold text-[13px] truncate ${
+                                                ai.isRecognized ? 'text-[#0f1c2e]' : 'text-[#64748b]'
+                                            }`}
+                                        >
+                                            {ai.label}
+                                        </div>
+                                        {!ai.isRecognized && (
+                                            <span className="text-[10px] font-medium text-[#d97706] bg-[#fef3c7] px-1.5 py-0.5 rounded shrink-0">
+                                                Độ tin cậy thấp
+                                            </span>
+                                        )}
+                                    </div>
+                                    {ai.confidence != null && (
+                                        <Progress
+                                            percent={ai.confidence}
+                                            strokeColor={ai.isRecognized ? '#7b5bd6' : '#d97706'}
+                                            size="small"
+                                        />
                                     )}
-                                    strokeColor="#7b5bd6"
-                                    size="small"
-                                />
-                                <div className="text-[11px] text-[#6a7994] mt-1.5 leading-normal">
-                                    Chỉ mang tính tham khảo — kết luận thuộc về chuyên gia.
-                                </div>
-                            </Panel>
-                        )}
+                                    <div className="text-[11px] text-[#6a7994] mt-1.5 leading-normal">
+                                        {ai.isRecognized
+                                            ? 'Chỉ mang tính tham khảo — kết luận thuộc về chuyên gia.'
+                                            : 'AI chưa đủ cơ sở nhận diện chắc chắn — kết luận thuộc về chuyên gia.'}
+                                    </div>
+                                </Panel>
+                            );
+                        })()}
 
                         {/* Water and health observations */}
                         <ExpertCaseSnapshot
