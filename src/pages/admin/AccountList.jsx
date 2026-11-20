@@ -780,6 +780,7 @@ const AccountList = () => {
     const [status, setStatus] = useState('');
     const [pageRoles, setPageRoles] = useState([]);
     const [pageStatuses, setPageStatuses] = useState([]);
+    const [pageOwners, setPageOwners] = useState([]);
     const [identitySortOrder, setIdentitySortOrder] = useState(null);
     const [detailId, setDetailId] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
@@ -800,12 +801,8 @@ const AccountList = () => {
             ...(search && { search }),
             ...(role && { role }),
             ...(status && { status }),
-            ...(identitySortOrder && {
-                sortBy: 'identity',
-                sortOrder: identitySortOrder === 'descend' ? 'desc' : 'asc',
-            }),
         }),
-        [identitySortOrder, role, search, status],
+        [role, search, status],
     );
     const queryKey = useMemo(() => JSON.stringify(query), [query]);
 
@@ -941,6 +938,18 @@ const AccountList = () => {
         window.dispatchEvent(new Event('admin-accounts-changed'));
     };
 
+    const pageOwnerOptions = useMemo(
+        () => Array.from(new Map(accounts.map((account) => {
+            const owner = account.managedByOwner;
+            const value = owner?.id || 'unassigned';
+            return [value, {
+                text: owner ? owner.fullName || owner.email : 'Không có chủ quản',
+                value,
+            }];
+        })).values()),
+        [accounts],
+    );
+
     const columns = useMemo(
         () => [
             {
@@ -948,7 +957,12 @@ const AccountList = () => {
                 key: 'identity',
                 width: 240,
                 fixed: 'left',
-                sorter: true,
+                sorter: (first, second) =>
+                    (first.fullName?.trim() || first.email || '').localeCompare(
+                        second.fullName?.trim() || second.email || '',
+                        'vi',
+                        { sensitivity: 'base', numeric: true },
+                    ),
                 sortOrder: identitySortOrder,
                 sortDirections: ['ascend', 'descend'],
                 render: (_, account) => (
@@ -1008,6 +1022,11 @@ const AccountList = () => {
                 title: 'Chủ quản',
                 key: 'managedByOwnerId',
                 width: 170,
+                filters: pageOwnerOptions,
+                filteredValue: pageOwners.length ? pageOwners : null,
+                filterMultiple: true,
+                filterDropdownProps: TABLE_FILTER_DROPDOWN_PROPS,
+                onFilter: (value, account) => (account.managedByOwner?.id || 'unassigned') === value,
                 render: (_, account) => (
                     <Text
                         className="m-0! text-xs! text-[#52647d]! tabular-nums"
@@ -1070,17 +1089,26 @@ const AccountList = () => {
             identitySortOrder,
             pageRoles,
             pageStatuses,
+            pageOwnerOptions,
+            pageOwners,
         ],
     );
 
-    const handleTableChange = (_pagination, filters, sorter) => {
-        setPageRoles(filters.role || []);
-        setPageStatuses(filters.status || []);
-        setIdentitySortOrder(sorter?.columnKey === 'identity' ? sorter.order || null : null);
+    const handleTableChange = (pagination, filters, sorter, { action }) => {
+        // Ant Design resets pagination on filter; only explicit page changes should load data.
+        if (action === 'paginate') {
+            loadPage(pagination.current);
+        } else if (action === 'filter') {
+            setPageRoles(filters.role || []);
+            setPageStatuses(filters.status || []);
+            setPageOwners(filters.managedByOwnerId || []);
+        } else if (action === 'sort') {
+            setIdentitySortOrder(sorter?.columnKey === 'identity' ? sorter.order || null : null);
+        }
     };
 
     const hasGlobalFilters = Boolean(search || role || status);
-    const hasPageFilters = Boolean(pageRoles.length || pageStatuses.length);
+    const hasPageFilters = Boolean(pageRoles.length || pageStatuses.length || pageOwners.length);
     const hasActiveFilters = hasGlobalFilters || hasPageFilters;
     const visibleTotal = hasGlobalFilters ? meta.totalResults : summary.total || meta.totalResults;
     const pendingTotal = summary.pending;
@@ -1187,7 +1215,6 @@ const AccountList = () => {
                         responsive: true,
                         showTotal: (total, range) =>
                             `${range[0]}–${range[1]} / ${total} tài khoản`,
-                        onChange: (nextPage) => loadPage(nextPage),
                     }}
                     onChange={handleTableChange}
                     onRow={(account) => ({

@@ -17,6 +17,7 @@ import {
 } from '../../utils/notificationUtils';
 import { formatNotificationTime, getNotificationKind } from '../../utils/notificationView';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
+import { adminStyles } from '../admin/adminStyles';
 
 const STATUS_OPTIONS = [
     { label: 'Tất cả trạng thái', value: 'all' },
@@ -450,12 +451,26 @@ const Notifications = () => {
             </section>
 
             <Drawer
-                rootClassName={drawerClassName}
+                className={adminStyles.drawer}
+                rootClassName={`${drawerClassName} ${adminStyles.drawerRoot}`}
                 title="Chi tiết thông báo"
                 width={480}
                 open={Boolean(notificationId)}
                 onClose={closeDetail}
                 destroyOnHidden
+                footer={
+                    !detailLoading && !detailError && selectedDetail && detailDestination ? (
+                        <Button
+                            className={`${adminStyles.primaryButton} h-9! rounded-[10px]! px-4! text-[13px]! font-normal!`}
+                            type="primary"
+                            block
+                            loading={openingTargetId === selectedDetail.id}
+                            onClick={() => openRelatedPage(selectedDetail)}
+                        >
+                            {detailDestination.label} <ArrowRightOutlined />
+                        </Button>
+                    ) : null
+                }
             >
                 {detailLoading ? (
                     <div className="grid min-h-[360px] place-items-center"><Spin tip="Đang tải chi tiết" /></div>
@@ -497,17 +512,7 @@ const Notifications = () => {
                         <div className="mt-6 border-t border-[#e7edf3] pt-[15px] text-[11px] text-[#708096]">
                             Đã đọc lúc {formatDate(selectedDetail.readAt, 'HH:mm dd/MM/yyyy')}
                         </div>
-                        {detailDestination ? (
-                            <Button
-                                className="mt-7 min-h-[45px]! w-full rounded-[11px]! border-0! bg-[linear-gradient(135deg,#247cc3,#168f82)]! text-[13px]! font-[750]! shadow-[0_9px_18px_rgba(36,124,195,0.18)]!"
-                                type="primary"
-                                size="large"
-                                loading={openingTargetId === selectedDetail.id}
-                                onClick={() => openRelatedPage(selectedDetail)}
-                            >
-                                {detailDestination.label} <ArrowRightOutlined />
-                            </Button>
-                        ) : (
+                        {!detailDestination && (
                             <div className="mt-7 rounded-[10px] bg-[#eef3f7] px-3.5 py-3 text-center text-[11px] text-[#7a899d]">
                                 <BellOutlined className="mr-1.5" />
                                 Thông báo này không có liên kết công việc.
