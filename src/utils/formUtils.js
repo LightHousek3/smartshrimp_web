@@ -82,6 +82,4 @@ export const fieldValidator = (validator) => (_, value) => {
     return validationMessage ? Promise.reject(new Error(validationMessage)) : Promise.resolve();
 };
 
-/** Prefer the API's operational message while retaining a safe UI fallback. */
-export const getApiErrorMessage = (error, fallback) =>
-    error?.response?.data?.message || (error?.isAxiosError ? fallback : error?.message) || fallback;
+export { getErrorMessage as getApiErrorMessage } from './errorMessage.js';

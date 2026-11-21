@@ -43,6 +43,8 @@ import {
 } from '../utils/materialCompliance';
 import InputNumber from './ProtocolNumberInput';
 import ProtocolMaterialDetail, { MaterialCategoryTag } from './ProtocolMaterialDetail';
+import { getErrorMessage } from '../utils/errorMessage.js';
+import ErrorState from './ErrorState';
 
 const { Text, Title, Paragraph } = Typography;
 const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 4 });
@@ -499,8 +501,7 @@ const ExpertProtocolMaterialPicker = ({
                         ...current,
                         loading: false,
                         error:
-                            error.response?.data?.message ||
-                            'Không thể tải vật tư. Vui lòng thử lại.',
+                            getErrorMessage(error, 'Không thể tải vật tư. Vui lòng thử lại.'),
                     }));
             });
         return () => controller.abort();
@@ -719,26 +720,10 @@ const ExpertProtocolMaterialPicker = ({
                             />
                         </Flex>
                         {!proposed && state.error ? (
-                            <Alert
-                                type="error"
-                                showIcon
-                                message={state.error}
-                                action={
-                                    <Button
-                                        size="small"
-                                        onClick={() => {
-                                            setRevision((current) => current + 1);
-                                            setState((current) => ({
-                                                ...current,
-                                                loading: true,
-                                                error: null,
-                                            }));
-                                        }}
-                                    >
-                                        {'Thử lại'}
-                                    </Button>
-                                }
-                            />
+                            <ErrorState message={state.error} onRetry={() => {
+                                setRevision((current) => current + 1);
+                                setState((current) => ({ ...current, loading: true, error: null }));
+                            }} />
                         ) : (
                             <Table
                                 rowKey={(product) => product.id || product._proposalKey}

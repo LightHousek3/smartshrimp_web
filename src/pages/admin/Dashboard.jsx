@@ -7,7 +7,7 @@ import {
     Button,
     Modal,
     Form,
-        DatePicker,
+    DatePicker,
     Radio,
     Typography,
     Flex,
@@ -40,6 +40,8 @@ import dayjs from 'dayjs';
 import { adminStyles } from './adminStyles';
 import { adminDashboardAPI } from '../../apis/index.js';
 import { exportDashboardToExcel } from '../../utils/dashboardExport.js';
+import ErrorState from '../../components/ErrorState';
+import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const { Text } = Typography;
 
@@ -108,7 +110,7 @@ function ExportModal({ open, onClose, dashboardData }) {
             form.resetFields();
         } catch (err) {
             if (err?.errorFields) return;
-            messageApi.error(err?.message || 'Không thể xuất báo cáo');
+            messageApi.error(getErrorMessage(err, 'Không thể xuất báo cáo'));
         } finally {
             setLoading(false);
         }
@@ -311,6 +313,8 @@ export default function Dashboard() {
     const [ragDailyMetrics, setRagDailyMetrics] = useState([]);
     const [accountBreakdown, setAccountBreakdown] = useState(defaultAccountBreakdown);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
+    const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
         let isMounted = true;
@@ -319,7 +323,8 @@ export default function Dashboard() {
         adminDashboardAPI
             .getOverview(controller.signal)
             .then((res) => {
-                if (!isMounted || !res) return;
+                if (!isMounted) return;
+                if (!res?.systemOverview) throw new Error('Dữ liệu tổng quan không hợp lệ.');
 
                 if (res.systemOverview) {
                     const ov = res.systemOverview;
@@ -365,7 +370,7 @@ export default function Dashboard() {
                 }
             })
             .catch((err) => {
-                console.error('Lỗi khi tải dữ liệu dashboard:', err);
+                if (isMounted) setLoadError(getErrorMessage(err, 'Không thể tải tổng quan.'));
             })
             .finally(() => {
                 if (isMounted) setLoading(false);
@@ -375,7 +380,7 @@ export default function Dashboard() {
             isMounted = false;
             controller.abort();
         };
-    }, []);
+    }, [attempt]);
 
     const ov = systemOverview;
 
@@ -465,6 +470,12 @@ export default function Dashboard() {
         ov.totalAccounts ||
         ov.managedAccounts ||
         0;
+
+    if (loadError) return <ErrorState message={loadError} onRetry={() => {
+        setLoading(true);
+        setLoadError(null);
+        setAttempt(value => value + 1);
+    }} />;
 
     return (
         <Spin spinning={loading}>

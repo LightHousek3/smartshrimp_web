@@ -1,14 +1,12 @@
 import { RAG_DOCUMENT_MESSAGES, RAG_DOCUMENT_RULES } from '../constants/ragDocument.js';
+import { getErrorMessage, safeMessage } from './errorMessage.js';
 
 /** Keep backend and known local messages; translate transport/library failures. */
 export const getRagDocumentErrorText = (error) => {
-    const backendMessage = error?.response?.data?.message;
-    if (typeof backendMessage === 'string' && backendMessage.trim()) return backendMessage;
     if (['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code) || error?.response?.status === 504) {
         return RAG_DOCUMENT_MESSAGES.timeout;
     }
-    if (Object.values(RAG_DOCUMENT_MESSAGES).includes(error?.message)) return error.message;
-    return RAG_DOCUMENT_MESSAGES.connectionFailed;
+    return getErrorMessage(error, RAG_DOCUMENT_MESSAGES.connectionFailed);
 };
 
 /** A previous missing-source error needs revalidation; it does not prove the asset is still absent. */
@@ -19,7 +17,8 @@ export const getRagDocumentRecovery = (document) => {
         canRetry: failed,
         canReupload: failed && missing,
         retryLabel: missing ? RAG_DOCUMENT_MESSAGES.recheckSource : RAG_DOCUMENT_MESSAGES.retryProcessing,
-        message: missing ? RAG_DOCUMENT_MESSAGES.sourceMissing : document?.errorMessage,
+        message: missing ? RAG_DOCUMENT_MESSAGES.sourceMissing
+            : safeMessage(document?.errorMessage, RAG_DOCUMENT_MESSAGES.unavailable),
         description: missing ? RAG_DOCUMENT_MESSAGES.sourceMissingRecovery : undefined,
     };
 };
@@ -96,7 +95,6 @@ export const parseRagDocumentResponse = (envelope, expectedName) => {
  */
 export const getRagDocumentError = (error) => {
     const status = error?.response?.status;
-    const backendMessage = error?.response?.data?.message;
     // A timeout, network failure or malformed success response does not prove
     // that processing failed on the server.
     const uncertain = status === 504 || ['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK'].includes(error?.code)
@@ -116,9 +114,8 @@ export const getRagDocumentError = (error) => {
     }
 
     return {
-        message: typeof backendMessage === 'string' && backendMessage.trim()
-            ? backendMessage
-            : uncertain ? 'Chưa thể xác nhận kết quả thêm tài liệu.' : RAG_DOCUMENT_MESSAGES.unavailable,
+        message: getErrorMessage(error, uncertain
+            ? 'Chưa thể xác nhận kết quả thêm tài liệu.' : RAG_DOCUMENT_MESSAGES.unavailable),
         description,
         uncertain,
     };

@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import utc from 'dayjs/plugin/utc';
 import 'dayjs/locale/vi';
+import { normalizeApiError } from '../utils/errorMessage.js';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1').replace(
     /\/+$/,
@@ -22,6 +23,7 @@ const clearAccessToken = () => setAccessToken(null);
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -67,11 +69,19 @@ apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-
-        if (!shouldRefresh(error, originalRequest)) {
-            return Promise.reject(error);
+        if (error.response?.data instanceof Blob) {
+            try {
+                error.response.data = JSON.parse(await error.response.data.text());
+            } catch {
+                error.response.data = null;
+            }
         }
 
+        if (!shouldRefresh(error, originalRequest)) {
+            return Promise.reject(normalizeApiError(error));
+        }
+
+        originalRequest._retry = true;
         if (isRefreshing) {
             return new Promise((resolve, reject) => failedQueue.push({ resolve, reject })).then(
                 (token) => {
@@ -81,7 +91,6 @@ apiClient.interceptors.response.use(
             );
         }
 
-        originalRequest._retry = true;
         isRefreshing = true;
 
         try {
@@ -99,9 +108,13 @@ apiClient.interceptors.response.use(
             return apiClient(originalRequest);
         } catch (refreshError) {
             settleRefreshQueue(refreshError);
-            clearAccessToken();
-            window.dispatchEvent(new Event('auth-unauthorized'));
-            return Promise.reject(refreshError);
+            // A transport outage does not revoke the session or its refresh cookie.
+            const status = refreshError.response?.status;
+            if ([400, 401, 403].includes(status) || !refreshError.isAxiosError) {
+                clearAccessToken();
+                window.dispatchEvent(new Event('auth-unauthorized'));
+            }
+            return Promise.reject(normalizeApiError(refreshError));
         } finally {
             isRefreshing = false;
         }

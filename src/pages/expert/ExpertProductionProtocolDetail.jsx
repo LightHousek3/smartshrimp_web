@@ -28,6 +28,7 @@ import {
 } from '../../constants/productionProtocol';
 import { expertStyle as styles } from '../../constants/expertStyle';
 import Loading from '../../components/Loading';
+import ErrorState from '../../components/ErrorState';
 
 const dateText = (value) =>
     value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
@@ -143,12 +144,7 @@ const ExpertProductionProtocolDetail = ({
             >
                 {pending ? (
                     error ? (
-                        <Alert
-                            type="error"
-                            showIcon
-                            message={error}
-                            action={<Button onClick={onRetry}>Thử lại</Button>}
-                        />
+                        <ErrorState message={error} onRetry={onRetry} />
                     ) : (
                         <Loading
                             className="min-h-0! w-full! flex-1!"

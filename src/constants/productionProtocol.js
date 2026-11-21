@@ -1,3 +1,6 @@
+
+import { getErrorMessage } from '../utils/errorMessage.js';
+
 export const PROTOCOL_TIMING = Object.freeze({
     defaultMinutes: 30,
     minMinutes: 10,
@@ -94,4 +97,4 @@ export const allowedDoseBases = (operationType, offset, { environment = false } 
     ];
 };
 export const protocolError = (error) =>
-    error.response?.data?.message || error.message || 'Không tải được dữ liệu. Vui lòng thử lại.';
+    getErrorMessage(error, 'Không tải được dữ liệu. Vui lòng thử lại.');

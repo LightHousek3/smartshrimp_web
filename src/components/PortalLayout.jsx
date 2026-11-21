@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { App, Button } from 'antd';
 import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import ErrorBoundary from './ErrorBoundary';
 import { useAuth } from '../contexts/useAuth';
 import { BRAND_LOGO_URL, ROLE_LABELS } from '../constants/portal';
+import { getErrorMessage } from '../utils/errorMessage.js';
 
 const getInitial = (name, email) => (name?.trim()?.[0] || email?.trim()?.[0] || 'S').toUpperCase();
 const expertMainClassName = `
@@ -36,10 +38,15 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
         if (loggingOut) return;
 
         setLoggingOut(true);
-        await logout();
-        navigate('/login', { replace: true });
-
-        message.success('Đăng xuất thành công!');
+        try {
+            await logout();
+            message.success('Đăng xuất thành công!');
+        } catch (error) {
+            message.warning(`Đã thoát trên thiết bị. ${getErrorMessage(error)}`);
+        } finally {
+            setLoggingOut(false);
+            navigate('/login', { replace: true });
+        }
     };
 
     const isPortalRoot = (path) => path === '/admin' || path === '/expert';
@@ -185,9 +192,9 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                 </header>}
                 {isExpertScreen ? (
                     <div className={expertPageClassName}>
-                        <Outlet />
+                        <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
                     </div>
-                ) : <Outlet />}
+                ) : <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>}
             </main>
         </div>
     );

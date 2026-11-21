@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Drawer, Empty, Pagination, Select, Spin, Tooltip } from 'antd';
+import { App, Button, Drawer, Empty, Pagination, Select, Spin, Tooltip } from 'antd';
 import {
     ArrowRightOutlined,
     BellOutlined,
@@ -18,6 +18,8 @@ import {
 import { formatNotificationTime, getNotificationKind } from '../../utils/notificationView';
 import { useNotificationNavigation } from '../../hooks/useNotificationNavigation';
 import { adminStyles } from '../admin/adminStyles';
+import ErrorState from '../../components/ErrorState';
+import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const STATUS_OPTIONS = [
     { label: 'Tất cả trạng thái', value: 'all' },
@@ -60,9 +62,7 @@ const drawerClassName = `
     [&_.ant-drawer-body]:bg-[#fbfdff] [&_.ant-drawer-body]:p-6
 `;
 
-const getErrorMessage = (error, fallback) =>
-    error?.response?.data?.message ||
-    (error?.message?.startsWith('Dữ liệu') ? error.message : fallback);
+
 
 const Notifications = () => {
     const navigate = useNavigate();
@@ -339,14 +339,7 @@ const Notifications = () => {
                     {loading ? (
                         <div className="grid min-h-[360px] place-items-center"><Spin tip="Đang tải thông báo" /></div>
                     ) : error ? (
-                        <div className="p-5">
-                            <Alert
-                                type="error"
-                                showIcon
-                                message={error}
-                                action={<Button size="small" onClick={refresh}>Thử lại</Button>}
-                            />
-                        </div>
+                        <ErrorState message={error} onRetry={refresh} />
                     ) : list.items.length === 0 ? (
                         <div className="grid min-h-[360px] place-items-center">
                             <Empty
@@ -475,12 +468,7 @@ const Notifications = () => {
                 {detailLoading ? (
                     <div className="grid min-h-[360px] place-items-center"><Spin tip="Đang tải chi tiết" /></div>
                 ) : detailError ? (
-                    <Alert
-                        type="error"
-                        showIcon
-                        message={detailError}
-                        action={<Button size="small" onClick={retryDetail}>Thử lại</Button>}
-                    />
+                    <ErrorState message={detailError} onRetry={retryDetail} />
                 ) : selectedDetail && (
                     <div>
                         <div className="flex items-center gap-[11px]">

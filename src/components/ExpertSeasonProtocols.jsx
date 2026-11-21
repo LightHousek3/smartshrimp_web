@@ -8,6 +8,7 @@ import { PROTOCOL_PRIMARY_BUTTON, PROTOCOL_STATUS_COLORS, PROTOCOL_STATUS_LABELS
 import ExpertProductionProtocolDetail from '../pages/expert/ExpertProductionProtocolDetail';
 import ExpertProductionProtocolForm from './ExpertProductionProtocolForm';
 import { expertStyle as styles } from '../constants/expertStyle';
+import ErrorState from '../components/ErrorState';
 
 const dateText = (value) => {
     if (!value) return '—';
@@ -110,9 +111,7 @@ const ExpertSeasonProtocols = ({ seasonId }) => {
     };
     const confirmSubmit = (row) => { setSubmitError(null); setSubmitTarget(row); };
     if (state.key !== key) return <Loading tip="Đang tải phác đồ nuôi" />;
-    if (state.error) return <Alert type="error" showIcon message={state.error} action={<Space>
-        <Button onClick={refresh}>Thử lại</Button>
-    </Space>} />;
+    if (state.error) return <ErrorState message={state.error} onRetry={refresh} />;
     const { season, rows, meta } = state;
     const readOnly = ['COMPLETED', 'CANCELLED'].includes(season.status);
     return <>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Empty, Flex, Typography } from 'antd';
+import { Empty, Flex, Typography } from 'antd';
 import {
     ArrowRightOutlined,
     ClockCircleOutlined,
@@ -12,6 +12,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { expertDashboardAPI } from '../../apis';
 import Loading from '../../components/Loading';
 import { formatDate } from '../../utils/dateUtils';
+import ErrorState from '../../components/ErrorState';
+import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const { Paragraph, Title } = Typography;
 
@@ -275,10 +277,7 @@ const ExpertDashboard = () => {
                     loading: false,
                     data: null,
                     error:
-                        error.response?.data?.message ||
-                        (error.message === 'Dữ liệu tổng quan không hợp lệ.'
-                            ? error.message
-                            : 'Không thể tải tổng quan.'),
+                        getErrorMessage(error, 'Không thể tải tổng quan.'),
                 });
             });
         return () => controller.abort();
@@ -298,17 +297,7 @@ const ExpertDashboard = () => {
             {state.loading ? (
                 <Loading className="min-h-90! w-full!" tip="Đang tải tổng quan" />
             ) : state.error ? (
-                <Alert
-                    className="mt-5"
-                    type="error"
-                    showIcon
-                    message={state.error}
-                    action={
-                        <Button size="small" onClick={retry}>
-                            Thử lại
-                        </Button>
-                    }
-                />
+                <ErrorState message={state.error} onRetry={retry} />
             ) : (
                 <>
                     <div className="mt-5 grid grid-cols-4 gap-4 max-[1250px]:grid-cols-2 max-[650px]:grid-cols-1">

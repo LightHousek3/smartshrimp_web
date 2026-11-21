@@ -13,6 +13,8 @@ import { useAuth } from '../contexts/useAuth';
 import { NOTIFICATION_CHANGED_EVENT } from '../utils/notificationUtils';
 import { formatNotificationTime, getNotificationKind } from '../utils/notificationView';
 import { useNotificationNavigation } from '../hooks/useNotificationNavigation';
+import ErrorState from './ErrorState';
+import { getErrorMessage } from '../utils/errorMessage.js';
 
 const emptyList = { items: [], totalResults: 0, hasNextPage: false, nextCursor: null };
 const iconColorClassNames = {
@@ -32,9 +34,7 @@ const popoverClassName = `
     [&_.ant-popover-inner-content]:p-0
 `;
 
-const getErrorMessage = (error, fallback) =>
-    error?.response?.data?.message ||
-    (error?.message?.startsWith('Dữ liệu') ? error.message : fallback);
+
 
 const ExpertNotificationBell = ({ onUnreadCountChange }) => {
     const { account } = useAuth();
@@ -257,12 +257,7 @@ const ExpertNotificationBell = ({ onUnreadCountChange }) => {
                 {listLoading ? (
                     <div className="grid min-h-[170px] place-items-center"><Spin tip="Đang tải" /></div>
                 ) : listError ? (
-                    <Alert
-                        type="error"
-                        showIcon
-                        message={listError}
-                        action={<Button size="small" onClick={refresh}>Thử lại</Button>}
-                    />
+                    <ErrorState message={listError} onRetry={refresh} />
                 ) : list.items.length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có thông báo" />
                 ) : (

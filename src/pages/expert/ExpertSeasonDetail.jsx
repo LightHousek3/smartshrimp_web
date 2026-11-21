@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Badge, Button, ConfigProvider, Space, Tabs } from 'antd';
+import { Badge, Button, ConfigProvider, Tabs } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { expertSeasonAPI } from '../../apis';
 import Loading from '../../components/Loading';
@@ -10,6 +10,7 @@ import ExpertSeasonProtocols from '../../components/ExpertSeasonProtocols';
 import ExpertDiseaseCases from '../../components/ExpertDiseaseCases';
 import { PROTOCOL_THEME, protocolError } from '../../constants/productionProtocol';
 import { expertStyle } from '../../constants/expertStyle';
+import ErrorState from '../../components/ErrorState';
 
 /** Coordinate the detail request and tabs; cancel stale requests when the route changes. */
 const SeasonDetailContent = ({ seasonId }) => {
@@ -42,8 +43,7 @@ const SeasonDetailContent = ({ seasonId }) => {
         {back}
         <Loading tip="Đang tải chỉ số chuyên môn" className="flex-1!" />
     </div>;
-    if (state.error) return <>{back}<Alert type="error" showIcon message={state.error}
-        action={<Space><Button onClick={() => setAttempt((value) => value + 1)}>Thử lại</Button></Space>} /></>;
+    if (state.error) return <>{back}<ErrorState message={state.error} onRetry={() => setAttempt((value) => value + 1)} /></>;
 
     const { season } = state;
     return <div className={`${expertStyle.page} [&_.ant-tabs-tab-disabled]:text-[#3a4a63]!`}>
