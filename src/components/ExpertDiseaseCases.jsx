@@ -1,8 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
-    Alert,
     Badge,
-    Button,
     Card,
     ConfigProvider,
     Flex,
@@ -16,7 +14,9 @@ import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { expertDiseaseCaseAPI, expertSeasonAPI } from '../apis';
 import Loading from './Loading';
+import { getErrorMessage } from '../utils/errorMessage.js';
 import { protocolError } from '../constants/productionProtocol';
+import ErrorState from './ErrorState';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -197,6 +197,7 @@ const DiseaseCaseList = ({ seasonId }) => {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [farmError, setFarmError] = useState(null);
     const [attempt, setAttempt] = useState(0);
     const [cases, setCases] = useState([]);
     const [total, setTotal] = useState(0);
@@ -214,24 +215,23 @@ const DiseaseCaseList = ({ seasonId }) => {
 
     useEffect(() => {
         if (seasonId) return;
-        let isMounted = true;
+        const controller = new AbortController();
         const fetchFarms = async () => {
             try {
-                const res = await expertSeasonAPI.getAssignedSeasons({ limit: 10 });
-                if (isMounted && res.data?.meta?.farms) {
-                    setFarms(res.data.meta.farms);
-                }
+                const res = await expertSeasonAPI.getAssignedSeasons({ limit: 10 }, controller.signal);
+                if (controller.signal.aborted) return;
+                if (!Array.isArray(res.data?.meta?.farms)) throw new Error('Dữ liệu trang trại không hợp lệ.');
+                setFarms(res.data.meta.farms);
+                setFarmError(null);
             } catch (err) {
-                if (isMounted) {
-                    console.error('Lỗi lấy danh sách trang trại:', err);
+                if (!controller.signal.aborted) {
+                    setFarmError(getErrorMessage(err, 'Không thể tải danh sách trang trại.'));
                 }
             }
         };
         fetchFarms();
-        return () => {
-            isMounted = false;
-        };
-    }, [seasonId]);
+        return () => controller.abort();
+    }, [seasonId, attempt]);
 
     // Debounce search input
     useEffect(() => {
@@ -424,6 +424,8 @@ const DiseaseCaseList = ({ seasonId }) => {
         [rawColumns, seasonId],
     );
 
+    const loadError = error || (seasonId ? null : farmError);
+
     return (
         <ConfigProvider theme={caseTheme}>
             <Flex vertical gap={0} className="w-full! min-w-0!">
@@ -500,8 +502,10 @@ const DiseaseCaseList = ({ seasonId }) => {
                     </Flex>}
 
                     {loading ? <Loading className="min-h-90! w-full!" tip="Đang tải danh sách ca bệnh" />
-                        : error ? <Alert type="error" showIcon message={error} className="m-4!"
-                            action={<Button onClick={() => { setLoading(true); setAttempt(value => value + 1); }}>Thử lại</Button>} /> : <Table
+                        : loadError ? <ErrorState message={loadError} onRetry={() => {
+                            setLoading(true);
+                            setAttempt(value => value + 1);
+                        }} /> : <Table
                         rowKey="id"
                         dataSource={cases}
                         columns={columns}

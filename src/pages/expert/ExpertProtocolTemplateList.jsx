@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import viVN from 'antd/locale/vi_VN';
 import { templateValidateMessages } from '../../utils/protocolTemplateUtils';
 import {
-    Alert,
     App,
     Button,
     Card,
@@ -33,6 +32,8 @@ import ExpertProtocolTemplateEditor from '../../components/ExpertProtocolTemplat
 import ExpertProtocolTemplateDetail, {
     ProtocolTemplateMetricTag,
 } from '../../components/ExpertProtocolTemplateDetail';
+import ErrorState from '../../components/ErrorState';
+import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const { Paragraph, Text, Title } = Typography;
 const shrimpOptions = [
@@ -375,10 +376,7 @@ const ExpertProtocolTemplateList = () => {
                     ...current,
                     loading: false,
                     error:
-                        error.response?.data?.message ||
-                        (error.message === 'Dữ liệu phác đồ mẫu không hợp lệ.'
-                            ? error.message
-                            : 'Không thể tải danh sách phác đồ mẫu.'),
+                        getErrorMessage(error, 'Không thể tải danh sách phác đồ mẫu.'),
                 }));
             });
         return () => controller.abort();
@@ -421,8 +419,7 @@ const ExpertProtocolTemplateList = () => {
             retry();
         } catch (error) {
             message.error(
-                error.response?.data?.message ||
-                    'Chưa nhận được xác nhận xóa. Hãy tải lại danh sách.'
+                getErrorMessage(error, 'Chưa nhận được xác nhận xóa. Hãy tải lại danh sách.')
             );
             retry();
         } finally {
@@ -441,8 +438,7 @@ const ExpertProtocolTemplateList = () => {
             message.success('Đổi trạng thái phác đồ mẫu thành công.');
         } catch (error) {
             message.error(
-                error.response?.data?.message ||
-                    'Không thể xác nhận đổi trạng thái. Vui lòng tải lại danh sách.'
+                getErrorMessage(error, 'Không thể xác nhận đổi trạng thái. Vui lòng tải lại danh sách.')
             );
         } finally {
             setChangingStatusId(null);
@@ -555,17 +551,7 @@ const ExpertProtocolTemplateList = () => {
                         />
                     </Flex>
                     {state.error ? (
-                        <Alert
-                            type="error"
-                            showIcon
-                            message={state.error}
-                            className="m-4!"
-                            action={
-                                <Button size="small" onClick={retry}>
-                                    {'Thử lại'}
-                                </Button>
-                            }
-                        />
+                        <ErrorState message={state.error} onRetry={retry} />
                     ) : state.loading && !state.meta ? (
                         <Loading
                             className="min-h-80! w-full!"

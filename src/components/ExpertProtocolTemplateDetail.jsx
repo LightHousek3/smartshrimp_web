@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
     Badge,
     Button,
     Card,
@@ -27,6 +26,8 @@ import {
     templateMetricTone,
 } from '../utils/protocolTemplateUtils';
 import ProtocolProductImages from './ProtocolProductImages';
+import ErrorState from './ErrorState';
+import { getErrorMessage } from '../utils/errorMessage.js';
 
 const { Paragraph, Text } = Typography;
 const monoClassName = "font-['JetBrains_Mono',monospace]!";
@@ -348,11 +349,7 @@ const ExpertProtocolTemplateDetail = ({
                     template: null,
                     loading: false,
                     error:
-                        error.response?.data?.message ||
-                        (error.message ===
-                        'Dữ liệu chi tiết phác đồ mẫu không hợp lệ.'
-                            ? error.message
-                            : 'Không thể tải chi tiết phác đồ mẫu.'),
+                        getErrorMessage(error, 'Không thể tải chi tiết phác đồ mẫu.'),
                 });
             });
         return () => controller.abort();
@@ -403,26 +400,10 @@ const ExpertProtocolTemplateDetail = ({
                     tip="Đang tải chi tiết phác đồ mẫu"
                 />
             ) : state.error ? (
-                <Alert
-                    type="error"
-                    showIcon
-                    message={state.error}
-                    action={
-                        <Button
-                            size="small"
-                            onClick={() => {
-                                setState((current) => ({
-                                    ...current,
-                                    loading: true,
-                                    error: null,
-                                }));
-                                setRevision((current) => current + 1);
-                            }}
-                        >
-                            {'Thử lại'}
-                        </Button>
-                    }
-                />
+                <ErrorState message={state.error} onRetry={() => {
+                    setState((current) => ({ ...current, loading: true, error: null }));
+                    setRevision((current) => current + 1);
+                }} />
             ) : (
                 template && (
                     <Flex vertical gap={0}>

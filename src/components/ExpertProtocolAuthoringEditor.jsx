@@ -67,6 +67,8 @@ import ProtocolProductImages from './ProtocolProductImages';
 import ExpertProtocolMaterialPicker from './ExpertProtocolMaterialPicker';
 import { templateProposals } from '../utils/materialCompliance';
 import { defaultProtocolMeals, isAuthoringContextReady } from '../utils/protocolAuthoringDefaults';
+import { getErrorMessage } from '../utils/errorMessage.js';
+import ErrorState from './ErrorState';
 
 const { Text } = Typography;
 const muted = 'text-xs! text-[#8796ae]!';
@@ -562,8 +564,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                         farms: [],
                         loading: false,
                         error:
-                            error.response?.data?.message ||
-                            'Không thể tải trang trại. Vui lòng thử lại.',
+                            getErrorMessage(error, 'Không thể tải trang trại. Vui lòng thử lại.'),
                     });
             });
         return () => controller.abort();
@@ -592,7 +593,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                         setTemplates((value) => ({
                             ...value,
                             loading: false,
-                            error: error.response?.data?.message || 'Không tải được mẫu.',
+                            error: getErrorMessage(error, 'Không tải được mẫu.'),
                         }));
                 });
         }, 250);
@@ -643,7 +644,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 });
             } catch (error) {
                 if (!controller.signal.aborted)
-                    message.error(error.response?.data?.message || 'Không nạp được mẫu.');
+                    message.error(getErrorMessage(error, 'Không nạp được mẫu.'));
             } finally {
                 if (!controller.signal.aborted && mounted.current) setTemplateLoading(false);
             }
@@ -818,8 +819,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             action();
         } catch (error) {
             message.warning(
-                error.message ||
-                    'Anh/chị hoàn thành thông tin đầu phác đồ và các giai đoạn hiện có trước khi thêm giai đoạn.',
+                getErrorMessage(error, 'Anh/chị hoàn thành thông tin đầu phác đồ và các giai đoạn hiện có trước khi thêm giai đoạn.'),
             );
         } finally {
             appendStageLock.current = false;
@@ -950,7 +950,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                   );
             if (templateId) body.expectedVersionNo = editData.versionNo;
         } catch (error) {
-            setSaveError(error.message);
+            setSaveError(getErrorMessage(error));
             return;
         }
         submitLock.current = true;
@@ -985,8 +985,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             if (mounted.current && error.response?.status === 409) setConflict(true);
             if (mounted.current)
                 setSaveError(
-                    error.response?.data?.message ||
-                        'Chưa nhận được xác nhận lưu phác đồ. Hãy kiểm tra danh sách trước khi lưu lại để tránh tạo trùng.',
+                    getErrorMessage(error, 'Chưa nhận được xác nhận lưu phác đồ. Hãy kiểm tra danh sách trước khi lưu lại để tránh tạo trùng.'),
                 );
         } finally {
             submitLock.current = false;
@@ -1111,25 +1110,10 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                     tip={templateId ? 'Đang tải dữ liệu chỉnh sửa' : 'Đang tải dữ liệu tạo mẫu'}
                 />
             ) : options.error ? (
-                <Alert
-                    type="error"
-                    showIcon
-                    message={options.error}
-                    action={
-                        <Button
-                            onClick={() => {
-                                setOptions((current) => ({
-                                    ...current,
-                                    loading: true,
-                                    error: null,
-                                }));
-                                setRevision((current) => current + 1);
-                            }}
-                        >
-                            {'Thử lại'}
-                        </Button>
-                    }
-                />
+                <ErrorState message={options.error} onRetry={() => {
+                    setOptions((current) => ({ ...current, loading: true, error: null }));
+                    setRevision((current) => current + 1);
+                }} />
             ) : (
                 <Form
                     form={form}

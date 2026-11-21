@@ -41,6 +41,8 @@ import {
     Panel,
     SeverityTag,
 } from './expertUI';
+import { getErrorMessage } from '../../utils/errorMessage.js';
+import ErrorState from '../../components/ErrorState';
 
 const responseTypeLabels = {
     NORMAL: 'Trao đổi',
@@ -166,11 +168,13 @@ const ExpertCaseDetail = ({ caseId }) => {
     // Background synchronization helper without blocking the viewport
     const fetchDetail = useCallback(
         async (isSilent = false, signal) => {
+            if (!isSilent) setLoading(true);
             try {
                 const res = await expertDiseaseCaseAPI.detail(caseId, signal);
                 if (signal?.aborted || activeCaseId.current !== caseId) return;
                 if (res.data?.success) {
                     const serverData = res.data.data;
+                    setFetchError(null);
                     setCaseData((prev) => {
                         if (!prev) return serverData;
                         const serverResponses = serverData.responses || [];
@@ -194,8 +198,7 @@ const ExpertCaseDetail = ({ caseId }) => {
             } catch (error) {
                 if (signal?.aborted) return;
                 if (!isSilent) {
-                    console.error('Lỗi lấy chi tiết ca bệnh:', error);
-                    message.error(error.response?.data?.message || 'Không thể tải chi tiết ca bệnh');
+                    setFetchError(getErrorMessage(error, 'Không thể tải chi tiết ca bệnh'));
                 }
             } finally {
                 if (!isSilent) {
@@ -203,7 +206,7 @@ const ExpertCaseDetail = ({ caseId }) => {
                 }
             }
         },
-        [caseId, message]
+        [caseId]
     );
 
     // Initial load + Real-time socket & polling setup
@@ -223,10 +226,8 @@ const ExpertCaseDetail = ({ caseId }) => {
             })
             .catch((error) => {
                 if (!isMounted || controller.signal.aborted) return;
-                console.error('Lỗi lấy chi tiết ca bệnh:', error);
-                const errMsg = error.response?.data?.message || 'Không thể tải chi tiết ca bệnh';
+                const errMsg = getErrorMessage(error, 'Không thể tải chi tiết ca bệnh');
                 setFetchError(errMsg);
-                message.error(errMsg);
             })
             .finally(() => {
                 if (isMounted && !controller.signal.aborted) {
@@ -256,7 +257,7 @@ const ExpertCaseDetail = ({ caseId }) => {
             clearInterval(timer);
             window.removeEventListener(NOTIFICATION_CHANGED_EVENT, handleNotificationEvent);
         };
-    }, [caseId, message, fetchDetail]);
+    }, [caseId, fetchDetail]);
 
     // Scroll to bottom when tab is switched to thread
     useEffect(() => {
@@ -326,8 +327,7 @@ const ExpertCaseDetail = ({ caseId }) => {
             }
         } catch (error) {
             if (activeCaseId.current !== caseId) return;
-            console.error('Lỗi gửi phản hồi:', error);
-            message.error(error.response?.data?.message || 'Không thể gửi phản hồi. Vui lòng thử lại.');
+            message.error(getErrorMessage(error, 'Không thể gửi phản hồi. Vui lòng thử lại.'));
             // Revert optimistic message and restore user text if network failed
             setCaseData((prev) => {
                 if (!prev) return prev;
@@ -376,7 +376,7 @@ const ExpertCaseDetail = ({ caseId }) => {
             await fetchDetail(true);
         } catch (error) {
             if (activeCaseId.current !== caseId) return;
-            message.error(error.response?.data?.message || 'Không thể lưu quyết định chăm sóc');
+            message.error(getErrorMessage(error, 'Không thể lưu quyết định chăm sóc'));
             if (error.response?.status === 409) {
                 setCareAction(null);
                 await fetchDetail(true);
@@ -409,8 +409,7 @@ const ExpertCaseDetail = ({ caseId }) => {
             }
         } catch (error) {
             if (activeCaseId.current !== caseId) return;
-            console.error('Lỗi giải quyết ca bệnh:', error);
-            message.error(error.response?.data?.message || 'Không thể đánh dấu giải quyết');
+            message.error(getErrorMessage(error, 'Không thể đánh dấu giải quyết'));
             if (error.response?.status === 409) { setIsResolveModalOpen(false); await fetchDetail(true); }
         } finally {
             if (activeCaseId.current === caseId) setResolving(false);
@@ -428,13 +427,9 @@ const ExpertCaseDetail = ({ caseId }) => {
     if (!caseData) {
         return (
             <div className="py-16 text-center">
-                <Empty description={fetchError || 'Không tìm thấy thông tin ca bệnh'} />
+                {fetchError ? <ErrorState message={fetchError} onRetry={() => fetchDetail(false)} />
+                    : <Empty description="Không tìm thấy thông tin ca bệnh" />}
                 <div className="mt-4 flex justify-center gap-3">
-                    {fetchError && (
-                        <Button type="default" onClick={() => fetchDetail(false)}>
-                            Thử lại
-                        </Button>
-                    )}
                     <Button type="primary" onClick={() => navigate('/expert/disease-cases')}>
                         Về danh sách
                     </Button>

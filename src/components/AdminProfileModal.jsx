@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Avatar, Button, Modal, Spin } from 'antd';
+import { Avatar, Button, Modal, Spin } from 'antd';
 import { CalendarOutlined, CloseOutlined, MailOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons';
 import { profileAPI } from '../apis';
 import { useAuth } from '../contexts/useAuth';
 import { formatDate } from '../utils/dateUtils';
+import ErrorState from './ErrorState';
+import { getErrorMessage } from '../utils/errorMessage.js';
 
 const profileStateClassName = 'flex min-h-[272px] flex-col items-center justify-center gap-4 text-[13px] text-[#6a7994]';
 const profileModalClassName = [
@@ -38,7 +40,7 @@ const ProfileDetails = () => {
                 if (controller.signal.aborted) return;
                 setResult({
                     status: 'error',
-                    message: error.response?.data?.message || 'Không thể tải hồ sơ cá nhân. Vui lòng thử lại.',
+                    message: getErrorMessage(error, 'Không thể tải hồ sơ cá nhân. Vui lòng thử lại.'),
                 });
             }
         };
@@ -59,13 +61,10 @@ const ProfileDetails = () => {
     if (result.status === 'error') {
         return (
             <div className={profileStateClassName}>
-                <Alert type="error" showIcon message={result.message} />
-                <Button onClick={() => {
+                <ErrorState message={result.message} onRetry={() => {
                     setResult({ status: 'loading' });
                     setAttempt((current) => current + 1);
-                }}>
-                    Thử lại
-                </Button>
+                }} />
             </div>
         );
     }

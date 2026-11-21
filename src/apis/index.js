@@ -499,28 +499,14 @@ const ragDocumentAPI = {
     retry: async (id) => (await apiClient.post(`${ragDocumentEndpoint}/${id}/retry`)).data.data,
     /**
      * GET /admin/rag/documents/:id/file
-     * Return the original file as a Blob. Decode JSON error blobs so callers
-     * can read the backend error message when a download fails.
+     * Return the original file as a Blob; apiClient handles JSON error responses.
      */
-    download: async (id) => {
-        try {
-            return (
-                await apiClient.get(`${ragDocumentEndpoint}/${id}/file`, {
-                    responseType: 'blob',
-                    timeout: 90000,
-                })
-            ).data;
-        } catch (error) {
-            if (error.response?.data instanceof Blob) {
-                try {
-                    error.response.data = JSON.parse(await error.response.data.text());
-                } catch {
-                    /* Keep the original error if the server did not return JSON. */
-                }
-            }
-            throw error;
-        }
-    },
+    download: async (id) => (
+        await apiClient.get(`${ragDocumentEndpoint}/${id}/file`, {
+            responseType: 'blob',
+            timeout: 90000,
+        })
+    ).data,
 };
 
 const expertProtocolTemplateAPI = {

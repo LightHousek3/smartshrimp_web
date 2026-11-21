@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { getErrorMessage } from '../utils/errorMessage.js';
 import {
     Alert,
     Button,
@@ -103,7 +104,7 @@ const ExpertProtocolQuickBuilder = ({
             setError(
                 failure.errorFields
                     ? 'Anh/chị hoàn thành các giai đoạn và lịch cữ hiện có trước khi thêm giai đoạn tiếp theo.'
-                    : failure.message
+                    : getErrorMessage(failure, 'Không thể thêm giai đoạn. Vui lòng kiểm tra thông tin đã nhập.')
             );
             if (failure.errorFields?.length)
                 form.scrollToField(failure.errorFields[0].name, {
@@ -123,7 +124,7 @@ const ExpertProtocolQuickBuilder = ({
                 stages: buildQuickTemplateStages(config),
             });
         } catch (failure) {
-            setError(failure.message);
+            setError(getErrorMessage(failure, 'Không thể tạo khẩu phần. Vui lòng kiểm tra thông tin đã nhập.'));
         }
     };
     return (

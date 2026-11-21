@@ -37,6 +37,7 @@ import { fieldValidator, getApiErrorMessage } from '../../utils/formUtils';
 import { adminStyles } from './adminStyles';
 import { adminAccountAPI } from '../../apis';
 import { formatDate } from '../../utils/dateUtils';
+import ErrorState from '../../components/ErrorState';
 
 const { Text, Title } = Typography;
 
@@ -1171,21 +1172,9 @@ const AccountList = () => {
                     />
                 </Flex>
 
-                {error && (
-                    <Alert
-                        className="mx-4 my-3"
-                        type="error"
-                        showIcon
-                        message={error}
-                        action={
-                            <Button size="small" icon={<ReloadOutlined />} onClick={() => loadPage(page, { force: true })}>
-                                Thử lại
-                            </Button>
-                        }
-                    />
-                )}
+                {error && <ErrorState message={error} onRetry={() => loadPage(page, { force: true })} />}
 
-                <Table
+                {!error && <Table
                     dataSource={accounts}
                     columns={columns}
                     rowKey="id"
@@ -1220,7 +1209,7 @@ const AccountList = () => {
                     onRow={(account) => ({
                         onClick: () => openDetail(account),
                     })}
-                />
+                />}
             </div>
 
             <AccountDetailDrawer

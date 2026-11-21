@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
     Badge,
-    Button,
     Card,
     ConfigProvider,
     Empty,
@@ -17,6 +15,9 @@ import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { expertSeasonAPI } from '../../apis';
 import Loading from '../../components/Loading';
+import ErrorState from '../../components/ErrorState';
+import { PROTOCOL_STATUS_LABELS } from '../../constants/productionProtocol';
+import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -30,15 +31,6 @@ const shrimpOptions = [
     { value: 'WHITELEG', label: 'Tôm thẻ chân trắng' },
     { value: 'BLACK_TIGER', label: 'Tôm sú' },
 ];
-const protocolLabels = {
-    DRAFT: 'Bản nháp',
-    PENDING_APPROVAL: 'Chờ duyệt',
-    APPROVED: 'Đang áp dụng',
-    REJECTED: 'Bị từ chối',
-    SUPERSEDED: 'Đã thay thế',
-    CANCELLED: 'Đã hủy',
-    ABORTED: 'Đã dừng',
-};
 const statusTone = {
     ACTIVE: 'bg-[#eaf4ff]! text-[#0f62b4]! [&_.ant-badge-status-dot]:bg-[#1d7ad6]!',
     PLANNING: 'bg-[#efeafc]! text-[#5b3fb8]! [&_.ant-badge-status-dot]:bg-[#7b5bd6]!',
@@ -46,6 +38,9 @@ const statusTone = {
     CANCELLED: 'bg-[#eef1f6]! text-[#475569]! [&_.ant-badge-status-dot]:bg-[#94a3b8]!',
 };
 const protocolTone = {
+    ACTIVE: 'bg-[#e2f6f3]! text-[#0b7a70]! [&_.ant-badge-status-dot]:bg-[#0f9b8e]!',
+    PAUSED: 'bg-[#fbf0dc]! text-[#a1600c]! [&_.ant-badge-status-dot]:bg-[#d98314]!',
+    COMPLETED: 'bg-[#eef1f6]! text-[#475569]! [&_.ant-badge-status-dot]:bg-[#94a3b8]!',
     DRAFT: 'bg-[#eef1f6]! text-[#475569]! [&_.ant-badge-status-dot]:bg-[#94a3b8]!',
     PENDING_APPROVAL: 'bg-[#fbf0dc]! text-[#a1600c]! [&_.ant-badge-status-dot]:bg-[#d98314]!',
     APPROVED: 'bg-[#e2f6f3]! text-[#0b7a70]! [&_.ant-badge-status-dot]:bg-[#0f9b8e]!',
@@ -196,12 +191,11 @@ const ExpertSeasonList = () => {
                 if (controller.signal.aborted) return;
                 setState((current) => ({
                     ...current,
+                    rows: [],
+                    meta: null,
                     loading: false,
                     error:
-                        error.response?.data?.message ||
-                        (error.message === 'Dữ liệu vụ nuôi không hợp lệ.'
-                            ? error.message
-                            : 'Không thể tải danh sách vụ nuôi.'),
+                        getErrorMessage(error, 'Không thể tải danh sách vụ nuôi.'),
                 }));
             });
         return () => controller.abort();
@@ -323,7 +317,7 @@ const ExpertSeasonList = () => {
                         const protocol = season.productionProtocol;
                         return protocol ? (
                             <SeasonPill tone={protocolTone[protocol.status]}>
-                                {protocolLabels[protocol.status] || '—'} v{protocol.versionNo}
+                                {PROTOCOL_STATUS_LABELS[protocol.status] || 'Chưa xác định'} v{protocol.versionNo}
                             </SeasonPill>
                         ) : (
                             <Text className="text-[#6a7994]!">—</Text>
@@ -448,27 +442,10 @@ const ExpertSeasonList = () => {
                         </Flex>
                     </Flex>
                     {state.error && (
-                        <Alert
-                            className="m-4!"
-                            type="error"
-                            showIcon
-                            message={state.error}
-                            action={
-                                <Button
-                                    size="small"
-                                    onClick={() => {
-                                        setState((current) => ({
-                                            ...current,
-                                            loading: true,
-                                            error: null,
-                                        }));
-                                        setRevision((value) => value + 1);
-                                    }}
-                                >
-                                    Thử lại
-                                </Button>
-                            }
-                        />
+                        <ErrorState message={state.error} onRetry={() => {
+                            setState((current) => ({ ...current, loading: true, error: null }));
+                            setRevision((value) => value + 1);
+                        }} />
                     )}
                     {state.loading ? (
                         <Loading className="min-h-90! w-full!" tip="Đang tải danh sách vụ nuôi" />

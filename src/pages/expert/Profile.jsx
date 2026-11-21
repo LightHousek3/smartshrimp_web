@@ -47,6 +47,8 @@ import {
     validatePassword,
     validateVietnamesePhone,
 } from '../../utils/profileRules';
+import ErrorState from '../../components/ErrorState';
+import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -56,11 +58,7 @@ const AVATAR_RULES = Object.freeze({
     urlMaxLength: 2048,
 });
 
-const getErrorMessage = (error, fallback) =>
-    error?.response?.data?.message ||
-    error?.response?.data?.error?.message ||
-    error?.message ||
-    fallback;
+
 
 const isPasswordReuseError = (message = '') => {
     const normalized = message.toLowerCase();
@@ -459,14 +457,7 @@ const Profile = () => {
         return (
             <Flex vertical gap={0} className="w-full! min-w-0!">
                 {heading}
-                <Alert
-                    className="mt-5!"
-                    type="error"
-                    showIcon
-                    message="Không thể tải hồ sơ"
-                    description={loadError}
-                    action={<Button onClick={loadProfile}>Thử lại</Button>}
-                />
+                <ErrorState message={loadError || "Không thể tải hồ sơ"} onRetry={loadProfile} />
             </Flex>
         );
     }
