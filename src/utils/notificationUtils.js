@@ -1,5 +1,39 @@
 export const NOTIFICATION_CHANGED_EVENT = 'smartshrimp:notification-changed';
 
+const LEGACY_CASE_CREATED_CONTENT = 'Tạo ca bệnh thành công.';
+
+/** Personalize legacy case notices without replacing newer or user-authored content. */
+export const enrichDiseaseCaseCreatedNotifications = async (items, getDiseaseCase, signal) => {
+    const cases = new Map();
+
+    return Promise.all(items.map(async (item) => {
+        if (item.type !== 'DISEASE_CASE_CREATED' ||
+            (item.content?.trim() && item.content.trim() !== LEGACY_CASE_CREATED_CONTENT)) {
+            return item;
+        }
+
+        let reporterName;
+        const caseId = item.referenceId?.trim();
+        if (item.referenceType?.trim().toLowerCase() === 'disease_case' && caseId) {
+            if (!cases.has(caseId)) {
+                cases.set(caseId, getDiseaseCase(caseId).catch((error) => {
+                    if (signal?.aborted) throw error;
+                    // Historical notifications remain readable after case access is revoked.
+                    return null;
+                }));
+            }
+            const diseaseCase = await cases.get(caseId);
+            reporterName = diseaseCase?.reporter?.fullName;
+        }
+
+        const name = typeof reporterName === 'string' ? reporterName.trim() : '';
+        return {
+            ...item,
+            content: `Ca bệnh đã được mở bởi kỹ thuật viên${name ? ` ${name}` : ''}.`,
+        };
+    }));
+};
+
 const validOptionalString = (value) => value === null || typeof value === 'string';
 
 const validSummary = (item) =>

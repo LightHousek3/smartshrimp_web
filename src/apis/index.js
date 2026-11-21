@@ -7,6 +7,7 @@ import {
 } from '../utils/protocolTemplateUtils';
 import axios from 'axios';
 import {
+    enrichDiseaseCaseCreatedNotifications,
     parseMarkAllNotificationsRead,
     parseNotificationDetail,
     parseNotificationPage,
@@ -231,6 +232,15 @@ const adminAccountAPI = {
         apiClient.patch(`/admin/accounts/${accountId}/status`, payload),
 };
 
+const personalizeCaseNotifications = (items, signal) => enrichDiseaseCaseCreatedNotifications(
+    items,
+    async (caseId) => {
+        const response = await expertDiseaseCaseAPI.detail(encodeURIComponent(caseId), signal);
+        return response.data.data;
+    },
+    signal,
+);
+
 const notificationAPI = {
     getReferenceContext: async (notificationId, signal) => {
         const response = await apiClient.get(
@@ -248,7 +258,8 @@ const notificationAPI = {
             params,
             signal,
         });
-        return parseNotificationPage(response.data);
+        const page = parseNotificationPage(response.data);
+        return { ...page, items: await personalizeCaseNotifications(page.items, signal) };
     },
     /**
      * GET /notifications/:notificationId
@@ -261,7 +272,9 @@ const notificationAPI = {
                 signal,
             },
         );
-        return parseNotificationDetail(response.data);
+        const item = parseNotificationDetail(response.data);
+        const [personalized] = await personalizeCaseNotifications([item], signal);
+        return personalized;
     },
     /**
      * PATCH /notifications/read-all
