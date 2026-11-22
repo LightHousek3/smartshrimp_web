@@ -395,7 +395,6 @@ const AccountDetailDrawer = ({ accountId, open, onClose, onStatusChange, onAccou
                         size="small"
                         colon={false}
                     >
-                        <Descriptions.Item label="Mã tài khoản">{account.id}</Descriptions.Item>
                         <Descriptions.Item label="Số điện thoại">
                             {account.phone || '—'}
                         </Descriptions.Item>
