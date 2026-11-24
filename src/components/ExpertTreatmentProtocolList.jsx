@@ -12,7 +12,7 @@ const ExpertTreatmentProtocolList = ({ rows, onView, disabled = false }) => !row
         <div className={styles.versionNumber}>v{row.versionNo}</div>
         <div className="min-w-0 flex-1">
             <Space wrap><Typography.Text strong className="text-[13px]!">{row.title}</Typography.Text>
-                <Tag className={styles.pill} color={PROTOCOL_STATUS_COLORS[row.status]}>{PROTOCOL_STATUS_LABELS[row.status] || row.status}</Tag>
+                <Tag className={styles.pill} color={PROTOCOL_STATUS_COLORS[row.status]}>{PROTOCOL_STATUS_LABELS[row.status] || 'Không xác định'}</Tag>
             </Space>
             {row.diseaseCase && <Typography.Paragraph type="secondary" className="mb-0! mt-0.5! text-xs!">
                 Ca bệnh: {row.diseaseCase.title}

@@ -148,7 +148,7 @@ const RoleTag = ({ role }) => (
         className="me-0! rounded-full! border-0! text-[11px]! leading-[21px]!"
         color={ROLE_COLORS[role] || 'default'}
     >
-        {ROLE_LABELS[role] || role}
+        {ROLE_LABELS[role] || 'Không xác định'}
     </Tag>
 );
 

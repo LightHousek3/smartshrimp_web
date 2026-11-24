@@ -25,6 +25,7 @@ import {
     getTemplatePhases,
     templateMetricTone,
 } from '../utils/protocolTemplateUtils';
+import { executionTimeRange, mealExecutionWindow } from '../utils/protocolTiming';
 import ProtocolProductImages from './ProtocolProductImages';
 import ErrorState from './ErrorState';
 import { getErrorMessage } from '../utils/errorMessage.js';
@@ -77,7 +78,7 @@ const ProductChip = ({ item }) => (
             item.instructions,
             item.product.recommendationReason,
             item.product.isRecommendation
-                ? 'Vật tư đề xuất: Owner cần tạo sản phẩm và nhập kho trước khi duyệt phác đồ áp dụng.'
+                ? 'Vật tư đề xuất cần được Chủ trại tạo và nhập kho trước khi duyệt phác đồ áp dụng.'
                 : null,
         ]
             .filter(Boolean)
@@ -268,7 +269,7 @@ const PhaseCard = ({ phase, index }) => (
                 gap={12}
                 className={`min-h-15.5! border-b! border-[#eef1f7]! px-4! py-2.5! last:border-b-0! max-[500px]:flex-col! ${row.isEnvironment ? 'bg-[#f3fafa]!' : ''}`}
             >
-                <Flex vertical gap={0} className="w-22! shrink-0!">
+                <Flex vertical gap={0} className="w-32! shrink-0!">
                     <Text
                         className={`text-xs! font-semibold! leading-4.5! ${row.isEnvironment ? 'text-[#0f9b8e]!' : 'text-[#0f1c2e]!'}`}
                     >
@@ -283,7 +284,7 @@ const PhaseCard = ({ phase, index }) => (
                     <Text
                         className={`text-xs! leading-4.5! ${monoClassName} ${mutedClassName}`}
                     >
-                        {row.plannedTime ?? '—'}
+                        {executionTimeRange(row.plannedTime, mealExecutionWindow(row))}
                     </Text>
                 </Flex>
                 <Flex wrap align="center" gap={6} className="min-w-0! flex-1!">

@@ -466,7 +466,7 @@ const ExpertCaseDetail = ({ caseId }) => {
                                 {caseData.reporter?.fullName?.split(' ').filter(Boolean).slice(-1)[0]?.[0]?.toUpperCase() || 'K'}
                             </Avatar>
                             <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6a7994]">
-                                Mô tả của KTV {caseData.reporter?.fullName ? `· ${caseData.reporter.fullName}` : ''}
+                                Mô tả của Kỹ thuật viên {caseData.reporter?.fullName ? `· ${caseData.reporter.fullName}` : ''}
                             </span>
                         </div>
                         <p className="m-0 text-[13px] text-[#0f1c2e] leading-relaxed">
@@ -604,7 +604,7 @@ const ExpertCaseDetail = ({ caseId }) => {
                                 onChange={(e) => setResponseMessage(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 maxLength={500}
-                                placeholder="Nhập nội dung trao đổi với KTV… (Ctrl + Enter để gửi)"
+                                placeholder="Nhập nội dung trao đổi với Kỹ thuật viên… (Ctrl + Enter để gửi)"
                             />
 
                             <div className="flex items-center justify-between mt-2.5">
@@ -699,7 +699,7 @@ const ExpertCaseDetail = ({ caseId }) => {
                             {caseData.title} <SeverityTag s={caseData.severity} /> <CaseTag s={caseData.status} />
                         </span>
                     }
-                    description={`${caseData.season?.name || 'Vụ nuôi'} — ${caseData.season?.pond?.name || 'Ao'} · DOC ${snapshot.doc || '—'} khi báo · KTV ${caseData.reporter?.fullName || '—'} · tạo ${fmtDateTime(caseData.createdAt)}`}
+                    description={`${caseData.season?.name || 'Vụ nuôi'} — ${caseData.season?.pond?.name || 'Ao'} · DOC ${snapshot.doc || '—'} khi báo · Kỹ thuật viên ${caseData.reporter?.fullName || '—'} · tạo ${fmtDateTime(caseData.createdAt)}`}
                     extra={
                         !isResolved && (<>
                             {caseData.care?.available && <Button onClick={openCare}>Quyết định chăm sóc</Button>}

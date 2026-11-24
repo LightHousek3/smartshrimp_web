@@ -5,6 +5,7 @@ import {
     assertMaterialDailyIncrement,
 } from './protocolTemplateUtils.js';
 import { proposalMissingFields, templateMaterialSelectionError } from './materialCompliance.js';
+import { mealExecutionWindow } from './protocolTiming.js';
 import { PROTOCOL_TIMING } from '../constants/productionProtocol.js';
 
 const key = () => crypto.randomUUID();
@@ -81,6 +82,7 @@ export const protocolToEditorStages = (detail) =>
                     key: meal.id || key(),
                     id: meal.id,
                     time: meal.plannedTime,
+                    dueAtMinutes: mealExecutionWindow({ items }),
                     items,
                 });
         }
@@ -105,6 +107,7 @@ const decimal = (value) =>
 export const copyEditorMeal = (meal, time) => ({
     key: key(),
     time,
+    dueAtMinutes: mealExecutionWindow(meal),
     items: meal.items.map((item) => {
         const copy = structuredClone(item);
         for (const field of ['id', 'originalMealId']) delete copy[field];
@@ -219,7 +222,9 @@ export const editorProtocolPayload = (
                             id: meal.id,
                             mealNumber: index + 1,
                             plannedTime: meal.time,
-                            items: meal.items.flatMap((item) => toItems(item, stage)),
+                            items: meal.items.flatMap((item) =>
+                                toItems({ ...item, dueAtMinutes: mealExecutionWindow(meal) }, stage),
+                            ),
                         })),
                         ...environmentGroups.map(({ id, mealNumber, plannedTime, items }) => ({
                             id,
@@ -240,8 +245,6 @@ export const editorProtocolPayload = (
         const items = body.stages.flatMap((stage) => stage.meals.flatMap((meal) => meal.items));
         if (!items.some((item) => item.firstDayOffset === 0))
             throw new Error('Ngày điều trị 1 cần ít nhất một lần thực hiện từ mốc bắt đầu.');
-        if (items.some((item) => item.dueAtMinutes == null))
-            throw new Error('Nhập khoảng thực hiện cho từng vật tư trước khi gửi duyệt.');
     }
     return body;
 };
@@ -295,6 +298,7 @@ export const copyEditorStage = (source, startDay) => {
         meals: source.meals.map((meal) => ({
             key: key(),
             time: meal.time,
+            dueAtMinutes: mealExecutionWindow(meal),
             items: meal.items.map(copyItem).filter((item) => item.firstDay <= endDay),
         })),
         environment: source.environment.map(copyItem).filter((item) => item.firstDay <= endDay),

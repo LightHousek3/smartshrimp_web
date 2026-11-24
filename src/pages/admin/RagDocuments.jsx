@@ -190,9 +190,9 @@ export default function RagDocuments() {
             <Switch size="small" checked={row.isActive && row.status === 'READY'} disabled={row.status !== 'READY' || !!pendingAction}
                 loading={pendingAction === row.id} onChange={(value) => toggle(row, value)} aria-label={`Cho phép AI dùng ${row.title}`} /></Tooltip> },
         { title: 'Người tải', key: 'uploader', width: 110, ...columnFilterProps,
-            filters: [...new Set(rows.map((row) => row.uploader?.fullName || 'Admin'))].map((value) => ({ text: value, value })),
-            onFilter: (value, row) => (row.uploader?.fullName || 'Admin') === value,
-            render: (_, row) => row.uploader?.fullName || 'Admin' },
+            filters: [...new Set(rows.map((row) => row.uploader?.fullName || 'Quản trị viên'))].map((value) => ({ text: value, value })),
+            onFilter: (value, row) => (row.uploader?.fullName || 'Quản trị viên') === value,
+            render: (_, row) => row.uploader?.fullName || 'Quản trị viên' },
         { title: 'Ngày tải', dataIndex: 'createdAt', width: 170, render: date },
         { title: 'Hành động', key: 'actions', width: 100, fixed: 'right', render: (_, row) => <Space size={6} className="flex">
             <Tooltip title="Xem chi tiết"><Button className={adminStyles.iconButton} shape="circle" size="small" aria-label={`Xem ${row.title}`} disabled={!!pendingAction} onClick={() => openDetail(row)} icon={<Icon name="imgIconReact14" />} /></Tooltip>
@@ -256,7 +256,7 @@ export default function RagDocuments() {
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#eef1f7] p-4"><span className="text-[#6a7994]">Trạng thái: <Status value={detail.status} errorCode={detail.errorCode} /></span><Space>Cho phép AI dùng <Switch checked={detail.isActive && detail.status === 'READY'} disabled={detail.status !== 'READY' || !!pendingAction} onChange={(value) => toggle(detail, value)} aria-label="Cho phép AI dùng tài liệu" /></Space></div>
                 <Descriptions className={adminStyles.descriptions} bordered size="small" column={2} items={[
                     { key: 'file', label: 'Tên file', children: detail.originalFilename }, { key: 'size', label: 'Dung lượng', children: size(detail.fileSize) },
-                    { key: 'category', label: 'Danh mục', children: detail.category || '—' }, { key: 'uploader', label: 'Người tải lên', children: detail.uploader?.fullName || 'Admin' },
+                    { key: 'category', label: 'Danh mục', children: detail.category || '—' }, { key: 'uploader', label: 'Người tải lên', children: detail.uploader?.fullName || 'Quản trị viên' },
                     { key: 'created', label: 'Ngày tạo', children: date(detail.createdAt) }, { key: 'indexed', label: 'Index xong', children: date(detail.indexedAt) },
                     { key: 'chunks', label: 'Số chunks', children: detail.status === 'READY' ? detail.chunkCount : '—' }, { key: 'type', label: 'Định dạng', children: detail.originalFilename.split('.').at(-1).toUpperCase() },
                 ]} />

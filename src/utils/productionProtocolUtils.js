@@ -233,7 +233,7 @@ export const protocolPayload = (values, revision, season) => {
                             ),
                             dueAtMinutes: executionWindowMinutes(
                                 item.dueAtMinutes,
-                                `${itemLabel} khoảng thực hiện`,
+                                `${meal.mealNumber == null ? itemLabel : mealLabel} khoảng thực hiện`,
                             ),
                             recommendedManufacturerId: item.recommendedManufacturerId ?? null,
                             recommendedProductDetails: item.recommendedProductDetails?.proposed

@@ -437,7 +437,7 @@ const DiseaseCaseList = ({ seasonId }) => {
                         Ca bệnh được giao
                     </Title>
                     <Paragraph className="mb-0! mt-1! text-[13px]! leading-5.25! text-[#6a7994]!">
-                        Ưu tiên theo mức độ nghiêm trọng. “Cần phản hồi” là các ca mà tin nhắn cuối đến từ KTV hoặc chưa có đánh giá của bạn.
+                        Ưu tiên theo mức độ nghiêm trọng. “Cần phản hồi” là các ca mà tin nhắn cuối đến từ Kỹ thuật viên hoặc chưa có đánh giá của bạn.
                     </Paragraph>
                 </Flex>}
 
@@ -450,7 +450,7 @@ const DiseaseCaseList = ({ seasonId }) => {
                         <Input
                             allowClear
                             prefix={<SearchOutlined className="text-[13px] text-[#8796ae]" />}
-                            placeholder="Mã ca, tiêu đề, ao, KTV…"
+                            placeholder="Mã ca, tiêu đề, ao, kỹ thuật viên…"
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             className="h-full! w-64! min-w-0! max-w-full! shrink-0! rounded-[10px]! border-[#e5e8f0]! px-2.75! py-1.625! text-[13px]! [&_.ant-input]:text-[13px]!"

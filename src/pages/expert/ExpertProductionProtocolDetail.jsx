@@ -1,3 +1,4 @@
+import { executionTimeRange, mealExecutionWindow } from '../../utils/protocolTiming';
 import {
     Alert,
     Badge,
@@ -310,8 +311,9 @@ const ExpertProductionProtocolDetail = ({
                                                                     : `Cữ ${meal.mealNumber}`}
                                                             </Typography.Text>
                                                             <div className={styles.mono}>
-                                                                {meal.plannedTime?.slice(0, 5) ||
-                                                                    'Chưa đặt giờ'}
+                                                                {meal.mealNumber == null
+                                                                    ? meal.plannedTime?.slice(0, 5) || 'Chưa đặt giờ'
+                                                                    : executionTimeRange(meal.plannedTime, mealExecutionWindow(meal))}
                                                             </div>
                                                         </div>
                                                         <div className={styles.viewChips}>
@@ -427,8 +429,9 @@ const ExpertProductionProtocolDetail = ({
                                                                                     1}
                                                                             </Tag>
                                                                         )}
-                                                                        {item.dueAtMinutes !=
-                                                                            null && (
+                                                                        {item.dueAtMinutes != null &&
+                                                                            (meal.mealNumber == null ||
+                                                                                meal.items.some((entry) => entry.dueAtMinutes !== item.dueAtMinutes)) && (
                                                                             <Tag>
                                                                                 Khoảng thực hiện:{' '}
                                                                                 {item.dueAtMinutes}{' '}
@@ -475,7 +478,7 @@ const ExpertProductionProtocolDetail = ({
                                                     level={5}
                                                     className="mt-6! text-sm!"
                                                 >
-                                                    Lịch sử trạng thái
+                                                    Lịch sử phác đồ
                                                 </Typography.Title>
                                                 <Timeline
                                                     items={detail.statusHistory.map((entry) => ({
@@ -483,9 +486,10 @@ const ExpertProductionProtocolDetail = ({
                                                         children: (
                                                             <>
                                                                 <Typography.Text>
-                                                                    {PROTOCOL_STATUS_LABELS[
-                                                                        entry.toStatus
-                                                                    ] || entry.toStatus}
+                                                                    {entry.fromStatus === entry.toStatus
+                                                                        ? entry.eventLabel || 'Sự kiện phác đồ'
+                                                                        : PROTOCOL_STATUS_LABELS[entry.toStatus] ||
+                                                                          'Không xác định'}
                                                                 </Typography.Text>
                                                                 <Typography.Paragraph
                                                                     className="mb-0! text-xs!"
