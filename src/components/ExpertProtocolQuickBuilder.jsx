@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { PROTOCOL_TIMING } from '../constants/productionProtocol';
 import { buildQuickTemplateStages } from '../utils/protocolQuickBuilder';
 import ExpertProtocolMaterialPicker from './ExpertProtocolMaterialPicker';
 import ProtocolNumberInput from './ProtocolNumberInput';
@@ -86,6 +87,7 @@ const ExpertProtocolQuickBuilder = ({
         meals: values.meals.map((meal) => ({
             ...meal,
             time: meal.time?.format('HH:mm') ?? '',
+            dueAtMinutes: meal.dueAtMinutes,
         })),
     });
     const appendPhase = async (add) => {
@@ -173,6 +175,7 @@ const ExpertProtocolQuickBuilder = ({
                     meals: defaultProtocolMeals(shrimpType).map((meal) => ({
                         ...meal,
                         time: dayjs(`2000-01-01T${meal.time}:00`),
+                        dueAtMinutes: PROTOCOL_TIMING.defaultMinutes,
                     })),
                     phases: [
                         suggestQuickPhase(shrimpType, referencePostCount, [], initialStartDay),
@@ -229,19 +232,20 @@ const ExpertProtocolQuickBuilder = ({
                     {(fields, { add, remove }) => (
                         <>
                             <div
-                                className="mb-2 grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] gap-3 text-xs text-[#6a7994]"
+                                className="mb-2 grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] gap-3 text-xs text-[#6a7994]"
                                 aria-hidden="true"
                             >
                                 <span>Cữ</span>
                                 <span>Giờ ăn</span>
                                 <span>DOC 1–29 (%)</span>
                                 <span>Từ DOC 30 (%)</span>
+                                <span>Hạn (phút)</span>
                                 <span />
                             </div>
                             {fields.map((field, index) => (
                                 <div
                                     key={field.key}
-                                    className="mb-3 grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-start gap-3"
+                                    className="mb-3 grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-start gap-3"
                                 >
                                     <Text className="leading-9!">
                                         Cữ {index + 1}
@@ -308,6 +312,16 @@ const ExpertProtocolQuickBuilder = ({
                                             className="w-full!"
                                         />
                                     </Form.Item>
+                                    <Form.Item name={[field.name, 'dueAtMinutes']} className="mb-0!">
+                                        <ProtocolNumberInput
+                                            aria-label={`Khoảng thực hiện cữ ${index + 1} (phút)`}
+                                            min={PROTOCOL_TIMING.minMinutes}
+                                            max={PROTOCOL_TIMING.maxMinutes}
+                                            precision={0}
+                                            placeholder={String(PROTOCOL_TIMING.defaultMinutes)}
+                                            className="w-full!"
+                                        />
+                                    </Form.Item>
                                     <Button
                                         aria-label={`Xóa cữ ${index + 1}`}
                                         icon={<DeleteOutlined />}
@@ -322,6 +336,7 @@ const ExpertProtocolQuickBuilder = ({
                                 disabled={fields.length >= 12}
                                 onClick={() =>
                                     add({
+                                        dueAtMinutes: PROTOCOL_TIMING.defaultMinutes,
                                         sharePct: null,
                                         growoutSharePct: null,
                                     })

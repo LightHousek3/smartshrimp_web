@@ -60,6 +60,7 @@ import {
     copyEditorMeal,
 } from '../utils/protocolAuthoringAdapter';
 import { treatmentStartError } from '../utils/productionProtocolUtils';
+import { executionTimeRange, mealExecutionWindow } from '../utils/protocolTiming';
 import { PROTOCOL_TIMING } from '../constants/productionProtocol';
 import InputNumber from './ProtocolNumberInput';
 import ExpertProtocolQuickBuilder from './ExpertProtocolQuickBuilder';
@@ -76,7 +77,12 @@ const iconClass = 'size-6.75! min-w-6.75! rounded-full! p-0! text-[13px]! text-[
 const primaryButton =
     'h-9! border-0! bg-linear-to-r! from-[#77a1d3]! to-[#79cbca]! px-4! text-white!';
 const key = () => crypto.randomUUID();
-const newMeal = (time) => ({ key: key(), time, items: [] });
+const newMeal = (time) => ({
+    key: key(),
+    time,
+    dueAtMinutes: PROTOCOL_TIMING.defaultMinutes,
+    items: [],
+});
 const clockValue = (time) => (time ? dayjs(`2000-01-01T${time}`) : null);
 /** Create a local editor item with default dose settings and a new item identity. */
 const newMaterial = (product) => ({
@@ -311,23 +317,25 @@ const MaterialRow = ({
                 danger
                 onClick={onDelete}
             />
-            <Flex gap={6} align="center" className="basis-full! pl-16! max-sm:pl-0!">
-                <Text className="text-xs!">Khoảng thực hiện (phút)</Text>
-                <InputNumber
-                    min={PROTOCOL_TIMING.minMinutes}
-                    max={PROTOCOL_TIMING.maxMinutes}
-                    precision={0}
-                    size="small"
-                    value={item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes}
-                    onChange={(dueAtMinutes) =>
-                        onChange({
-                            ...item,
-                            dueAtMinutes: dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes,
-                        })
-                    }
-                    aria-label={`Khoảng thực hiện ${item.product.name}`}
-                />
-            </Flex>
+            {environment && (
+                <Flex gap={6} align="center" className="basis-full! pl-16! max-sm:pl-0!">
+                    <Text className="text-xs!">Khoảng thực hiện (phút)</Text>
+                    <InputNumber
+                        min={PROTOCOL_TIMING.minMinutes}
+                        max={PROTOCOL_TIMING.maxMinutes}
+                        precision={0}
+                        size="small"
+                        value={item.dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes}
+                        onChange={(dueAtMinutes) =>
+                            onChange({
+                                ...item,
+                                dueAtMinutes: dueAtMinutes ?? PROTOCOL_TIMING.defaultMinutes,
+                            })
+                        }
+                        aria-label={`Khoảng thực hiện ${item.product.name}`}
+                    />
+                </Flex>
+            )}
             {canIncrease && linearDaily && (
                 <Flex gap={6} align="center" wrap className="basis-full! pb-1! pl-16! max-sm:pl-0!">
                     <Tooltip title="Mức tăng lượng mỗi cữ mỗi ngày. Tổng mức tăng cả ngày bằng tổng mức tăng các cữ.">
@@ -678,6 +686,14 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 };
             }),
         );
+    const updateMeal = (stageKey, mealKey, changes) =>
+        updateStage(stageKey, (stage) => ({
+            ...stage,
+            meals: stage.meals.map((meal) =>
+                meal.key === mealKey ? { ...meal, ...changes } : meal,
+            ),
+        }));
+
     /** Update the selected meal or environment item without replacing unrelated stage content. */
     const updateItem = (target, changes) =>
         updateStage(target.stageKey, (stage) =>
@@ -1650,19 +1666,31 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                                                         aria-label={`Giờ cữ ${mealIndex + 1} giai đoạn ${index + 1}`}
                                                         className="w-26!"
                                                         onChange={(_, time) =>
-                                                            updateStage(stage.key, (current) => ({
-                                                                ...current,
-                                                                meals: current.meals.map((entry) =>
-                                                                    entry.key === meal.key
-                                                                        ? {
-                                                                              ...entry,
-                                                                              time,
-                                                                          }
-                                                                        : entry,
-                                                                ),
-                                                            }))
+                                                            updateMeal(stage.key, meal.key, { time })
                                                         }
                                                     />
+                                                    <label className="mt-1 text-xs">
+                                                        Khoảng thực hiện (phút)
+                                                        <InputNumber
+                                                            size="small"
+                                                            disabled={saving}
+                                                            min={PROTOCOL_TIMING.minMinutes}
+                                                            max={PROTOCOL_TIMING.maxMinutes}
+                                                            precision={0}
+                                                            className="mt-1! w-full!"
+                                                            value={mealExecutionWindow(meal)}
+                                                            onChange={(minutes) =>
+                                                                updateMeal(stage.key, meal.key, {
+                                                                    dueAtMinutes: minutes ?? PROTOCOL_TIMING.defaultMinutes,
+                                                                })
+                                                            }
+                                                        />
+                                                    </label>
+                                                    {meal.time && (
+                                                        <Text className={muted}>
+                                                            {executionTimeRange(meal.time, mealExecutionWindow(meal))}
+                                                        </Text>
+                                                    )}
                                                 </Flex>
                                                 <Flex vertical gap={6} className="min-w-0! flex-1!">
                                                     {meal.items.map((item) =>

@@ -44,7 +44,7 @@ const ProtocolExecutionTable = ({ rows = [], asOf, coverage, treatmentStartAt })
     ];
     return <>
         <Space wrap className="mb-4">
-            <Input aria-label="Tìm dữ liệu thực hiện" placeholder="Vật tư, KTV, lý do…" value={search}
+            <Input aria-label="Tìm dữ liệu thực hiện" placeholder="Vật tư, kỹ thuật viên, lý do…" value={search}
                 onChange={event => { setSearch(event.target.value); setPage(1); }} allowClear />
             <Select aria-label="Lọc thực hiện" value={kind} options={options} className="min-w-44"
                 onChange={value => { setKind(value); setPage(1); }} />

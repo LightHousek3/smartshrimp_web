@@ -1,5 +1,6 @@
 import { getMaterialDoseUnits } from './protocolTemplateUtils.js';
 
+import { executionWindowMinutes } from './protocolTiming.js';
 import { divideDailyDose } from './protocolDoseAllocation.js';
 
 /** Expand Expert-entered phases into per-meal rules without prescribing products or biological rates. */
@@ -144,6 +145,7 @@ export const buildQuickTemplateStages = ({
             meals: meals.map((meal, index) => ({
                 key: crypto.randomUUID(),
                 time: meal.time,
+                dueAtMinutes: executionWindowMinutes(meal.dueAtMinutes),
                 items: [
                     {
                         key: crypto.randomUUID(),

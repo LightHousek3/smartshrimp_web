@@ -69,7 +69,7 @@ export async function exportDashboardToExcel({
 }) {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'SmartShrimp System';
-    workbook.lastModifiedBy = 'Admin';
+    workbook.lastModifiedBy = 'Quản trị viên';
     workbook.created = new Date();
     workbook.modified = new Date();
 
@@ -129,7 +129,7 @@ export async function exportDashboardToExcel({
     const fromStr = filters.from ? dayjs(filters.from).format('DD/MM/YYYY') : dayjs().subtract(6, 'day').format('DD/MM/YYYY');
     const toStr = filters.to ? dayjs(filters.to).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
     const headerMeta = ws.getCell('B3');
-    headerMeta.value = `BÁO CÁO TỔNG QUAN HỆ THỐNG   |   Kỳ dữ liệu: ${fromStr} - ${toStr}   |   Xuất lúc: ${dayjs().format('DD/MM/YYYY HH:mm')}   |   Người xuất: Quản trị viên (Admin)`;
+    headerMeta.value = `BÁO CÁO TỔNG QUAN HỆ THỐNG   |   Kỳ dữ liệu: ${fromStr} - ${toStr}   |   Xuất lúc: ${dayjs().format('DD/MM/YYYY HH:mm')}   |   Người xuất: Quản trị viên`;
     headerMeta.font = { name: 'Segoe UI', size: 9.5, italic: true, color: { argb: 'FFE2E8F0' } };
     headerMeta.alignment = { horizontal: 'center', vertical: 'middle' };
     headerMeta.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.NAVY_SUBTLE } };

@@ -399,7 +399,7 @@ const MaterialRecommendation = ({
                 <Input.TextArea
                     rows={3}
                     maxLength={500}
-                    placeholder="Lý do lựa chọn vật tư, điều kiện sử dụng và lưu ý cần Owner kiểm tra…"
+                    placeholder="Lý do lựa chọn vật tư, điều kiện sử dụng và lưu ý cần Chủ trại kiểm tra…"
                 />
             </Form.Item>
             <Flex justify="end" gap={8}>

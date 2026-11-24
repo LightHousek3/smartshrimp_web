@@ -70,7 +70,7 @@ const ProfileDetails = () => {
     }
 
     const { profile } = result;
-    const fullName = profile.fullName?.trim() || 'Admin';
+    const fullName = profile.fullName?.trim() || 'Quản trị viên';
     const details = [
         { label: 'Họ và tên', icon: <UserOutlined aria-hidden="true" />, value: fullName },
         { label: 'Tham gia hệ thống từ', icon: <CalendarOutlined aria-hidden="true" />, value: formatDate(profile.createdAt, 'MMMM yyyy') || 'Chưa cập nhật' },

@@ -10,7 +10,7 @@ import {
 } from './protocolAuthoringDefaults.js';
 import { divideDailyDose } from './protocolDoseAllocation.js';
 import { PROTOCOL_TIMING } from '../constants/productionProtocol.js';
-import { executionWindowMinutes } from './protocolTiming.js';
+import { executionWindowMinutes, mealExecutionWindow } from './protocolTiming.js';
 const invalidDataMessage = 'Dữ liệu phác đồ mẫu không hợp lệ.';
 const isInteger = (value, minimum) =>
     Number.isInteger(value) && value >= minimum;
@@ -414,7 +414,9 @@ const mergeEditorStages = (left, right) => {
         for (const meal of stage.meals) {
             if (!meals.has(meal.time))
                 meals.set(meal.time, { ...meal, items: [] });
-            const entries = meals.get(meal.time).items;
+            const target = meals.get(meal.time);
+            if (target.dueAtMinutes !== meal.dueAtMinutes) return null;
+            const entries = target.items;
             for (const original of meal.items) {
                 const item = {
                     ...original,
@@ -439,7 +441,6 @@ const mergeEditorStages = (left, right) => {
                     existing.doseBasis !== item.doseBasis ||
                     existing.doseUnit !== item.doseUnit ||
                     existing.instructions !== item.instructions ||
-                    existing.dueAtMinutes !== item.dueAtMinutes ||
                     increment !== (item.dailyDoseIncrement ?? 0) ||
                     Math.abs(
                         existing.doseValue + increment *
@@ -559,7 +560,10 @@ export const getTemplateEditorStages = (items) => {
                             time: item.plannedTime,
                             items: [],
                         });
-                    const mealItems = meals.get(item.plannedTime).items;
+                    const meal = meals.get(item.plannedTime);
+                    meal.dueAtMinutes = Math.max(meal.dueAtMinutes ?? 0, material.dueAtMinutes);
+                    delete material.dueAtMinutes;
+                    const mealItems = meal.items;
                     const matching = mealItems.find(
                         (entry) =>
                             (entry.product.id ?? entry.product.name) ===
@@ -900,7 +904,10 @@ export const buildTemplateCreatePayload = (values, stages) => {
                             throw new Error(
                                 'DOC bắt đầu và chu kỳ của vật tư trong cữ không hợp lệ.'
                             );
-                        return mapMaterial(item, applicationDays[0] ?? firstDay);
+                        return mapMaterial(
+                            { ...item, dueAtMinutes: mealExecutionWindow(meal) },
+                            applicationDays[0] ?? firstDay,
+                        );
                     }),
                 };
             }),
