@@ -64,7 +64,7 @@ const AdminLayout = () => {
     return (
         <>
             <PortalLayout
-                portalLabel="ADMIN PORTAL"
+                portalLabel="CỔNG QUẢN TRỊ VIÊN"
                 menuItems={adminMenuItems}
                 brandLogo="/assets/rag/list/imgSidebar.png"
                 logoutIcon={sidebarIcon('imgIconReact3', 13)}
