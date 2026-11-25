@@ -592,6 +592,15 @@ const adminDashboardAPI = {
         const response = await apiClient.get('/admin/dashboard', { signal });
         return response.data?.data || {};
     },
+
+    /**
+     * GET /admin/dashboard/services-health
+     * Check live health status of AI diagnosis and RAG services
+     */
+    getServicesHealth: async (signal) => {
+        const response = await apiClient.get('/admin/dashboard/services-health', { signal });
+        return response.data?.data || { checkedAt: null, services: [] };
+    },
 };
 
 /* ─── Exports ───────────────────────────────────────────────── */
