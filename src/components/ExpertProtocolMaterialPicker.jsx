@@ -37,6 +37,10 @@ import ProductComplianceFields from './ProductComplianceFields';
 import {
     editableCompliance,
     proposalMissingFields,
+    proposedManufacturerNameError,
+    supplierNameKey,
+    supplierPhoneError,
+    supplierPhoneInputLimit,
     uniqueTemplateProposals,
     materialCategoryFits as categoryFits,
     templateMaterialSelectionError,
@@ -66,6 +70,7 @@ const MaterialRecommendation = ({
     production,
     initialValues,
     manufacturers,
+    reservedSupplierNames,
     onSelect,
     onBack,
 }) => {
@@ -282,7 +287,17 @@ const MaterialRecommendation = ({
                     <Form.Item
                         name={['manufacturer', 'name']}
                         label="Tên nhà sản xuất đề xuất"
-                        rules={[{ required: true, whitespace: true, max: 255 }]}
+                        rules={[
+                            { required: true, whitespace: true, max: 255 },
+                            {
+                                validator: async (_, value) => {
+                                    const error = proposedManufacturerNameError(
+                                        value, reservedSupplierNames, manufacturers,
+                                    );
+                                    if (error) throw new Error(error);
+                                },
+                            },
+                        ]}
                     >
                         <Input maxLength={255} />
                     </Form.Item>
@@ -304,11 +319,33 @@ const MaterialRecommendation = ({
                             ]}
                         />
                     </Form.Item>
+                    <Form.Item
+                        name={['manufacturer', 'phone']}
+                        label="Số điện thoại"
+                        rules={[{
+                            required: true,
+                            validator: async (_, value) => {
+                                const error = supplierPhoneError(value);
+                                if (error) throw new Error(error);
+                            },
+                        }]}
+                    >
+                        <Input
+                            type="tel"
+                            maxLength={supplierPhoneInputLimit}
+                            placeholder="090 123 4567 hoặc +1 202 555 0123"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name={['manufacturer', 'address']}
+                        label="Địa chỉ"
+                        rules={[{ required: true, whitespace: true, max: 1000 }]}
+                    >
+                        <Input maxLength={1000} />
+                    </Form.Item>
                     {[
                         ['contactName', 'Người liên hệ', 255],
-                        ['phone', 'Điện thoại', 20],
                         ['email', 'Email', 320],
-                        ['address', 'Địa chỉ', 1000],
                         ['note', 'Ghi chú', 2000],
                     ].map(([field, label, max]) => (
                         <Form.Item
@@ -321,7 +358,8 @@ const MaterialRecommendation = ({
                                     ? [
                                           {
                                               type: 'email',
-                                              message: 'Anh/chị nhập email hợp lệ.',
+                                              transform: (value) => value?.trim(),
+                                              message: 'Email không hợp lệ.',
                                           },
                                       ]
                                     : []),
@@ -422,6 +460,7 @@ const ExpertProtocolMaterialPicker = ({
     production = true,
     farm,
     manufacturers = [],
+    reservedSupplierNames = manufacturers.map(({ name }) => supplierNameKey(name)),
     environment = false,
     initialRecommendation,
     proposedMaterials = [],
@@ -691,6 +730,7 @@ const ExpertProtocolMaterialPicker = ({
                             environment={environment}
                             initialValues={initialRecommendation}
                             manufacturers={manufacturers}
+                            reservedSupplierNames={reservedSupplierNames}
                             onSelect={onSelect}
                             onBack={() => setTab('warehouse')}
                         />

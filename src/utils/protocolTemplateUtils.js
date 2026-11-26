@@ -331,7 +331,10 @@ export const parseTemplateCreationOptions = (response) => {
     if (
         response?.success !== true ||
         !Array.isArray(response.data?.farms) ||
-        !response.data.farms.every(isFarm)
+        !response.data.farms.every(isFarm) ||
+        (response.data.reservedSupplierNames !== undefined &&
+            (!Array.isArray(response.data.reservedSupplierNames) ||
+                !response.data.reservedSupplierNames.every((name) => typeof name === 'string')))
     ) {
         throw new Error(invalidDataMessage);
     }
