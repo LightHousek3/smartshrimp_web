@@ -39,6 +39,7 @@ import {
 import dayjs from 'dayjs';
 import { adminStyles } from './adminStyles';
 import { adminDashboardAPI } from '../../apis/index.js';
+import AdminServicesHealthCard from '../../components/AdminServicesHealthCard.jsx';
 import { exportDashboardToExcel } from '../../utils/dashboardExport.js';
 import ErrorState from '../../components/ErrorState';
 import { getErrorMessage } from '../../utils/errorMessage.js';
@@ -508,6 +509,9 @@ export default function Dashboard() {
                     </Col>
                 ))}
             </Row>
+
+            {/* Live health check for AI diagnosis and RAG services */}
+            <AdminServicesHealthCard />
 
             {/* Charts */}
             <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
