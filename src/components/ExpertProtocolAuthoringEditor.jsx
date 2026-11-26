@@ -1826,6 +1826,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 <ExpertProtocolMaterialPicker
                     proposedMaterials={templateProposals(stages)}
                     manufacturers={options.manufacturers ?? []}
+                    reservedSupplierNames={options.reservedSupplierNames}
                     farm={selectedFarm}
                     environment={!picker.mealKey}
                     production={!treatment}
@@ -1839,6 +1840,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                     proposedMaterials={templateProposals(stages)}
                     farm={selectedFarm}
                     manufacturers={options.manufacturers ?? []}
+                    reservedSupplierNames={options.reservedSupplierNames}
                     shrimpType={form.getFieldValue('shrimpType')}
                     referencePostCount={form.getFieldValue('referencePostCount')}
                     onClose={() => setQuickBuilderOpen(false)}

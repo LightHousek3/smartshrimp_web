@@ -16,7 +16,7 @@ import {
 import { EditOutlined, ExperimentOutlined, SendOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import ProtocolMaterialDetail from '../../components/ProtocolMaterialDetail';
-import ProtocolExecutionTable from '../../components/ProtocolExecutionTable';
+import ProtocolExecutionSchedule from '../../components/ProtocolExecutionSchedule';
 import {
     DOSE_LABELS,
     OPERATION_COLORS,
@@ -50,6 +50,7 @@ const ExpertProductionProtocolDetail = ({
 }) => {
     const treatment = detail?.protocolType === 'TREATMENT';
     const [material, setMaterial] = useState(null);
+    const [activeTab, setActiveTab] = useState('content');
     const pending = loading || error || !detail;
     const inspect = (item, showProposal = false) => {
         const proposal = item.recommendedProductDetails?.proposed;
@@ -75,7 +76,7 @@ const ExpertProductionProtocolDetail = ({
         <ConfigProvider theme={PROTOCOL_THEME}>
             <Drawer
                 open
-                width={880}
+                width={activeTab === 'execution' ? 'min(1200px, 100vw)' : 880}
                 className={styles.drawer}
                 rootClassName="[&_.ant-drawer-content-wrapper]:max-w-full!"
                 classNames={{ body: pending ? 'flex! flex-col!' : undefined }}
@@ -101,7 +102,7 @@ const ExpertProductionProtocolDetail = ({
                 }
                 extra={
                     !pending && (
-                        <Space>
+                        <Space wrap>
                             {detail.availableActions.update && onEdit && (
                                 <Button
                                     icon={<EditOutlined />}
@@ -154,6 +155,8 @@ const ExpertProductionProtocolDetail = ({
                     )
                 ) : (
                     <Tabs
+                        activeKey={activeTab}
+                        onChange={setActiveTab}
                         items={[
                             {
                                 key: 'content',
@@ -513,23 +516,13 @@ const ExpertProductionProtocolDetail = ({
                                     </>
                                 ),
                             },
-                            ...(treatment
-                                ? [
-                                      {
-                                          key: 'execution',
-                                          label: 'Thực hiện',
-                                          children: (
-                                              <ProtocolExecutionTable
-                                                  key={detail.id}
-                                                  rows={detail.executionRows}
-                                                  coverage={detail.coverage}
-                                                  asOf={detail.asOf}
-                                                  treatmentStartAt={detail.treatmentStartAt}
-                                              />
-                                          ),
-                                      },
-                                  ]
-                                : []),
+                            {
+                                key: 'execution',
+                                label: 'Thực hiện',
+                                children: (
+                                    <ProtocolExecutionSchedule key={detail.id} detail={detail} />
+                                ),
+                            },
                         ]}
                     />
                 )}

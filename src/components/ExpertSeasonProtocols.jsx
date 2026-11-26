@@ -144,6 +144,7 @@ const ExpertSeasonProtocols = ({ seasonId }) => {
         {dialog && (dialog.loading || dialog.error || dialog.mode === 'view') && <ExpertProductionProtocolDetail
             detail={dialog.detail} loading={dialog.loading} error={dialog.error}
             onRetry={() => openDialog(dialog.protocolId, dialog.mode)} onClose={closeDialog}
+            onRefresh={() => openDialog(dialog.detail.id, 'view')}
             onEdit={() => openDialog(dialog.detail.id, 'edit')} onDelete={() => confirmDelete(dialog.detail)}
             onSubmit={() => confirmSubmit(dialog.detail)} submitBusy={submitBusy || deleteBusy} />}
         {dialog && !dialog.loading && !dialog.error && dialog.mode !== 'view' && !readOnly

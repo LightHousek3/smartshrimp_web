@@ -35,6 +35,7 @@ const FeedField = ({
     onChange,
     farm,
     manufacturers,
+    reservedSupplierNames,
     proposedMaterials,
 }) => {
     const [open, setOpen] = useState(false);
@@ -48,6 +49,7 @@ const FeedField = ({
                     proposedMaterials={proposedMaterials}
                     farm={farm}
                     manufacturers={manufacturers}
+                    reservedSupplierNames={reservedSupplierNames}
                     feedOnly
                     onClose={() => setOpen(false)}
                     onSelect={(product) => {
@@ -65,6 +67,7 @@ const ExpertProtocolQuickBuilder = ({
     initialStartDay = 1,
     farm,
     manufacturers,
+    reservedSupplierNames,
     shrimpType,
     referencePostCount,
     proposedMaterials = [],
@@ -423,6 +426,7 @@ const ExpertProtocolQuickBuilder = ({
                                             proposedMaterials={proposals}
                                             farm={farm}
                                             manufacturers={manufacturers}
+                                            reservedSupplierNames={reservedSupplierNames}
                                         />
                                     </Form.Item>
                                     <div className="grid grid-cols-2 gap-x-4 max-sm:grid-cols-1">

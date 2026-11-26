@@ -119,6 +119,10 @@ const expertProductionProtocolAPI = {
         }),
     detail: (seasonId, protocolId, signal) =>
         apiClient.get(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, { signal }),
+    day: (seasonId, protocolId, day, signal) =>
+        apiClient.get(`/expert/seasons/${seasonId}/production-protocols/${protocolId}`, {
+            params: { day }, signal,
+        }),
     create: (seasonId, body) =>
         apiClient.post(`/expert/seasons/${seasonId}/production-protocols`, body),
     update: (seasonId, protocolId, body) =>
@@ -153,6 +157,10 @@ const expertTreatmentProtocolAPI = {
         apiClient.get(`/expert/disease-cases/${caseId}/protocols/context`, { signal }),
     detail: (caseId, protocolId, signal) =>
         apiClient.get(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, { signal }),
+    day: (caseId, protocolId, day, signal) =>
+        apiClient.get(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, {
+            params: { day }, signal,
+        }),
     create: (caseId, body) => apiClient.post(`/expert/disease-cases/${caseId}/protocols`, body),
     update: (caseId, protocolId, body) =>
         apiClient.patch(`/expert/disease-cases/${caseId}/protocols/${protocolId}`, body),
