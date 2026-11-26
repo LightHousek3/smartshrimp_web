@@ -201,18 +201,69 @@ export default function RagDocuments() {
     ];
     const count = meta.counts || {};
     const recovery = getRagDocumentRecovery(detail);
+    const processingCount = (count.PENDING || 0) + (count.PROCESSING || 0) + (count.UPLOADING || 0);
     const statistics = [
-        ['Tổng tài liệu', Object.values(count).reduce((total, value) => total + value, 0), 'imgIconReact5'],
-        ['Sẵn sàng', count.READY || 0, 'imgIconReact6'],
-        ['Đang xử lý', (count.PENDING || 0) + (count.PROCESSING || 0) + (count.UPLOADING || 0), 'processing'],
-        ['Thất bại', (count.FAILED || 0) + (count.DELETE_FAILED || 0), 'imgIconReact8'],
+        {
+            title: 'Tổng tài liệu',
+            value: Object.values(count).reduce((total, value) => total + value, 0),
+            icon: <Icon name="imgIconReact5" />,
+            iconBackground: 'bg-[#e7f2fe]',
+        },
+        {
+            title: 'Sẵn sàng',
+            value: count.READY || 0,
+            icon: <Icon name="imgIconReact6" />,
+            iconBackground: 'bg-[#def4f0]',
+        },
+        {
+            title: 'Đang xử lý',
+            value: processingCount,
+            icon: (
+                <SyncOutlined
+                    aria-hidden="true"
+                    className="text-[17px] text-[#7b5bd6] motion-reduce:animate-none!"
+                    spin={processingCount > 0}
+                />
+            ),
+            iconBackground: 'bg-[#ede8fb]',
+        },
+        {
+            title: 'Thất bại',
+            value: (count.FAILED || 0) + (count.DELETE_FAILED || 0),
+            icon: <Icon name="imgIconReact8" />,
+            iconBackground: 'bg-[#fbe5e9]',
+        },
     ];
 
     return <ConfigProvider theme={{ token: { fontFamily: "'Plus Jakarta Sans', 'Segoe UI', sans-serif", fontSize: 13, borderRadius: 10, controlHeight: 36, colorPrimary: '#1d7ad6', colorText: '#0f1c2e', colorTextSecondary: '#6a7994', colorBorder: '#e5e8f0' } }}>
-        <section className="flex min-w-0 flex-col text-[13px] text-[#0f1c2e]" aria-labelledby="rag-heading">
-            <header className="flex items-end justify-between gap-5 max-[600px]:flex-wrap max-[600px]:items-start"><div><h1 id="rag-heading" className="m-0 font-[Sora] text-[22px] leading-7 font-semibold max-[600px]:text-xl">Kho tài liệu AI</h1><p className="m-0 mt-1 text-[#6a7994]">Quản lý nguồn tri thức phục vụ chatbot SmartShrimp.</p></div>
+        <section className="@container flex min-w-0 flex-col text-[13px] text-[#0f1c2e]" aria-labelledby="rag-heading">
+            <header className="flex items-end justify-between gap-5 max-[600px]:flex-wrap max-[600px]:items-start"><div><h1 id="rag-heading" className="m-0 font-display text-[22px] leading-7 font-semibold max-[600px]:text-xl">Kho tài liệu AI</h1><p className="m-0 mt-1 text-[#6a7994]">Quản lý nguồn tri thức phục vụ chatbot SmartShrimp.</p></div>
                 <Button className={adminStyles.primaryButton} type="primary" icon={<Icon name="imgIconReact4" />} onClick={() => openUpload()}>Thêm tài liệu</Button></header>
-            <div className="mt-5 mb-4 grid grid-cols-2 gap-3 [&_.ant-card-body]:p-4 [&_.ant-statistic-content]:flex [&_.ant-statistic-content]:items-center [&_.ant-statistic-content]:text-[22px] [&_.ant-statistic-content-prefix]:mr-2">{statistics.map(([title, value, icon]) => <Card key={title}><Statistic title={title} value={value} prefix={<Avatar className="inline-flex! shrink-0! items-center! justify-center! rounded-full! border-0! bg-[rgba(29,122,214,0.12)]! text-[22px]! text-[#1d7ad6]!" size={44} icon={<span className="inline-flex items-center justify-center">{icon === 'processing' ? <SyncOutlined className="text-[17px]" spin={value > 0} /> : <Icon name={icon} />}</span>} />} /></Card>)}</div>
+            <div
+                role="group"
+                aria-label="Thống kê tài liệu"
+                className="mt-5 mb-4 grid grid-cols-1 gap-3 @min-[280px]:grid-cols-2 @min-[640px]:grid-cols-4"
+            >
+                {statistics.map(({ title, value, icon, iconBackground }) => (
+                    <Card
+                        key={title}
+                        className="min-w-0 rounded-[14px]! border-[#e0e6ef]! shadow-[0_1px_3px_rgba(15,28,46,0.12)]!"
+                        classNames={{ body: 'p-4!' }}
+                    >
+                        <Statistic
+                            className="[&_.ant-statistic-content]:flex [&_.ant-statistic-content]:items-center [&_.ant-statistic-content-prefix]:me-2! [&_.ant-statistic-content-value]:[overflow-wrap:anywhere]"
+                            title={title}
+                            value={value}
+                            valueStyle={{ fontSize: 22 }}
+                            prefix={(
+                                <span className={`inline-flex size-9 items-center justify-center rounded-lg ${iconBackground}`}>
+                                    {icon}
+                                </span>
+                            )}
+                        />
+                    </Card>
+                ))}
+            </div>
 
             <div className={`${adminStyles.tableShell} mt-4`}><div className="flex flex-wrap items-center gap-2 border-b border-[#eef1f7] px-4 py-3">
                 <Input className={`${adminStyles.search} max-[600px]:w-full`} allowClear={{ clearIcon: <span className="inline-block h-2.5 w-2.5 overflow-hidden [&_img]:origin-top-left [&_img]:scale-[.3125] [&_img]:align-top"><Icon name="imgIconReact10" /></span> }} prefix={<Icon name="imgIconReact9" />} placeholder="Tìm tên tài liệu…" aria-label="Tìm tên tài liệu" value={query} onChange={(event) => setQuery(event.target.value)} />
