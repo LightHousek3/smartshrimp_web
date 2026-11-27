@@ -14,19 +14,21 @@ import {
     ClockCircleOutlined,
     CloseOutlined,
     EditOutlined,
+    EyeOutlined,
     HomeOutlined,
     SyncOutlined,
 } from '@ant-design/icons';
 import { expertProtocolTemplateAPI } from '../apis';
 import Loading from './Loading';
 import {
-    formatTemplateDose,
     formatTemplateDuration,
     getTemplatePhases,
     templateMetricTone,
 } from '../utils/protocolTemplateUtils';
 import { executionTimeRange, mealExecutionWindow } from '../utils/protocolTiming';
 import ProtocolProductImages from './ProtocolProductImages';
+import ProtocolMaterialBadges from './ProtocolMaterialBadges';
+import ProtocolMaterialDetail from './ProtocolMaterialDetail';
 import ErrorState from './ErrorState';
 import { getErrorMessage } from '../utils/errorMessage.js';
 
@@ -72,22 +74,16 @@ export const ProtocolTemplateMetricTag = ({
     </Tag>
 );
 
-const ProductChip = ({ item }) => (
+const ProductChip = ({ item, onInspect }) => (
     <Tooltip
-        title={[
-            item.instructions,
-            item.product.recommendationReason,
-            item.product.isRecommendation
-                ? 'Vật tư đề xuất cần được Chủ trại tạo và nhập kho trước khi duyệt phác đồ áp dụng.'
-                : null,
-        ]
-            .filter(Boolean)
-            .join('\n')}
+        trigger={['hover', 'focus']}
+        title={item.product.recommendationReason?.trim() ? `Lý do: ${item.product.recommendationReason.trim()}` : null}
     >
         <Flex
             align="center"
+            wrap
             gap={8}
-            tabIndex={item.instructions ? 0 : undefined}
+            tabIndex={0}
             className={`min-h-10.5! w-fit! max-w-full! rounded-lg! border! bg-white! px-2.5! py-1! ${operationTone[item.operationType].border}`}
         >
             <Badge
@@ -98,39 +94,19 @@ const ProductChip = ({ item }) => (
             <Text className="min-w-0! text-xs! font-medium! leading-4.5! text-[#0f1c2e]!">
                 {item.product.name}
             </Text>
-            <Text
-                className={`text-xs! leading-4.5! ${monoClassName} ${mutedClassName}`}
-            >
-                {formatTemplateDose({
-                    ...item,
-                    doseValue: item.displayDoseValue ?? item.doseValue,
-                })}
-                {(item.dailyDoseIncrement ?? 0) > 0 && (
-                    <Text className="whitespace-nowrap! text-xs! text-[#6a7994]!">
-                        (+
-                        {new Intl.NumberFormat('vi-VN', {
-                            maximumFractionDigits: 4,
-                        }).format(item.dailyDoseIncrement)}{' '}
-                        {item.doseUnit.toLowerCase()}
-                        {'/cữ/ngày)'}
-                    </Text>
-                )}
-            </Text>
-            {item.displayApplicationDays && (
-                <Text
-                    className="block! max-w-64! text-[11px]! text-[#6a7994]!"
-                    title={`Ngày áp dụng: DOC ${item.displayApplicationDays.join(', ')}`}
-                >
-                    {item.repeatIntervalDays === 1
-                        ? `DOC ${item.displayStartDay}–${item.displayEndDay}`
-                        : `DOC ${item.displayApplicationDays.slice(0, 8).join(', ')}${item.displayApplicationDays.length > 8 ? '…' : ''}`}
-                </Text>
-            )}
-            {item.mealNumber === null && (
-                <Text className="text-[11px]! text-[#6a7994]!">
-                    DOC {item.displayStartDay}–{item.displayEndDay}
-                </Text>
-            )}
+            <ProtocolMaterialBadges
+                item={{ ...item, doseValue: item.displayDoseValue ?? item.doseValue }}
+                firstDay={item.displayApplicationDays?.[0] ?? item.displayStartDay}
+                lastDay={item.displayApplicationDays?.at(-1) ?? item.displayEndDay}
+                days={item.displayApplicationDays}
+            />
+            <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                aria-label={`Xem chi tiết ${item.product.name}`}
+                onClick={() => onInspect(item)}
+            />
         </Flex>
     </Tooltip>
 );
@@ -239,7 +215,7 @@ const TemplateSummary = ({ template }) => (
     </Card>
 );
 
-const PhaseCard = ({ phase, index }) => (
+const PhaseCard = ({ phase, index, onInspect }) => (
     <Card className={`${cardClassName} border-[#e5e8f0]!`}>
         <Flex
             justify="space-between"
@@ -289,7 +265,7 @@ const PhaseCard = ({ phase, index }) => (
                 </Flex>
                 <Flex wrap align="center" gap={6} className="min-w-0! flex-1!">
                     {row.items.map((item) => (
-                        <ProductChip key={item.id} item={item} />
+                        <ProductChip key={item.id} item={item} onInspect={onInspect} />
                     ))}
                     {row.isEnvironment && row.repeatIntervalDays > 1 && (
                         <Tag
@@ -320,6 +296,7 @@ const ExpertProtocolTemplateDetail = ({
     onEdit,
 }) => {
     const [revision, setRevision] = useState(0);
+    const [material, setMaterial] = useState(null);
     const [state, setState] = useState({
         id: null,
         template: null,
@@ -379,10 +356,10 @@ const ExpertProtocolTemplateDetail = ({
                 </Text>
             }
             extra={
-                <Tooltip title="Chỉnh sửa phác đồ mẫu">
+                template?.canManage === true && <Tooltip title="Chỉnh sửa phác đồ mẫu">
                     <Button
                         onClick={onEdit}
-                        disabled={!template || loading}
+                        disabled={loading}
                         type="text"
                         icon={<EditOutlined />}
                         aria-label="Sửa phác đồ mẫu"
@@ -419,6 +396,7 @@ const ExpertProtocolTemplateDetail = ({
                                         key={phase.startDay}
                                         phase={phase}
                                         index={index}
+                                        onInspect={setMaterial}
                                     />
                                 ))
                             ) : (
@@ -427,6 +405,13 @@ const ExpertProtocolTemplateDetail = ({
                         </Flex>
                     </Flex>
                 )
+            )}
+            {material && (
+                <ProtocolMaterialDetail
+                    product={material.product}
+                    instructions={material.instructions}
+                    onClose={() => setMaterial(null)}
+                />
             )}
         </Drawer>
     );

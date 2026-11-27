@@ -1,28 +1,17 @@
 import { useRef, useState } from 'react';
 import { getErrorMessage } from '../utils/errorMessage.js';
-import {
-    Alert,
-    Button,
-    Flex,
-    Form,
-    Modal,
-    Select,
-    TimePicker,
-    Typography,
-} from 'antd';
+import { Alert, Button, Flex, Form, Modal, Select, TimePicker, Typography } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { PROTOCOL_TIMING } from '../constants/productionProtocol';
 import { buildQuickTemplateStages } from '../utils/protocolQuickBuilder';
 import ExpertProtocolMaterialPicker from './ExpertProtocolMaterialPicker';
 import ProtocolNumberInput from './ProtocolNumberInput';
-import { uniqueTemplateProposals } from '../utils/materialCompliance';
-import {
-    defaultProtocolMeals,
-    suggestQuickPhase,
-} from '../utils/protocolAuthoringDefaults';
+import { templateProposalKey, uniqueTemplateProposals } from '../utils/materialCompliance';
+import { defaultProtocolMeals, suggestQuickPhase } from '../utils/protocolAuthoringDefaults';
 import {
     formatPostCount,
+    getMaterialDoseUnits,
     parsePostCount,
     templateValidateMessages,
 } from '../utils/protocolTemplateUtils';
@@ -37,6 +26,8 @@ const FeedField = ({
     manufacturers,
     reservedSupplierNames,
     proposedMaterials,
+    onUpdateProposal,
+    proposalEditOptions,
 }) => {
     const [open, setOpen] = useState(false);
     return (
@@ -50,6 +41,8 @@ const FeedField = ({
                     farm={farm}
                     manufacturers={manufacturers}
                     reservedSupplierNames={reservedSupplierNames}
+                    onUpdateProposal={onUpdateProposal}
+                    proposalEditOptions={proposalEditOptions}
                     feedOnly
                     onClose={() => setOpen(false)}
                     onSelect={(product) => {
@@ -80,6 +73,30 @@ const ExpertProtocolQuickBuilder = ({
         ...proposedMaterials,
         ...(phases ?? []).map((phase) => phase?.product),
     ]);
+    const canEditProposal = (proposal) => (phases ?? []).some(
+        (phase) => templateProposalKey(phase?.product) === templateProposalKey(proposal),
+    ) ? {} : null;
+    const updateProposal = (proposal, product) => {
+        const key = templateProposalKey(proposal);
+        const current = form.getFieldValue('phases') ?? [];
+        form.setFieldValue('phases', current.map((phase) => {
+            if (templateProposalKey(phase?.product) !== key) return phase;
+            const doseChanged = ['unit', 'conversionUnit', 'conversionQuantity'].some(
+                (field) => String(phase.product[field] ?? '') !== String(product[field] ?? ''),
+            );
+            return {
+                ...phase,
+                product,
+                ...(doseChanged && {
+                    dailyDose: null,
+                    dailyIncrement: 0,
+                    doseUnit: phase.doseBasis === 'PERCENT_BIOMASS'
+                        ? 'KG'
+                        : getMaterialDoseUnits(product)[0].value,
+                }),
+            };
+        }));
+    };
     const [error, setError] = useState(null);
     const appendLock = useRef(false);
     const [addingPhase, setAddingPhase] = useState(false);
@@ -101,15 +118,16 @@ const ExpertProtocolQuickBuilder = ({
             await form.validateFields();
             const config = toConfig(form.getFieldsValue());
             buildQuickTemplateStages(config);
-            add(
-                suggestQuickPhase(shrimpType, referencePostCount, config.phases)
-            );
+            add(suggestQuickPhase(shrimpType, referencePostCount, config.phases));
             setError(null);
         } catch (failure) {
             setError(
                 failure.errorFields
                     ? 'Anh/chị hoàn thành các giai đoạn và lịch cữ hiện có trước khi thêm giai đoạn tiếp theo.'
-                    : getErrorMessage(failure, 'Không thể thêm giai đoạn. Vui lòng kiểm tra thông tin đã nhập.')
+                    : getErrorMessage(
+                          failure,
+                          'Không thể thêm giai đoạn. Vui lòng kiểm tra thông tin đã nhập.',
+                      ),
             );
             if (failure.errorFields?.length)
                 form.scrollToField(failure.errorFields[0].name, {
@@ -129,7 +147,12 @@ const ExpertProtocolQuickBuilder = ({
                 stages: buildQuickTemplateStages(config),
             });
         } catch (failure) {
-            setError(getErrorMessage(failure, 'Không thể tạo khẩu phần. Vui lòng kiểm tra thông tin đã nhập.'));
+            setError(
+                getErrorMessage(
+                    failure,
+                    'Không thể tạo khẩu phần. Vui lòng kiểm tra thông tin đã nhập.',
+                ),
+            );
         }
     };
     return (
@@ -155,16 +178,21 @@ const ExpertProtocolQuickBuilder = ({
                 type="info"
                 showIcon
                 className="mb-4!"
-                message={<span>Khẩu phần gợi ý của hệ thống tham khảo quy trình Tép Bạc. <a href="https://tepbac.com/technical/full/129/quy-trinh-nuoi-tom-su-tom-the-chan-trang-tham-canh-ban-tham-canh" target="_blank" rel="noopener noreferrer">Xem quy trình</a>. Anh/chị kiểm tra và điều chỉnh trước khi lưu.</span>}
+                message={
+                    <span>
+                        Khẩu phần gợi ý của hệ thống tham khảo quy trình Tép Bạc.{' '}
+                        <a
+                            href="https://tepbac.com/technical/full/172/kiem-soat-va-uoc-tinh-luong-thuc-an-cho-tom-the"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Xem quy trình
+                        </a>
+                        . Anh/chị kiểm tra và điều chỉnh trước khi lưu.
+                    </span>
+                }
             />
-            {error && (
-                <Alert
-                    type="error"
-                    showIcon
-                    className="mb-4!"
-                    message={error}
-                />
-            )}
+            {error && <Alert type="error" showIcon className="mb-4!" message={error} />}
             <Form
                 name="quickProtocol"
                 form={form}
@@ -227,9 +255,8 @@ const ExpertProtocolQuickBuilder = ({
                 </div>
                 <Text strong>Lịch cữ ăn dùng chung cho các giai đoạn</Text>
                 <Text className="mb-3! block! text-xs! text-[#6a7994]!">
-                    Anh/chị có thể chỉnh giờ và tỷ lệ; mỗi nhóm DOC phải đủ
-                    100%. Khẩu phần chỉ được gợi ý khi thêm giai đoạn, không ghi
-                    đè các số đã chỉnh.
+                    Anh/chị có thể chỉnh giờ và tỷ lệ; mỗi nhóm DOC phải đủ 100%. Khẩu phần chỉ được
+                    gợi ý khi thêm giai đoạn, không ghi đè các số đã chỉnh.
                 </Text>
                 <Form.List name="meals">
                     {(fields, { add, remove }) => (
@@ -250,9 +277,7 @@ const ExpertProtocolQuickBuilder = ({
                                     key={field.key}
                                     className="mb-3 grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-start gap-3"
                                 >
-                                    <Text className="leading-9!">
-                                        Cữ {index + 1}
-                                    </Text>
+                                    <Text className="leading-9!">Cữ {index + 1}</Text>
                                     <Form.Item
                                         name={[field.name, 'time']}
                                         className="mb-0!"
@@ -302,8 +327,7 @@ const ExpertProtocolQuickBuilder = ({
                                                 type: 'number',
                                                 min: 0.0001,
                                                 max: 100,
-                                                message:
-                                                    'Nhập tỷ lệ lớn hơn 0, tối đa 100%.',
+                                                message: 'Nhập tỷ lệ lớn hơn 0, tối đa 100%.',
                                             },
                                         ]}
                                     >
@@ -315,7 +339,10 @@ const ExpertProtocolQuickBuilder = ({
                                             className="w-full!"
                                         />
                                     </Form.Item>
-                                    <Form.Item name={[field.name, 'dueAtMinutes']} className="mb-0!">
+                                    <Form.Item
+                                        name={[field.name, 'dueAtMinutes']}
+                                        className="mb-0!"
+                                    >
                                         <ProtocolNumberInput
                                             aria-label={`Khoảng thực hiện cữ ${index + 1} (phút)`}
                                             min={PROTOCOL_TIMING.minMinutes}
@@ -358,14 +385,8 @@ const ExpertProtocolQuickBuilder = ({
                                     key={field.key}
                                     className="mb-4 rounded-xl border border-[#e5e8f0] p-4"
                                 >
-                                    <Flex
-                                        justify="space-between"
-                                        align="center"
-                                        className="mb-3!"
-                                    >
-                                        <Text strong>
-                                            Giai đoạn {index + 1}
-                                        </Text>
+                                    <Flex justify="space-between" align="center" className="mb-3!">
+                                        <Text strong>Giai đoạn {index + 1}</Text>
                                         <Button
                                             aria-label={`Xóa giai đoạn ${index + 1}`}
                                             icon={<DeleteOutlined />}
@@ -417,13 +438,14 @@ const ExpertProtocolQuickBuilder = ({
                                         rules={[
                                             {
                                                 required: true,
-                                                message:
-                                                    'Chọn thức ăn cho giai đoạn.',
+                                                message: 'Chọn thức ăn cho giai đoạn.',
                                             },
                                         ]}
                                     >
                                         <FeedField
                                             proposedMaterials={proposals}
+                                            onUpdateProposal={updateProposal}
+                                            proposalEditOptions={canEditProposal}
                                             farm={farm}
                                             manufacturers={manufacturers}
                                             reservedSupplierNames={reservedSupplierNames}
@@ -437,12 +459,8 @@ const ExpertProtocolQuickBuilder = ({
                                             <Select
                                                 onChange={() =>
                                                     form.setFieldValue(
-                                                        [
-                                                            'phases',
-                                                            field.name,
-                                                            'dailyIncrement',
-                                                        ],
-                                                        0
+                                                        ['phases', field.name, 'dailyIncrement'],
+                                                        0,
                                                     )
                                                 }
                                                 options={[
@@ -460,18 +478,12 @@ const ExpertProtocolQuickBuilder = ({
                                         <Form.Item
                                             noStyle
                                             shouldUpdate={(before, after) =>
-                                                before.phases?.[field.name]
-                                                    ?.doseBasis !==
-                                                    after.phases?.[field.name]
-                                                        ?.doseBasis ||
-                                                before.phases?.[field.name]
-                                                    ?.startDay !==
-                                                    after.phases?.[field.name]
-                                                        ?.startDay ||
-                                                before.phases?.[field.name]
-                                                    ?.endDay !==
-                                                    after.phases?.[field.name]
-                                                        ?.endDay
+                                                before.phases?.[field.name]?.doseBasis !==
+                                                    after.phases?.[field.name]?.doseBasis ||
+                                                before.phases?.[field.name]?.startDay !==
+                                                    after.phases?.[field.name]?.startDay ||
+                                                before.phases?.[field.name]?.endDay !==
+                                                    after.phases?.[field.name]?.endDay
                                             }
                                         >
                                             {({ getFieldValue }) => {
@@ -484,10 +496,7 @@ const ExpertProtocolQuickBuilder = ({
                                                 return (
                                                     <>
                                                         <Form.Item
-                                                            name={[
-                                                                field.name,
-                                                                'dailyDose',
-                                                            ]}
+                                                            name={[field.name, 'dailyDose']}
                                                             label={
                                                                 percent
                                                                     ? 'Tổng khẩu phần ngày (% sinh khối)'
@@ -498,28 +507,19 @@ const ExpertProtocolQuickBuilder = ({
                                                                     required: true,
                                                                     type: 'number',
                                                                     min: 0.0001,
-                                                                    max: percent
-                                                                        ? 100
-                                                                        : 9999999999,
+                                                                    max: percent ? 100 : 9999999999,
                                                                 },
                                                             ]}
                                                         >
                                                             <ProtocolNumberInput
                                                                 min={0.0001}
-                                                                max={
-                                                                    percent
-                                                                        ? 100
-                                                                        : 9999999999
-                                                                }
+                                                                max={percent ? 100 : 9999999999}
                                                                 className="w-full!"
                                                             />
                                                         </Form.Item>
                                                         {!percent && (
                                                             <Form.Item
-                                                                name={[
-                                                                    field.name,
-                                                                    'doseUnit',
-                                                                ]}
+                                                                name={[field.name, 'doseUnit']}
                                                                 label="Đơn vị"
                                                             >
                                                                 <Select
@@ -545,7 +545,12 @@ const ExpertProtocolQuickBuilder = ({
                                                                 label="Tăng tổng lượng mỗi ngày"
                                                                 extra="Chỉ áp dụng cho thức ăn cố định trong khoảng ngày đã chọn; nhập 0 để giữ nguyên."
                                                             >
-                                                                <ProtocolNumberInput min={0} max={9999999999} precision={4} className="w-full!" />
+                                                                <ProtocolNumberInput
+                                                                    min={0}
+                                                                    max={9999999999}
+                                                                    precision={4}
+                                                                    className="w-full!"
+                                                                />
                                                             </Form.Item>
                                                         )}
                                                     </>

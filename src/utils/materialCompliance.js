@@ -38,15 +38,15 @@ export const registrationFormat = (type) => {
 /** Validate nonempty registration values; required-field errors remain owned by the form. */
 export const registrationNumberError = (type, value) => {
     const registration = typeof value === 'string' ? value.trim() : '';
-    if (!registration) return null;
     const prefix = receiptPrefixes[type];
-    if (registration.length > 100) return 'Mã tiếp nhận/số ĐKLH tối đa 100 ký tự.';
-    if (
-        (prefix &&
-            (!new RegExp(`^${prefix}[0-9]{6}$`).test(registration) ||
-                registration.endsWith('-000000'))) ||
-        (type === 'medicine' && /^(01|02|03)-/.test(registration))
-    )
+    if (!prefix && type !== 'medicine') return null;
+    if (!registration) return type === 'medicine'
+        ? 'Vui lòng nhập số đăng ký lưu hành thuốc thú y'
+        : 'Vui lòng nhập mã số tiếp nhận';
+    if (registration.length > 100) return 'Mã tiếp nhận/số ĐKLH tối đa 100 ký tự';
+    if (prefix && (!new RegExp(`^${prefix}[0-9]{6}$`).test(registration) || registration.endsWith('-000000')))
+        return `Mã số tiếp nhận phải có dạng ${prefix}XXXXXX (6 chữ số từ 000001 đến 999999), ví dụ ${prefix}123456. Nhập đúng mã trên nhãn/hồ sơ sản phẩm.`;
+    if (type === 'medicine' && /^(01|02|03)-/.test(registration))
         return registrationFormat(type).hint;
     return null;
 };
@@ -82,7 +82,7 @@ export const proposedManufacturerNameError = (name, reservedNames, manufacturers
 };
 
 /** Required proposal evidence; reviewer identity and timestamps remain server-owned. */
-export const proposalMissingFields = (product) => {
+export const proposalMissingFields = (product, { requireUploadedImages = true } = {}) => {
     const c = product.productCompliance || {};
     const missing = [];
     if (!product.recommendationReason?.trim()) missing.push('lý do đề xuất');
@@ -96,7 +96,6 @@ export const proposalMissingFields = (product) => {
     if (!['feed', 'environment', 'dual_purpose', 'medicine'].includes(c.regulatoryType))
         missing.push('phân loại pháp lý');
     for (const [field, label] of [
-        ['registrationNumber', 'số đăng ký'],
         ['ingredientsText', 'thành phần'],
         ['usageInstructions', 'hướng dẫn theo nhãn'],
     ]) {
@@ -104,16 +103,17 @@ export const proposalMissingFields = (product) => {
     }
     if (typeof c.containsAntibiotic !== 'boolean') missing.push('xác định kháng sinh');
     if (
-        !Array.isArray(product.imageUrls) ||
-        product.imageUrls.length < 1 ||
-        product.imageUrls.length > 3 ||
-        product.imageUrls.some((url) => {
-            try {
-                return new URL(url).protocol !== 'https:';
-            } catch {
-                return true;
-            }
-        })
+        requireUploadedImages &&
+        (!Array.isArray(product.imageUrls) ||
+            product.imageUrls.length < 1 ||
+            product.imageUrls.length > 3 ||
+            product.imageUrls.some((url) => {
+                try {
+                    return new URL(url).protocol !== 'https:';
+                } catch {
+                    return true;
+                }
+            }))
     )
         missing.push('1–3 ảnh nhãn HTTPS');
     const registrationIssue = registrationNumberError(c.regulatoryType, c.registrationNumber);
@@ -142,11 +142,9 @@ const canonical = (value) => {
 };
 
 /** Reuse only unsaved proposal content from this template, without catalog identity or stale safety verdicts. */
-export const uniqueTemplateProposals = (products) => {
-    const proposals = new Map();
-    for (const product of products) {
-        if (!product || product.id || product.unavailable) continue;
-        const snapshot = Object.fromEntries(
+const proposalSnapshot = (product) => {
+    if (!product || product.id || product.unavailable) return null;
+    const snapshot = Object.fromEntries(
             [
                 'name',
                 'description',
@@ -161,11 +159,19 @@ export const uniqueTemplateProposals = (products) => {
             ]
                 .filter((field) => product[field] !== undefined)
                 .map((field) => [field, structuredClone(product[field])]),
-        );
-        snapshot.productCompliance = structuredClone(editableCompliance(product.productCompliance));
-        // Existing manufacturer IDs are authoritative; avoid treating contact snapshots as a new identity.
-        if (snapshot.manufacturerId) delete snapshot.manufacturer;
-        proposals.set(JSON.stringify(canonical(snapshot)), snapshot);
+    );
+    snapshot.productCompliance = structuredClone(editableCompliance(product.productCompliance));
+    if (snapshot.manufacturerId) delete snapshot.manufacturer;
+    return snapshot;
+};
+
+export const templateProposalKey = (product) => JSON.stringify(canonical(proposalSnapshot(product)));
+
+export const uniqueTemplateProposals = (products) => {
+    const proposals = new Map();
+    for (const product of products) {
+        const snapshot = proposalSnapshot(product);
+        if (snapshot) proposals.set(JSON.stringify(canonical(snapshot)), snapshot);
     }
     return [...proposals.values()];
 };

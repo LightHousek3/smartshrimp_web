@@ -18,6 +18,7 @@ const ProtocolProductImages = ({ product, size = 32 }) => {
             width={size}
             height={size}
             preview={urls.length > 0}
+            rootClassName="shrink-0!"
             tabIndex={urls.length ? 0 : undefined}
             role={urls.length ? 'button' : undefined}
             aria-label={

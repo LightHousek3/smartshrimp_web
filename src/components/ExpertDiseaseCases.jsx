@@ -4,19 +4,19 @@ import {
     Card,
     ConfigProvider,
     Flex,
-    Input,
     Select,
     Table,
     Tag,
     Typography,
 } from 'antd';
-import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { expertDiseaseCaseAPI, expertSeasonAPI } from '../apis';
 import Loading from './Loading';
 import { getErrorMessage } from '../utils/errorMessage.js';
 import { protocolError } from '../constants/productionProtocol';
 import ErrorState from './ErrorState';
+import ExpertListToolbar from './ExpertListToolbar';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -79,15 +79,6 @@ const pillClassName = [
     '@max-[1300px]:gap-1! @max-[1300px]:px-2.5! @max-[1300px]:text-[9px]!',
 ].join(' ');
 
-const filterClassName = [
-    'h-9! max-w-full!',
-    '[&_.ant-select-selector]:rounded-[10px]!',
-    '[&_.ant-select-selector]:border-[#e5e8f0]!',
-    '[&_.ant-select-selector]:px-2.75!',
-    '[&_.ant-select-arrow]:text-[10px]!',
-    '[&_.ant-select-arrow]:text-[#8796ae]!',
-].join(' ');
-
 const tableClassName = [
     'w-full! min-w-0! pb-4!',
     '[&_.ant-table-content>table]:w-full!',
@@ -147,8 +138,6 @@ const caseTheme = {
     },
 };
 
-const toolbarClassName =
-    'min-h-15.25! w-full! items-center! gap-2! rounded-t-[14px]! border-b! border-[#eef1f7]! px-4! py-3!';
 
 const StatusPill = ({ tone, children, dot = true }) => (
     <Tag
@@ -446,60 +435,55 @@ const DiseaseCaseList = ({ seasonId }) => {
                     aria-label={seasonId ? 'Danh sách ca bệnh của vụ nuôi' : 'Danh sách ca bệnh được giao'}
                     role="region"
                 >
-                    {!seasonId && <Flex wrap align="center" className={toolbarClassName}>
-                        <Input
+                    {!seasonId && <ExpertListToolbar
+                        searchProps={{
+                            placeholder: 'Mã ca, tiêu đề, ao, kỹ thuật viên…',
+                            'aria-label': 'Tìm theo mã ca, tiêu đề, ao hoặc kỹ thuật viên',
+                            value: searchInput,
+                            onChange: (event) => setSearchInput(event.target.value),
+                        }}
+                    >
+                        <Select
                             allowClear
-                            prefix={<SearchOutlined className="text-[13px] text-[#8796ae]" />}
-                            placeholder="Mã ca, tiêu đề, ao, kỹ thuật viên…"
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            className="h-full! w-64! min-w-0! max-w-full! shrink-0! rounded-[10px]! border-[#e5e8f0]! px-2.75! py-1.625! text-[13px]! [&_.ant-input]:text-[13px]!"
+                            value={filters.status}
+                            onChange={(val) => {
+                                setLoading(true);
+                                setFilters((prev) => ({ ...prev, status: val || '', page: 1 }));
+                            }}
+                            className="w-44!"
+                            aria-label="Lọc trạng thái"
+                            placeholder="Tất cả trạng thái"
+                            options={statusOptions}
                         />
 
-                        <Flex
-                            wrap
-                            gap={8}
-                            className="ml-auto! min-w-0! max-w-full! max-[650px]:ml-0! max-[650px]:w-full!"
-                        >
-                            <Select
-                                allowClear
-                                value={filters.status}
-                                onChange={(val) => {
-                                    setLoading(true);
-                                    setFilters((prev) => ({ ...prev, status: val || '', page: 1 }));
-                                }}
-                                className={`${filterClassName} w-44!`}
-                                placeholder="Tất cả trạng thái"
-                                options={statusOptions}
-                            />
+                        <Select
+                            mode="multiple"
+                            allowClear
+                            maxTagCount="responsive"
+                            aria-label="Lọc mức độ"
+                            placeholder="Mức độ"
+                            value={filters.severity}
+                            onChange={(val) => {
+                                setLoading(true);
+                                setFilters((prev) => ({ ...prev, severity: val || [], page: 1 }));
+                            }}
+                            className="w-44!"
+                            options={severityOptions}
+                        />
 
-                            <Select
-                                mode="multiple"
-                                allowClear
-                                maxTagCount="responsive"
-                                placeholder="Mức độ"
-                                value={filters.severity}
-                                onChange={(val) => {
-                                    setLoading(true);
-                                    setFilters((prev) => ({ ...prev, severity: val || [], page: 1 }));
-                                }}
-                                className={`${filterClassName} w-40!`}
-                                options={severityOptions}
-                            />
-
-                            <Select
-                                allowClear
-                                placeholder="Trang trại"
-                                value={filters.farmId || undefined}
-                                onChange={(val) => {
-                                    setLoading(true);
-                                    setFilters((prev) => ({ ...prev, farmId: val || '', page: 1 }));
-                                }}
-                                className={`${filterClassName} w-44!`}
-                                options={farms.map((f) => ({ value: f.id, label: f.name }))}
-                            />
-                        </Flex>
-                    </Flex>}
+                        <Select
+                            allowClear
+                            aria-label="Lọc trang trại"
+                            placeholder="Trang trại"
+                            value={filters.farmId || undefined}
+                            onChange={(val) => {
+                                setLoading(true);
+                                setFilters((prev) => ({ ...prev, farmId: val || '', page: 1 }));
+                            }}
+                            className="w-56!"
+                            options={farms.map((f) => ({ value: f.id, label: f.name }))}
+                        />
+                    </ExpertListToolbar>}
 
                     {loading ? <Loading className="min-h-90! w-full!" tip="Đang tải danh sách ca bệnh" />
                         : loadError ? <ErrorState message={loadError} onRetry={() => {

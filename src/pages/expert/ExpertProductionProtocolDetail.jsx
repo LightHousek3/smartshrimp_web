@@ -13,19 +13,19 @@ import {
     Tooltip,
     Typography,
 } from 'antd';
-import { EditOutlined, ExperimentOutlined, SendOutlined } from '@ant-design/icons';
+import { EditOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import ProtocolMaterialDetail from '../../components/ProtocolMaterialDetail';
+import ProtocolProductImages from '../../components/ProtocolProductImages';
+import ProtocolMaterialBadges from '../../components/ProtocolMaterialBadges';
+import { formatProtocolNumber } from '../../utils/protocolTemplateUtils';
 import ProtocolExecutionSchedule from '../../components/ProtocolExecutionSchedule';
 import {
-    DOSE_LABELS,
     OPERATION_COLORS,
-    OPERATION_LABELS,
     PROTOCOL_PRIMARY_BUTTON,
     PROTOCOL_STATUS_COLORS,
     PROTOCOL_STATUS_LABELS,
     PROTOCOL_THEME,
-    UNIT_LABELS,
 } from '../../constants/productionProtocol';
 import { expertStyle as styles } from '../../constants/expertStyle';
 import Loading from '../../components/Loading';
@@ -33,6 +33,9 @@ import ErrorState from '../../components/ErrorState';
 
 const dateText = (value) =>
     value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
+const dayNumber = (offset) => offset == null ? undefined : offset + 1;
+const itemMaterial = (item) =>
+    item.materialSnapshot ?? item.product ?? item.recommendedProductDetails?.proposed;
 /** Use one loaded prescription snapshot for content and execution tabs. */
 const ExpertProductionProtocolDetail = ({
     detail,
@@ -55,8 +58,7 @@ const ExpertProductionProtocolDetail = ({
     const inspect = (item, showProposal = false) => {
         const proposal = item.recommendedProductDetails?.proposed;
         const product = item.materialSnapshot ?? item.product;
-        setMaterial(
-            proposal && (showProposal || !product)
+        const inspected = proposal && (showProposal || !product)
                 ? {
                       ...proposal,
                       category: proposal.category?.toUpperCase(),
@@ -64,13 +66,8 @@ const ExpertProductionProtocolDetail = ({
                       conversionUnit: proposal.conversionUnit?.toUpperCase(),
                       manufacturerId: item.recommendedManufacturerId ?? proposal.manufacturerId,
                   }
-                : product
-                  ? {
-                        ...product,
-                        productCompliance: product.compliance ?? product.productCompliance,
-                    }
-                  : null,
-        );
+                : product;
+        if (inspected) setMaterial({ product: inspected, instructions: item.instructions });
     };
     return (
         <ConfigProvider theme={PROTOCOL_THEME}>
@@ -323,26 +320,12 @@ const ExpertProductionProtocolDetail = ({
                                                             {meal.items.map((item) => (
                                                                 <Tooltip
                                                                     key={item.id}
-                                                                    title={
-                                                                        <>
-                                                                            {
-                                                                                OPERATION_LABELS[
-                                                                                    item
-                                                                                        .operationType
-                                                                                ]
-                                                                            }{' '}
-                                                                            · Mỗi{' '}
-                                                                            {
-                                                                                item.repeatIntervalDays
-                                                                            }{' '}
-                                                                            ngày
-                                                                            {item.instructions &&
-                                                                                ` · ${item.instructions}`}
-                                                                        </>
-                                                                    }
+                                                                    trigger={['hover', 'focus']}
+                                                                    title={item.instructions?.trim() ? `Hướng dẫn: ${item.instructions.trim()}` : null}
                                                                 >
                                                                     <div
-                                                                        className={styles.viewChip}
+                                                                        tabIndex={0}
+                                                                        className={`${styles.viewChip} max-w-full flex-wrap`}
                                                                     >
                                                                         <Badge
                                                                             className={styles.dot}
@@ -353,107 +336,40 @@ const ExpertProductionProtocolDetail = ({
                                                                                 ]
                                                                             }
                                                                         />
-                                                                        <span
-                                                                            className={`${styles.productAvatar} size-7! basis-7!`}
-                                                                        >
-                                                                            <ExperimentOutlined />
+                                                                        <ProtocolProductImages
+                                                                            product={itemMaterial(item) ?? { name: 'Vật tư' }}
+                                                                        />
+                                                                        <span className="min-w-0 break-words">
+                                                                            {itemMaterial(item)?.name ?? 'Vật tư không còn dữ liệu'}
                                                                         </span>
-                                                                        <span>
-                                                                            {item.materialSnapshot
-                                                                                ?.name ||
-                                                                                item.product
-                                                                                    ?.name ||
-                                                                                item
-                                                                                    .recommendedProductDetails
-                                                                                    ?.proposed
-                                                                                    ?.name}
-                                                                        </span>
-                                                                        <span
-                                                                            className={styles.mono}
-                                                                        >
-                                                                            {item.doseValue}{' '}
-                                                                            {
-                                                                                UNIT_LABELS[
-                                                                                    item.doseUnit
-                                                                                ]
-                                                                            }
-                                                                            {item.doseBasis !==
-                                                                                'FIXED_QUANTITY' &&
-                                                                                ` ${DOSE_LABELS[item.doseBasis]}`}
-                                                                        </span>
-                                                                        {item.repeatIntervalDays >
-                                                                            1 && (
-                                                                            <Tag
-                                                                                color="cyan"
-                                                                                className="m-0! rounded-md! border-0! text-[10px]!"
-                                                                            >
-                                                                                Lặp mỗi{' '}
-                                                                                {
-                                                                                    item.repeatIntervalDays
-                                                                                }{' '}
-                                                                                ngày
-                                                                            </Tag>
-                                                                        )}
-                                                                        {item.firstDayOffset !=
-                                                                            null && (
-                                                                            <Tag>
-                                                                                {treatment
-                                                                                    ? 'Ngày điều trị'
-                                                                                    : 'DOC'}{' '}
-                                                                                {item.firstDayOffset +
-                                                                                    1}
-                                                                                –
-                                                                                {item.lastDayOffset +
-                                                                                    1}{' '}
-                                                                                · mốc lặp{' '}
-                                                                                {item.recurrenceAnchorOffset +
-                                                                                    1}
-                                                                            </Tag>
-                                                                        )}
-                                                                        {Number(
-                                                                            item.dailyDoseIncrement,
-                                                                        ) > 0 && (
-                                                                            <Tag color="blue">
-                                                                                +
-                                                                                {
-                                                                                    item.dailyDoseIncrement
-                                                                                }{' '}
-                                                                                {
-                                                                                    UNIT_LABELS[
-                                                                                        item
-                                                                                            .doseUnit
-                                                                                    ]
-                                                                                }
-                                                                                /ngày từ{' '}
-                                                                                {treatment
-                                                                                    ? 'ngày điều trị'
-                                                                                    : 'DOC'}{' '}
-                                                                                {item.doseAnchorOffset +
-                                                                                    1}
-                                                                            </Tag>
-                                                                        )}
+                                                                        <ProtocolMaterialBadges
+                                                                            item={item}
+                                                                            dayLabel={treatment ? 'Ngày điều trị' : 'DOC'}
+                                                                            firstDay={dayNumber(item.firstDayOffset)}
+                                                                            lastDay={dayNumber(item.lastDayOffset)}
+                                                                        />
                                                                         {item.dueAtMinutes != null &&
                                                                             (meal.mealNumber == null ||
                                                                                 meal.items.some((entry) => entry.dueAtMinutes !== item.dueAtMinutes)) && (
                                                                             <Tag>
                                                                                 Khoảng thực hiện:{' '}
-                                                                                {item.dueAtMinutes}{' '}
+                                                                                {formatProtocolNumber(item.dueAtMinutes)}{' '}
                                                                                 phút
                                                                             </Tag>
                                                                         )}
-                                                                        {(item.materialSnapshot ||
-                                                                            item.product) && (
+                                                                        {itemMaterial(item) && (
                                                                             <Button
-                                                                                type="link"
+                                                                                type="text"
                                                                                 size="small"
+                                                                                icon={<EyeOutlined />}
+                                                                                aria-label={`Xem chi tiết ${itemMaterial(item).name}`}
                                                                                 onClick={() =>
                                                                                     inspect(item)
                                                                                 }
-                                                                            >
-                                                                                Hồ sơ vật tư
-                                                                            </Button>
+                                                                            />
                                                                         )}
-                                                                        {item.recommendedProductDetails && (
+                                                                        {item.recommendedProductDetails?.proposed &&
+                                                                            (item.materialSnapshot || item.product) && (
                                                                             <Button
                                                                                 type="link"
                                                                                 size="small"
@@ -528,7 +444,11 @@ const ExpertProductionProtocolDetail = ({
                 )}
             </Drawer>
             {material && (
-                <ProtocolMaterialDetail product={material} onClose={() => setMaterial(null)} />
+                <ProtocolMaterialDetail
+                    product={material.product}
+                    instructions={material.instructions}
+                    onClose={() => setMaterial(null)}
+                />
             )}
         </ConfigProvider>
     );

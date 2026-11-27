@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     App,
@@ -26,6 +26,7 @@ import {
     CloseOutlined,
     CopyOutlined,
     DeleteOutlined,
+    EyeOutlined,
     FormOutlined,
     MinusOutlined,
     PlusOutlined,
@@ -66,7 +67,12 @@ import InputNumber from './ProtocolNumberInput';
 import ExpertProtocolQuickBuilder from './ExpertProtocolQuickBuilder';
 import ProtocolProductImages from './ProtocolProductImages';
 import ExpertProtocolMaterialPicker from './ExpertProtocolMaterialPicker';
-import { templateProposals } from '../utils/materialCompliance';
+import {
+    templateMaterialSelectionError,
+    templateProposalKey,
+    templateProposals,
+} from '../utils/materialCompliance';
+import ProtocolMaterialDetail from './ProtocolMaterialDetail';
 import { defaultProtocolMeals, isAuthoringContextReady } from '../utils/protocolAuthoringDefaults';
 import { getErrorMessage } from '../utils/errorMessage.js';
 import ErrorState from './ErrorState';
@@ -84,6 +90,25 @@ const newMeal = (time) => ({
     items: [],
 });
 const clockValue = (time) => (time ? dayjs(`2000-01-01T${time}`) : null);
+/** Keep the picker draft separate from the time that controls the editor row order. */
+const ScheduleTimePicker = ({ time, onTimeChange, ...props }) => {
+    const value = useMemo(() => clockValue(time), [time]);
+    return (
+        <TimePicker
+            {...props}
+            placeholder="Chọn giờ"
+            size="small"
+            format="HH:mm"
+            value={value}
+            allowClear={false}
+            needConfirm
+            changeOnScroll={false}
+            onChange={(selected) => {
+                if (selected) onTimeChange(selected.format('HH:mm'));
+            }}
+        />
+    );
+};
 /** Create a local editor item with default dose settings and a new item identity. */
 const newMaterial = (product) => ({
     key: key(),
@@ -96,6 +121,23 @@ const newMaterial = (product) => ({
     doseBasis: 'FIXED_QUANTITY',
     instructions: '',
 });
+const replaceMaterial = (previous, product) => {
+    const doseChanged = ['category', 'unit', 'conversionUnit', 'conversionQuantity'].some(
+        (field) => String(previous[field] ?? '') !== String(product[field] ?? ''),
+    );
+    return {
+        product,
+        operationType: product.category === 'FEED' ? 'FEEDING' : product.category,
+        ...(doseChanged && {
+            doseBasis: 'FIXED_QUANTITY',
+            doseUnit: getMaterialDoseUnits(product)[0].value,
+            doseValue: null,
+            dailyDoseIncrement: 0,
+        }),
+        originalRecommendation: undefined,
+        recommendedManufacturerId: undefined,
+    };
+};
 const freshMealTime = (meals) => {
     for (let minutes = 6 * 60; minutes < 24 * 60; minutes += 30) {
         const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -125,6 +167,7 @@ const MaterialRow = ({
     onChange,
     onDelete,
     onReplace,
+    onInspect,
     cultureOffset = 0,
     production = true,
     dayLabel = 'DOC',
@@ -268,13 +311,9 @@ const MaterialRow = ({
             )}
             {environment && (
                 <>
-                    <TimePicker
-                        placeholder="Chọn giờ"
-                        size="small"
-                        format="HH:mm"
-                        value={clockValue(item.time)}
-                        allowClear={false}
-                        onChange={(_, time) => onChange({ time })}
+                    <ScheduleTimePicker
+                        time={item.time}
+                        onTimeChange={(time) => onChange({ time })}
                         className="h-6.75! w-21!"
                         aria-label="Giờ xử lý môi trường"
                     />
@@ -297,6 +336,11 @@ const MaterialRow = ({
                     <Text className="text-[11.5px]! text-[#6a7994]!">{'ngày'}</Text>
                 </>
             )}
+            <ActionButton
+                label={`Xem chi tiết ${item.product.name}`}
+                icon={<EyeOutlined />}
+                onClick={onInspect}
+            />
             <Tooltip title={item.instructions || 'Thêm hướng dẫn'}>
                 <Button
                     type="text"
@@ -306,11 +350,13 @@ const MaterialRow = ({
                     className={`${iconClass} bg-transparent! hover:bg-transparent!`}
                 />
             </Tooltip>
-            <ActionButton
-                label={`Chọn lại ${item.product.name}`}
-                icon={<SwapOutlined />}
-                onClick={onReplace}
-            />
+            {onReplace && (
+                <ActionButton
+                    label={`Chọn lại ${item.product.name}`}
+                    icon={<SwapOutlined />}
+                    onClick={onReplace}
+                />
+            )}
             <ActionButton
                 label={`Xóa ${item.product.name}`}
                 icon={<DeleteOutlined />}
@@ -466,6 +512,7 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
     const [applicationDaysDraft, setApplicationDaysDraft] = useState([]);
     const [stages, setStages] = useState([]);
     const [picker, setPicker] = useState(null);
+    const [inspectedMaterial, setInspectedMaterial] = useState(null);
     const [instructionTarget, setInstructionTarget] = useState(null);
     const [instructionDraft, setInstructionDraft] = useState('');
     const [firstDayDraft, setFirstDayDraft] = useState(null);
@@ -571,8 +618,10 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                     setOptions({
                         farms: [],
                         loading: false,
-                        error:
-                            getErrorMessage(error, 'Không thể tải trang trại. Vui lòng thử lại.'),
+                        error: getErrorMessage(
+                            error,
+                            'Không thể tải trang trại. Vui lòng thử lại.',
+                        ),
                     });
             });
         return () => controller.abort();
@@ -747,33 +796,31 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         }
         setPicker(target);
     };
-    /** Reject duplicate meal materials and clear stale proposal identity when replacing a selection. */
+    const materialSelectionError = (product) => {
+        const stage = stages.find((item) => item.key === picker.stageKey);
+        const meal = stage?.meals.find((item) => item.key === picker.mealKey);
+        const duplicate = meal?.items.some(
+            ({ key, product: current }) =>
+                key !== picker.itemKey &&
+                (product.id
+                    ? current.id === product.id
+                    : !current.id &&
+                      current.name.trim().toLocaleLowerCase('vi') ===
+                          product.name.trim().toLocaleLowerCase('vi')),
+        );
+        return duplicate
+            ? 'Vật tư này đã có trong cữ. Anh/chị chỉnh liều hoặc ngày áp dụng ngay tại dòng hiện có.'
+            : null;
+    };
+    /** Clear old dose values if the replacement changes the physical unit. */
     const selectMaterial = (product) => {
         const stage = stages.find((item) => item.key === picker.stageKey);
         const meal = stage?.meals.find((item) => item.key === picker.mealKey);
-        if (
-            meal?.items.some(
-                (item) =>
-                    item.key !== picker.itemKey &&
-                    (product.id
-                        ? item.product.id === product.id
-                        : !item.product.id &&
-                          item.product.name.trim().toLocaleLowerCase('vi') ===
-                              product.name.trim().toLocaleLowerCase('vi')),
-            )
-        ) {
-            message.info(
-                'Vật tư này đã có trong cữ. Anh/chị chỉnh liều hoặc ngày áp dụng ngay tại dòng hiện có.',
-            );
-            return;
-        }
         if (picker.itemKey) {
-            updateItem(picker, {
-                product,
-                operationType: product.category === 'FEED' ? 'FEEDING' : product.category,
-                originalRecommendation: undefined,
-                recommendedManufacturerId: undefined,
-            });
+            const previous = (meal?.items ?? stage.environment).find(
+                (item) => item.key === picker.itemKey,
+            ).product;
+            updateItem(picker, replaceMaterial(previous, product));
             setPicker(null);
             return;
         }
@@ -814,6 +861,53 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
         );
         setPicker(null);
     };
+    const getProposalEditOptions = (proposal) => {
+        const key = templateProposalKey(proposal);
+        const meals = stages
+            .flatMap((stage) => stage.meals)
+            .filter((meal) => meal.items.some((item) => templateProposalKey(item.product) === key));
+        const inEnvironment = stages.some((stage) =>
+            stage.environment.some((item) => templateProposalKey(item.product) === key),
+        );
+        if (!meals.length && !inEnvironment) return null;
+        return {
+            environment: !meals.length,
+            validate: (product) => {
+                for (const environment of [false, true]) {
+                    if (environment ? !inEnvironment : !meals.length) continue;
+                    const error = templateMaterialSelectionError(product, {
+                        environment,
+                        production: !treatment,
+                    });
+                    if (error) return error;
+                }
+                const duplicate = meals.some((meal) =>
+                    meal.items.some(
+                        ({ product: current }) =>
+                            !current.id &&
+                            templateProposalKey(current) !== key &&
+                            current.name.trim().toLocaleLowerCase('vi') ===
+                                product.name.trim().toLocaleLowerCase('vi'),
+                    ),
+                );
+                return duplicate ? 'Tên vật tư đã có trong một cữ sử dụng đề xuất này.' : null;
+            },
+        };
+    };
+    const updateProposal = (proposal, product) => {
+        const key = templateProposalKey(proposal);
+        const update = (item) =>
+            templateProposalKey(item.product) === key
+                ? { ...item, ...replaceMaterial(item.product, product) }
+                : item;
+        setStages((current) =>
+            current.map((stage) => ({
+                ...stage,
+                meals: stage.meals.map((meal) => ({ ...meal, items: meal.items.map(update) })),
+                environment: stage.environment.map(update),
+            })),
+        );
+    };
     /** Require the applicable farm, species and template reference inputs before authoring stages. */
     const validateAuthoringContext = async () => {
         await form.validateFields(
@@ -835,7 +929,10 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             action();
         } catch (error) {
             message.warning(
-                getErrorMessage(error, 'Anh/chị hoàn thành thông tin đầu phác đồ và các giai đoạn hiện có trước khi thêm giai đoạn.'),
+                getErrorMessage(
+                    error,
+                    'Anh/chị hoàn thành thông tin đầu phác đồ và các giai đoạn hiện có trước khi thêm giai đoạn.',
+                ),
             );
         } finally {
             appendStageLock.current = false;
@@ -1001,7 +1098,10 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
             if (mounted.current && error.response?.status === 409) setConflict(true);
             if (mounted.current)
                 setSaveError(
-                    getErrorMessage(error, 'Chưa nhận được xác nhận lưu phác đồ. Hãy kiểm tra danh sách trước khi lưu lại để tránh tạo trùng.'),
+                    getErrorMessage(
+                        error,
+                        'Chưa nhận được xác nhận lưu phác đồ. Hãy kiểm tra danh sách trước khi lưu lại để tránh tạo trùng.',
+                    ),
                 );
         } finally {
             submitLock.current = false;
@@ -1038,7 +1138,12 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                 environment={!mealKey}
                 onChange={(change) => updateItem(target, change)}
                 onDelete={() => deleteItem(target)}
-                onReplace={() => openPicker(target)}
+                onInspect={() => setInspectedMaterial(item)}
+                onReplace={
+                    item.product.id || item.product.unavailable
+                        ? () => openPicker(target)
+                        : undefined
+                }
                 cultureOffset={cultureOffset}
                 production={!treatment}
                 dayLabel={dayLabel}
@@ -1126,10 +1231,13 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                     tip={templateId ? 'Đang tải dữ liệu chỉnh sửa' : 'Đang tải dữ liệu tạo mẫu'}
                 />
             ) : options.error ? (
-                <ErrorState message={options.error} onRetry={() => {
-                    setOptions((current) => ({ ...current, loading: true, error: null }));
-                    setRevision((current) => current + 1);
-                }} />
+                <ErrorState
+                    message={options.error}
+                    onRetry={() => {
+                        setOptions((current) => ({ ...current, loading: true, error: null }));
+                        setRevision((current) => current + 1);
+                    }}
+                />
             ) : (
                 <Form
                     form={form}
@@ -1657,16 +1765,14 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                                                     <Text className="text-xs! font-semibold!">
                                                         {'Cữ'} {mealIndex + 1}
                                                     </Text>
-                                                    <TimePicker
-                                                        placeholder="Chọn giờ"
-                                                        size="small"
-                                                        format="HH:mm"
-                                                        value={clockValue(meal.time)}
-                                                        allowClear={false}
+                                                    <ScheduleTimePicker
+                                                        time={meal.time}
                                                         aria-label={`Giờ cữ ${mealIndex + 1} giai đoạn ${index + 1}`}
                                                         className="w-26!"
-                                                        onChange={(_, time) =>
-                                                            updateMeal(stage.key, meal.key, { time })
+                                                        onTimeChange={(time) =>
+                                                            updateMeal(stage.key, meal.key, {
+                                                                time,
+                                                            })
                                                         }
                                                     />
                                                     <label className="mt-1 text-xs">
@@ -1681,14 +1787,19 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                                                             value={mealExecutionWindow(meal)}
                                                             onChange={(minutes) =>
                                                                 updateMeal(stage.key, meal.key, {
-                                                                    dueAtMinutes: minutes ?? PROTOCOL_TIMING.defaultMinutes,
+                                                                    dueAtMinutes:
+                                                                        minutes ??
+                                                                        PROTOCOL_TIMING.defaultMinutes,
                                                                 })
                                                             }
                                                         />
                                                     </label>
                                                     {meal.time && (
                                                         <Text className={muted}>
-                                                            {executionTimeRange(meal.time, mealExecutionWindow(meal))}
+                                                            {executionTimeRange(
+                                                                meal.time,
+                                                                mealExecutionWindow(meal),
+                                                            )}
                                                         </Text>
                                                     )}
                                                 </Flex>
@@ -1830,8 +1941,19 @@ const ExpertProtocolAuthoringEditor = ({ templateId, application, onClose, onSav
                     farm={selectedFarm}
                     environment={!picker.mealKey}
                     production={!treatment}
+                    validateSelection={materialSelectionError}
+                    proposalEditOptions={getProposalEditOptions}
+                    onUpdateProposal={updateProposal}
                     onSelect={selectMaterial}
                     onClose={() => setPicker(null)}
+                />
+            )}
+            {inspectedMaterial && (
+                <ProtocolMaterialDetail
+                    product={inspectedMaterial.product}
+                    instructions={inspectedMaterial.instructions}
+                    manufacturers={options.manufacturers ?? []}
+                    onClose={() => setInspectedMaterial(null)}
                 />
             )}
             {quickBuilderOpen && !treatment && (

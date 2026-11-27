@@ -10,12 +10,13 @@ import { PROTOCOL_TIMING } from '../constants/productionProtocol.js';
 
 const key = () => crypto.randomUUID();
 const numeric = (value) => (value == null ? null : Number(value));
-/** Restore proposal content without catalog identity, retaining deleted-product markers. */
+/** Restore the linked manufacturer separately from its saved label snapshot. */
 const productFor = (item) => {
     if (!item.productId && item.recommendedProductDetails?.proposed) {
         const proposal = structuredClone(item.recommendedProductDetails.proposed);
         return {
             ...proposal,
+            manufacturerId: item.recommendedManufacturerId ?? proposal.manufacturerId,
             category: proposal.category.toUpperCase(),
             unit: proposal.unit.toUpperCase(),
             conversionUnit: proposal.conversionUnit?.toUpperCase() ?? null,

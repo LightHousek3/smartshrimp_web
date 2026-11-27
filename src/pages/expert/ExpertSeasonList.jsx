@@ -5,17 +5,17 @@ import {
     ConfigProvider,
     Empty,
     Flex,
-    Input,
     Select,
     Table,
     Tag,
     Typography,
 } from 'antd';
-import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { EyeOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { expertSeasonAPI } from '../../apis';
 import Loading from '../../components/Loading';
 import ErrorState from '../../components/ErrorState';
+import ExpertListToolbar from '../../components/ExpertListToolbar';
 import { PROTOCOL_STATUS_LABELS } from '../../constants/productionProtocol';
 import { getErrorMessage } from '../../utils/errorMessage.js';
 
@@ -62,14 +62,6 @@ const pillClassName = [
     'm-0! inline-flex! min-h-5! w-fit! max-w-full! self-start! items-center! gap-1.5!',
     'rounded-full! border-0! px-3! py-px! text-[10px]! font-semibold! leading-4.5! whitespace-nowrap!',
     '@max-[1300px]:gap-1! @max-[1300px]:px-2.5! @max-[1300px]:text-[9px]!',
-].join(' ');
-const filterClassName = [
-    'h-9! max-w-full!',
-    '[&_.ant-select-selector]:rounded-[10px]!',
-    '[&_.ant-select-selector]:border-[#e5e8f0]!',
-    '[&_.ant-select-selector]:px-2.75!',
-    '[&_.ant-select-arrow]:text-[10px]!',
-    '[&_.ant-select-arrow]:text-[#8796ae]!',
 ].join(' ');
 const tableClassName = [
     'w-full! min-w-0! pb-4!',
@@ -129,8 +121,6 @@ const seasonTheme = {
         Select: { optionFontSize: 13 },
     },
 };
-const toolbarClassName =
-    'min-h-15.25! w-full! items-center! gap-2! rounded-t-[14px]! border-b! border-[#eef1f7]! px-4! py-3!';
 const dateLabel = (value) => (value ? value.split('-').reverse().join('/') : '—');
 const initialFilters = { search: '', status: undefined, farmId: undefined, shrimpType: undefined };
 
@@ -392,55 +382,47 @@ const ExpertSeasonList = () => {
                     aria-label="Danh sách vụ nuôi được phân công"
                     role="region"
                 >
-                    <Flex wrap align="center" className={toolbarClassName}>
-                        <Input
-                            className="h-full! w-60! min-w-0! max-w-full! shrink-0! rounded-[10px]! border-[#e5e8f0]! px-2.75! py-1.625! text-[13px]! [&_.ant-input]:text-[13px]!"
-                            prefix={<SearchOutlined className="text-[13px] text-[#8796ae]" />}
-                            placeholder="Tên vụ, ao, trang trại…"
-                            aria-label="Tìm theo tên vụ, ao hoặc trang trại"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value.slice(0, 255))}
+                    <ExpertListToolbar
+                        searchProps={{
+                            placeholder: 'Tên vụ, ao, trang trại…',
+                            'aria-label': 'Tìm theo tên vụ, ao hoặc trang trại',
+                            value: search,
+                            onChange: (event) => setSearch(event.target.value.slice(0, 255)),
+                        }}
+                    >
+                        <Select
+                            className="w-44!"
+                            aria-label="Lọc trạng thái"
+                            placeholder="Tất cả trạng thái"
+                            value={filters.status}
+                            options={statusOptions}
                             allowClear
+                            onChange={(value) => changeFilter('status', value)}
                         />
-                        <Flex
-                            wrap
-                            gap={8}
-                            className="ml-auto! min-w-0! max-w-full! max-[650px]:ml-0! max-[650px]:w-full!"
-                        >
-                            <Select
-                                className={`${filterClassName} w-52!`}
-                                aria-label="Lọc trạng thái"
-                                placeholder="Tất cả trạng thái"
-                                value={filters.status}
-                                options={statusOptions}
-                                allowClear
-                                onChange={(value) => changeFilter('status', value)}
-                            />
-                            <Select
-                                className={`${filterClassName} w-52!`}
-                                aria-label="Lọc trang trại"
-                                placeholder="Trang trại"
-                                value={filters.farmId}
-                                options={
-                                    state.meta?.farms.map((farm) => ({
-                                        value: farm.id,
-                                        label: farm.name,
-                                    })) || []
-                                }
-                                allowClear
-                                onChange={(value) => changeFilter('farmId', value)}
-                            />
-                            <Select
-                                className={`${filterClassName} w-40!`}
-                                aria-label="Lọc loài tôm"
-                                placeholder="Loài tôm"
-                                value={filters.shrimpType}
-                                options={shrimpOptions}
-                                allowClear
-                                onChange={(value) => changeFilter('shrimpType', value)}
-                            />
-                        </Flex>
-                    </Flex>
+                        <Select
+                            className="w-56!"
+                            aria-label="Lọc trang trại"
+                            placeholder="Trang trại"
+                            value={filters.farmId}
+                            options={
+                                state.meta?.farms.map((farm) => ({
+                                    value: farm.id,
+                                    label: farm.name,
+                                })) || []
+                            }
+                            allowClear
+                            onChange={(value) => changeFilter('farmId', value)}
+                        />
+                        <Select
+                            className="w-44!"
+                            aria-label="Lọc loài tôm"
+                            placeholder="Loài tôm"
+                            value={filters.shrimpType}
+                            options={shrimpOptions}
+                            allowClear
+                            onChange={(value) => changeFilter('shrimpType', value)}
+                        />
+                    </ExpertListToolbar>
                     {state.error && (
                         <ErrorState message={state.error} onRetry={() => {
                             setState((current) => ({ ...current, loading: true, error: null }));

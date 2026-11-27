@@ -205,6 +205,14 @@ export const protocolPayload = (values, revision, season) => {
                             );
                         if ((item.instructions || '').length > 4000)
                             fail(`${itemLabel}: hướng dẫn tối đa 4000 ký tự.`);
+                        const proposal = item.recommendedProductDetails?.proposed;
+                        const manufacturerId = item.recommendedManufacturerId ?? proposal?.manufacturerId;
+                        // A linked manufacturer's display snapshot is not a new supplier declaration.
+                        const proposed = proposal ? structuredClone(proposal) : null;
+                        if (proposed && manufacturerId) {
+                            proposed.manufacturerId = manufacturerId;
+                            delete proposed.manufacturer;
+                        }
                         const metadata = {
                             ...(item.productId &&
                                 item.productRevision && { productRevision: item.productRevision }),
@@ -235,16 +243,13 @@ export const protocolPayload = (values, revision, season) => {
                                 item.dueAtMinutes,
                                 `${meal.mealNumber == null ? itemLabel : mealLabel} khoảng thực hiện`,
                             ),
-                            recommendedManufacturerId: item.recommendedManufacturerId ?? null,
-                            recommendedProductDetails: item.recommendedProductDetails?.proposed
+                            recommendedManufacturerId: manufacturerId ?? null,
+                            recommendedProductDetails: proposed
                                 ? {
                                       proposed: {
-                                          ...structuredClone(
-                                              item.recommendedProductDetails.proposed,
-                                          ),
+                                          ...proposed,
                                           productCompliance: editableCompliance(
-                                              item.recommendedProductDetails.proposed
-                                                  .productCompliance,
+                                              proposed.productCompliance,
                                           ),
                                       },
                                   }

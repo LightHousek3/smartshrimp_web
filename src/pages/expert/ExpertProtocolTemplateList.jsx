@@ -9,7 +9,6 @@ import {
     ConfigProvider,
     Empty,
     Flex,
-    Input,
     Popconfirm,
     Select,
     Table,
@@ -18,11 +17,9 @@ import {
     Typography,
 } from 'antd';
 import {
-    CopyOutlined,
     DeleteOutlined,
     EyeOutlined,
     PlusOutlined,
-    SearchOutlined,
     EditOutlined,
     SwapOutlined,
 } from '@ant-design/icons';
@@ -33,6 +30,7 @@ import ExpertProtocolTemplateDetail, {
     ProtocolTemplateMetricTag,
 } from '../../components/ExpertProtocolTemplateDetail';
 import ErrorState from '../../components/ErrorState';
+import ExpertListToolbar from '../../components/ExpertListToolbar';
 import { getErrorMessage } from '../../utils/errorMessage.js';
 
 const { Paragraph, Text, Title } = Typography;
@@ -65,8 +63,6 @@ const templateTheme = {
         Input: { paddingBlock: 6.5, paddingInline: 11 },
     },
 };
-const filterClassName =
-    'h-9! max-w-full! [&_.ant-select-selector]:rounded-[10px]! [&_.ant-select-selector]:border-[#e5e8f0]! [&_.ant-select-arrow]:text-[10px]!';
 const tableClassName = [
     'w-full! min-w-0! pb-4!',
     '[&_.ant-table-content>table]:w-full! [&_.ant-table-content>table]:table-fixed!',
@@ -79,26 +75,12 @@ const tableClassName = [
     '[&_.ant-pagination-options]:ml-4! [&_.ant-pagination-options-size-changer]:h-9! [&_.ant-pagination-options-size-changer]:w-24.5!',
 ].join(' ');
 const textClassName = 'text-[13px]! leading-5.25! text-[#475569]!';
-const unavailableMessage = 'Chức năng này chưa được triển khai.';
 const actions = [
-    { key: 'view', label: 'Xem', icon: <EyeOutlined /> },
-    { key: 'edit', label: 'Sửa', icon: <EditOutlined /> },
-    { key: 'copy', label: 'Sao chép', icon: <CopyOutlined /> },
-    {
-        key: 'delete',
-        label: 'Xóa',
-        icon: <DeleteOutlined />,
-        danger: true,
-    },
+    { key: 'view', label: 'Xem', title: 'Xem chi tiết', icon: <EyeOutlined /> },
+    { key: 'edit', label: 'Sửa', title: 'Chỉnh sửa phác đồ mẫu', icon: <EditOutlined /> },
+    { key: 'delete', label: 'Xóa', title: 'Xóa phác đồ mẫu' },
 ];
-const getColumns = (
-    onView,
-    onEdit,
-    onDelete,
-    deletingId,
-    onStatusChange,
-    changingStatusId
-) =>
+const getColumns = (onView, onEdit, onDelete, deletingId, onStatusChange, changingStatusId) =>
     [
         {
             title: 'Phác đồ mẫu',
@@ -129,10 +111,7 @@ const getColumns = (
             key: 'farm',
             width: 200,
             render: (_, row) => (
-                <Text
-                    className={textClassName}
-                    ellipsis={{ tooltip: row.farm.name }}
-                >
+                <Text className={textClassName} ellipsis={{ tooltip: row.farm.name }}>
                     {row.farm.name}
                 </Text>
             ),
@@ -144,8 +123,7 @@ const getColumns = (
             width: 140,
             render: (value) => (
                 <Text className={textClassName}>
-                    {shrimpOptions.find((item) => item.value === value)
-                        ?.label ?? 'Tất cả loài tôm'}
+                    {shrimpOptions.find((item) => item.value === value)?.label ?? 'Tất cả loài tôm'}
                 </Text>
             ),
         },
@@ -155,8 +133,7 @@ const getColumns = (
             key: 'variance',
             width: 150,
             align: 'center',
-            sorter: (first, second) =>
-                first.allowedVariancePct - second.allowedVariancePct,
+            sorter: (first, second) => first.allowedVariancePct - second.allowedVariancePct,
             render: (value) => (
                 <ProtocolTemplateMetricTag metric="variance" value={value}>
                     ±{value}%
@@ -169,8 +146,7 @@ const getColumns = (
             key: 'uses',
             width: 110,
             align: 'center',
-            sorter: (first, second) =>
-                first.usedSeasonCount - second.usedSeasonCount,
+            sorter: (first, second) => first.usedSeasonCount - second.usedSeasonCount,
             render: (value) => (
                 <ProtocolTemplateMetricTag metric="uses" value={value}>
                     {value} {'vụ'}
@@ -208,22 +184,11 @@ const getColumns = (
             render: (_, row) => (
                 <Flex gap={2} wrap className="min-w-0!">
                     {actions
-                        .filter(
-                            (action) => action.key !== 'delete' || row.canDelete
-                        )
+                        .filter(({ key }) => key === 'view' || (
+                            row.canManage === true && (key !== 'delete' || row.canDelete)
+                        ))
                         .map((action) => (
-                            <Tooltip
-                                key={action.key}
-                                title={
-                                    action.key === 'view'
-                                        ? 'Xem chi tiết'
-                                        : action.key === 'edit'
-                                          ? 'Chỉnh sửa phác đồ mẫu'
-                                          : action.key === 'delete'
-                                            ? 'Xóa phác đồ mẫu'
-                                            : unavailableMessage
-                                }
-                            >
+                            <Tooltip key={action.key} title={action.title}>
                                 {action.key === 'delete' ? (
                                     <Popconfirm
                                         title="Xóa phác đồ mẫu?"
@@ -249,33 +214,18 @@ const getColumns = (
                                 ) : (
                                     <Button
                                         type="text"
-                                        disabled={
-                                            !['view', 'edit'].includes(
-                                                action.key
-                                            )
-                                        }
                                         icon={action.icon}
-                                        onClick={
-                                            action.key === 'view'
-                                                ? () => onView(row.id)
-                                                : action.key === 'edit'
-                                                  ? () => onEdit(row.id)
-                                                  : undefined
+                                        onClick={() =>
+                                            (action.key === 'view' ? onView : onEdit)(row.id)
                                         }
                                         aria-label={`${action.label} ${row.title}`}
-                                        className={`size-6.75! min-w-6.75! p-0! text-[13px]! opacity-100! ${action.danger ? 'text-[#ef4767]!' : 'text-[#8796ae]!'}`}
+                                        className="size-6.75! min-w-6.75! p-0! text-[13px]! text-[#8796ae]!"
                                     />
                                 )}
                             </Tooltip>
                         ))}
-                    {!row.canDelete && row.farm.id !== null && (
-                        <Tooltip
-                            title={
-                                row.status === 'active'
-                                    ? 'Ngừng sử dụng'
-                                    : 'Sử dụng lại'
-                            }
-                        >
+                    {row.canManage === true && (
+                        <Tooltip title={row.status === 'active' ? 'Ngừng sử dụng' : 'Sử dụng lại'}>
                             <Popconfirm
                                 title={
                                     row.status === 'active'
@@ -292,9 +242,7 @@ const getColumns = (
                                     icon={<SwapOutlined />}
                                     aria-label={`Đổi trạng thái ${row.title}`}
                                     loading={changingStatusId === row.id}
-                                    disabled={Boolean(
-                                        changingStatusId || deletingId
-                                    )}
+                                    disabled={Boolean(changingStatusId || deletingId)}
                                     className="size-6.75! min-w-6.75! p-0! text-[#1d7ad6]!"
                                 />
                             </Popconfirm>
@@ -359,7 +307,7 @@ const ExpertProtocolTemplateList = () => {
                 if (controller.signal.aborted) return;
                 const lastPage = Math.max(
                     1,
-                    Math.ceil(result.meta.totalResults / pagination.limit)
+                    Math.ceil(result.meta.totalResults / pagination.limit),
                 );
                 if (pagination.page > lastPage) {
                     setPagination((current) => ({
@@ -375,8 +323,7 @@ const ExpertProtocolTemplateList = () => {
                 setState((current) => ({
                     ...current,
                     loading: false,
-                    error:
-                        getErrorMessage(error, 'Không thể tải danh sách phác đồ mẫu.'),
+                    error: getErrorMessage(error, 'Không thể tải danh sách phác đồ mẫu.'),
                 }));
             });
         return () => controller.abort();
@@ -391,8 +338,7 @@ const ExpertProtocolTemplateList = () => {
         // Sorters operate only on the loaded rows; sorting never sends an API request.
         if (action !== 'paginate') return;
         const page = next.pageSize === pagination.limit ? next.current : 1;
-        if (page === pagination.page && next.pageSize === pagination.limit)
-            return;
+        if (page === pagination.page && next.pageSize === pagination.limit) return;
         setPagination({ page, limit: next.pageSize });
         setState((current) => ({ ...current, loading: true, error: null }));
     };
@@ -404,13 +350,9 @@ const ExpertProtocolTemplateList = () => {
         if (deletingId) return;
         setDeletingId(row.id);
         try {
-            await expertProtocolTemplateAPI.deleteTemplate(
-                row.id,
-                row.versionNo
-            );
+            await expertProtocolTemplateAPI.deleteTemplate(row.id, row.versionNo);
             message.success('Xóa phác đồ mẫu thành công.');
-            if (templateId === row.id)
-                navigate('/expert/protocols', { replace: true });
+            if (templateId === row.id) navigate('/expert/protocols', { replace: true });
             if (state.rows.length === 1 && pagination.page > 1)
                 setPagination((current) => ({
                     ...current,
@@ -419,7 +361,7 @@ const ExpertProtocolTemplateList = () => {
             retry();
         } catch (error) {
             message.error(
-                getErrorMessage(error, 'Chưa nhận được xác nhận xóa. Hãy tải lại danh sách.')
+                getErrorMessage(error, 'Chưa nhận được xác nhận xóa. Hãy tải lại danh sách.'),
             );
             retry();
         } finally {
@@ -433,12 +375,15 @@ const ExpertProtocolTemplateList = () => {
             await expertProtocolTemplateAPI.updateStatus(
                 row.id,
                 row.status === 'active' ? 'inactive' : 'active',
-                row.versionNo
+                row.versionNo,
             );
             message.success('Đổi trạng thái phác đồ mẫu thành công.');
         } catch (error) {
             message.error(
-                getErrorMessage(error, 'Không thể xác nhận đổi trạng thái. Vui lòng tải lại danh sách.')
+                getErrorMessage(
+                    error,
+                    'Không thể xác nhận đổi trạng thái. Vui lòng tải lại danh sách.',
+                ),
             );
         } finally {
             setChangingStatusId(null);
@@ -451,7 +396,7 @@ const ExpertProtocolTemplateList = () => {
         deleteTemplate,
         deletingId,
         changeStatus,
-        changingStatusId
+        changingStatusId,
     );
 
     return (
@@ -470,9 +415,7 @@ const ExpertProtocolTemplateList = () => {
                             {'Phác đồ nuôi mẫu'}
                         </Title>
                         <Paragraph className="mb-0! mt-1! text-[13px]! leading-5.25! text-[#6a7994]!">
-                            {
-                                'Mẫu tái sử dụng để soạn nhanh phác đồ nuôi cho vụ mới.'
-                            }
+                            {'Mẫu tái sử dụng để soạn nhanh phác đồ nuôi cho vụ mới.'}
                         </Paragraph>
                     </Flex>
                     <Button
@@ -488,26 +431,17 @@ const ExpertProtocolTemplateList = () => {
                     aria-label="Danh sách phác đồ nuôi mẫu"
                     className="@container mt-5! w-full! min-w-0! rounded-[14px]! border-[#e5e8f0]! bg-white! shadow-[0_1px_1px_rgba(15,28,46,0.04)]! [&>.ant-card-body]:p-0!"
                 >
-                    <Flex
-                        wrap
-                        align="center"
-                        gap={8}
-                        className="min-h-15.25! rounded-t-[14px]! border-b! border-[#eef1f7]! px-4! py-3!"
+                    <ExpertListToolbar
+                        searchProps={{
+                            placeholder: 'Tìm theo tên, mô tả…',
+                            'aria-label': 'Tìm theo tên hoặc mô tả phác đồ mẫu',
+                            value: search,
+                            maxLength: 500,
+                            onChange: (event) => setSearch(event.target.value),
+                        }}
                     >
-                        <Input
-                            className="h-9! w-64! max-w-full! rounded-[10px]! border-[#e5e8f0]! text-[13px]!"
-                            prefix={
-                                <SearchOutlined className="text-[#475569]" />
-                            }
-                            placeholder="Tìm theo tên, mô tả…"
-                            aria-label="Tìm theo tên hoặc mô tả phác đồ mẫu"
-                            value={search}
-                            maxLength={500}
-                            allowClear
-                            onChange={(event) => setSearch(event.target.value)}
-                        />
                         <Select
-                            className={`${filterClassName} w-56!`}
+                            className="w-56!"
                             placeholder="Trang trại"
                             aria-label="Lọc trang trại"
                             value={filters.farmId}
@@ -521,18 +455,16 @@ const ExpertProtocolTemplateList = () => {
                             onChange={(value) => changeFilter('farmId', value)}
                         />
                         <Select
-                            className={`${filterClassName} w-44!`}
+                            className="w-44!"
                             placeholder="Loài tôm"
                             aria-label="Lọc loài tôm"
                             value={filters.shrimpType}
                             allowClear
                             options={shrimpOptions}
-                            onChange={(value) =>
-                                changeFilter('shrimpType', value)
-                            }
+                            onChange={(value) => changeFilter('shrimpType', value)}
                         />
                         <Select
-                            className={`${filterClassName} w-44!`}
+                            className="w-44!"
                             placeholder="Trạng thái"
                             aria-label="Lọc trạng thái"
                             value={filters.status}
@@ -549,7 +481,7 @@ const ExpertProtocolTemplateList = () => {
                             ]}
                             onChange={(value) => changeFilter('status', value)}
                         />
-                    </Flex>
+                    </ExpertListToolbar>
                     {state.error ? (
                         <ErrorState message={state.error} onRetry={retry} />
                     ) : state.loading && !state.meta ? (
@@ -567,9 +499,7 @@ const ExpertProtocolTemplateList = () => {
                             showSorterTooltip={false}
                             loading={state.loading}
                             locale={{
-                                emptyText: (
-                                    <Empty description="Không có phác đồ mẫu phù hợp" />
-                                ),
+                                emptyText: <Empty description="Không có phác đồ mẫu phù hợp" />,
                             }}
                             pagination={{
                                 current: pagination.page,
@@ -589,12 +519,8 @@ const ExpertProtocolTemplateList = () => {
                     key={`${templateId ?? ''}/${revision}`}
                     onEdit={() => setEditingId(templateId)}
                     templateId={templateId}
-                    title={
-                        state.rows.find((row) => row.id === templateId)?.title
-                    }
-                    onClose={() =>
-                        navigate('/expert/protocols', { replace: true })
-                    }
+                    title={state.rows.find((row) => row.id === templateId)?.title}
+                    onClose={() => navigate('/expert/protocols', { replace: true })}
                 />
                 {(creating || editingId) && (
                     <ExpertProtocolTemplateEditor
@@ -612,9 +538,7 @@ const ExpertProtocolTemplateList = () => {
                                 page: 1,
                             }));
                             retry();
-                            navigate(
-                                `/expert/protocols/${encodeURIComponent(template.id)}`
-                            );
+                            navigate(`/expert/protocols/${encodeURIComponent(template.id)}`);
                         }}
                     />
                 )}
