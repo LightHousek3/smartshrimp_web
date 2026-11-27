@@ -6,6 +6,7 @@ import {
     Empty,
     Flex,
     Form,
+    Image,
     Input,
     Modal,
     Segmented,
@@ -17,6 +18,8 @@ import {
     Upload,
 } from 'antd';
 import {
+    CloseOutlined,
+    EditOutlined,
     ExperimentOutlined,
     EyeOutlined,
     HistoryOutlined,
@@ -65,6 +68,7 @@ const primaryButton =
 
 /** Collect proposal evidence without creating a catalog product or manufacturer. */
 const MaterialRecommendation = ({
+    farmId,
     environment,
     feedOnly,
     production,
@@ -72,19 +76,24 @@ const MaterialRecommendation = ({
     manufacturers,
     reservedSupplierNames,
     onSelect,
+    validateSelection,
+    uploading,
+    setUploading,
     onBack,
 }) => {
     const [form] = Form.useForm();
-    const { message, modal } = App.useApp();
+    const { message } = App.useApp();
+    const [previewUrl, setPreviewUrl] = useState(null);
     const [files, setFiles] = useState(
         (initialValues?.imageUrls ?? []).map((url, index) => ({
             uid: `existing-${index}`,
             name: `Ảnh ${index + 1}`,
             status: 'done',
             url,
-            response: { secure_url: url },
         })),
     );
+    const uploaded = useRef(new Map());
+    const submitting = useRef(false);
     const mounted = useRef(true);
     useEffect(() => {
         mounted.current = true;
@@ -92,77 +101,94 @@ const MaterialRecommendation = ({
             mounted.current = false;
         };
     }, []);
+    useEffect(
+        () => () => {
+            if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+        },
+        [previewUrl],
+    );
     const manufacturerMode = Form.useWatch('manufacturerMode', form);
+    const category = Form.useWatch('category', form);
+    const allowsAntibiotic = (value) => ['MEDICINE', 'OTHER'].includes(value);
     const unit = Form.useWatch('unit', form);
     const packaged = ['PACK', 'BOTTLE'].includes(unit);
-    const uploading = files.some((file) => file.status !== 'done');
-    /** Report upload progress and retain the uploaded label image for proposal selection. */
-    const uploadImage = async ({ file, onSuccess, onError, onProgress }) => {
-        try {
-            const response = await cloudinaryAPI.uploadImage(
-                file,
-                'smartshrimp/protocol-materials',
-                (percent) => {
-                    if (mounted.current) onProgress({ percent });
-                },
-            );
-            if (mounted.current) onSuccess(response.data);
-        } catch (error) {
-            if (mounted.current) {
-                onError(error);
-                message.error('Không tải được ảnh. Kiểm tra cấu hình Cloudinary hoặc thử lại.');
-            }
+    const previewImage = (file) => {
+        const localFile = file.originFileObj ?? file;
+        if (file.url || localFile instanceof Blob) {
+            setPreviewUrl(file.url || URL.createObjectURL(localFile));
         }
     };
-    /** Return a complete proposal with its manufacturer choice and uploaded label evidence. */
-    const submit = (values) => {
-        const imageUrls = files.map((file) => file.response?.secure_url || file.url);
-        const missing = proposalMissingFields({ ...values, imageUrls, manufacturerId: manufacturerMode === 'existing' ? values.manufacturerId : null,
-            manufacturer: manufacturerMode === 'new' ? values.manufacturer : null });
+    const submit = async ({ manufacturerMode: mode, manufacturer, manufacturerId, ...values }) => {
+        if (submitting.current) return;
+        const proposal = {
+            ...values,
+            ...(mode === 'existing' ? { manufacturerId } : { manufacturer }),
+            productCompliance: editableCompliance({
+                ...values.productCompliance,
+                ...(!allowsAntibiotic(values.category) && { containsAntibiotic: false }),
+            }),
+            conversionQuantity: packaged ? values.conversionQuantity : null,
+            conversionUnit: packaged ? values.conversionUnit : null,
+        };
+        const missing = proposalMissingFields(proposal, { requireUploadedImages: false });
+        if (!files.length) missing.push('ít nhất một ảnh nhãn');
         if (missing.length) { message.error(`Hồ sơ đề xuất cần bổ sung: ${missing.join(', ')}.`); return; }
-        const selectionError = templateMaterialSelectionError(values, {
-            environment,
-            feedOnly,
-            production,
-        });
+        const selectionError =
+            templateMaterialSelectionError(proposal, { environment, feedOnly, production }) ||
+            validateSelection?.(proposal);
         if (selectionError) {
             message.error(selectionError);
             return;
         }
-        if (!categoryFits(values.category, environment, feedOnly)) {
-            form.setFields([
-                {
-                    name: 'category',
-                    errors: ['Nhóm vật tư không phù hợp hoạt động này.'],
-                },
-            ]);
-            return;
+        submitting.current = true;
+        setUploading(true);
+        try {
+            const existingUrls = files.flatMap((file) => {
+                const url = file.url || uploaded.current.get(file.uid);
+                return url ? [url] : [];
+            });
+            try {
+                await expertProtocolTemplateAPI.validateMaterialProposal({
+                    farmId,
+                    proposal: { ...proposal, imageUrls: existingUrls },
+                    pendingImageCount: files.length - existingUrls.length,
+                    environment,
+                    production,
+                });
+            } catch (error) {
+                if (mounted.current) message.error(getErrorMessage(error, 'Chưa thể kiểm tra đề xuất vật tư.'));
+                return;
+            }
+            if (!mounted.current) return;
+            const imageUrls = [];
+            for (const file of files) {
+                let url = file.url || uploaded.current.get(file.uid);
+                if (!url) {
+                    const response = await cloudinaryAPI.uploadImage(
+                        file.originFileObj ?? file,
+                        'smartshrimp/protocol-materials',
+                    );
+                    if (!mounted.current) return;
+                    url = response.data.secure_url;
+                    if (!url?.startsWith('https://')) throw new Error('Invalid image URL');
+                    uploaded.current.set(file.uid, url);
+                }
+                imageUrls.push(url);
+            }
+            onSelect({ ...proposal, imageUrls });
+        } catch {
+            if (mounted.current) message.error('Không tải được ảnh nhãn. Vui lòng thử lại.');
+        } finally {
+            submitting.current = false;
+            if (mounted.current) setUploading(false);
         }
-        if (uploading || imageUrls.some((url) => !url?.startsWith('https://'))) {
-            message.error('Hãy tải xong ảnh hoặc xóa ảnh bị lỗi trước khi thêm vật tư.');
-            return;
-        }
-        onSelect({
-            ...Object.fromEntries(
-                Object.entries(values).filter(
-                    ([field]) =>
-                        !['manufacturerMode', 'manufacturer', 'manufacturerId'].includes(field),
-                ),
-            ),
-            ...(manufacturerMode === 'existing'
-                ? { manufacturerId: values.manufacturerId }
-                : { manufacturer: values.manufacturer }),
-            productCompliance: editableCompliance(values.productCompliance),
-            conversionQuantity: packaged ? values.conversionQuantity : null,
-            conversionUnit: packaged ? values.conversionUnit : null,
-            imageUrls,
-        });
     };
     return (
         <Form
             form={form}
             layout="vertical"
             onFinish={submit}
+            disabled={uploading}
             validateMessages={templateValidateMessages}
             initialValues={
                 initialValues
@@ -205,6 +231,10 @@ const MaterialRecommendation = ({
                 </Form.Item>
                 <Form.Item name="category" label="Nhóm" rules={[{ required: true }]}>
                     <Select
+                        onChange={(value) => {
+                            if (allowsAntibiotic(value) !== allowsAntibiotic(category))
+                                form.setFieldValue(['productCompliance', 'containsAntibiotic'], undefined);
+                        }}
                         options={materialCategories.filter(({ value }) =>
                             categoryFits(value, environment, feedOnly),
                         )}
@@ -370,43 +400,55 @@ const MaterialRecommendation = ({
                     ))}
                 </>
             )}
-            <ProductComplianceFields requiredComplete />
+            <ProductComplianceFields requiredComplete showAntibioticField={allowsAntibiotic(category)} />
             <Form.Item label="Ảnh nhãn vật tư" required>
                 <Upload
                     listType="picture-card"
                     accept="image/jpeg,image/png,image/webp"
+                    multiple
                     maxCount={3}
                     fileList={files}
                     onChange={({ fileList }) => setFiles(fileList)}
-                    customRequest={uploadImage}
-                    onPreview={(file) => {
-                        if (file.url || file.response?.secure_url)
-                            modal.info({
-                                title: 'Ảnh vật tư',
-                                content: (
-                                    <ProtocolProductImages
-                                        product={{
-                                            name: file.name,
-                                            imageUrls: [file.url || file.response.secure_url],
-                                        }}
-                                        size={160}
+                    itemRender={(_, file, __, { remove }) => (
+                        <div className="relative h-full w-full">
+                            <button
+                                type="button"
+                                className="h-full w-full cursor-zoom-in overflow-hidden rounded-lg border border-[#dce4ee]"
+                                aria-label={`Xem ${file.name}`}
+                                disabled={uploading}
+                                onClick={() => previewImage(file)}
+                            >
+                                {(file.url || file.thumbUrl) && (
+                                    <img
+                                        src={file.url || file.thumbUrl}
+                                        alt={file.name}
+                                        className="h-full w-full object-contain"
                                     />
-                                ),
-                                centered: true,
-                            });
-                    }}
+                                )}
+                            </button>
+                            <Button
+                                type="text"
+                                size="small"
+                                className="absolute! right-1! top-1! bg-white! shadow-sm"
+                                aria-label={`Gỡ ${file.name}`}
+                                icon={<CloseOutlined />}
+                                onClick={remove}
+                            />
+                        </div>
+                    )}
                     beforeUpload={(file, selection) => {
-                        if (
-                            !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) ||
-                            file.size > 5 * 1024 * 1024 ||
-                            files.length + selection.length > 3
-                        ) {
+                        if (files.length + selection.length > 3) {
+                            if (file.uid === selection[0].uid) message.error('Chỉ được chọn tối đa 3 ảnh nhãn.');
+                            return Upload.LIST_IGNORE;
+                        }
+                        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) ||
+                            file.size > 5 * 1024 * 1024) {
                             message.error(
                                 'Tối đa 3 ảnh JPG, PNG hoặc WebP; mỗi ảnh không quá 5 MB.',
                             );
                             return Upload.LIST_IGNORE;
                         }
-                        return true;
+                        return false;
                     }}
                 >
                     {files.length < 3 && (
@@ -416,11 +458,28 @@ const MaterialRecommendation = ({
                         </Flex>
                     )}
                 </Upload>
+                {previewUrl && (
+                    <Image
+                        src={previewUrl}
+                        alt="Ảnh nhãn vật tư"
+                        style={{ display: 'none' }}
+                        preview={{
+                            visible: true,
+                            zIndex: 2000,
+                            onVisibleChange: (open) => {
+                                if (!open) setPreviewUrl(null);
+                            },
+                        }}
+                    />
+                )}
                 <Text className="text-xs! text-[#8796ae]!">
                     {
-                        'Bắt buộc 1–3 ảnh nhãn đọc rõ thông tin, định dạng JPG, PNG hoặc WebP; mỗi ảnh tối đa 5 MB. Ảnh được lưu cùng đề xuất.'
+                        'Chọn 1–3 ảnh nhãn JPG, PNG hoặc WebP, mỗi ảnh tối đa 5 MB. Ảnh chỉ tải lên khi xác nhận đề xuất.'
                     }
                 </Text>
+            </Form.Item>
+            <Form.Item name="description" label="Mô tả" rules={[{ max: 500 }]}>
+                <Input.TextArea maxLength={500} rows={2} />
             </Form.Item>
             <Form.Item
                 name="recommendationReason"
@@ -444,11 +503,11 @@ const MaterialRecommendation = ({
                 <Button onClick={onBack}>{'Quay lại danh sách'}</Button>
                 <Button
                     htmlType="submit"
-                    disabled={uploading}
+                    loading={uploading}
                     icon={<SendOutlined />}
                     className={primaryButton}
                 >
-                    {'Thêm vào phác đồ'}
+                    {initialValues ? 'Cập nhật đề xuất' : 'Thêm vào phác đồ'}
                 </Button>
             </Flex>
         </Form>
@@ -462,13 +521,16 @@ const ExpertProtocolMaterialPicker = ({
     manufacturers = [],
     reservedSupplierNames = manufacturers.map(({ name }) => supplierNameKey(name)),
     environment = false,
-    initialRecommendation,
     proposedMaterials = [],
     feedOnly = false,
     onSelect,
+    validateSelection,
+    onUpdateProposal,
+    proposalEditOptions,
     onClose,
 }) => {
-    const [tab, setTab] = useState(initialRecommendation ? 'recommendation' : 'warehouse');
+    const { message } = App.useApp();
+    const [tab, setTab] = useState('warehouse');
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState({
         search: '',
@@ -478,13 +540,15 @@ const ExpertProtocolMaterialPicker = ({
     });
     const [revision, setRevision] = useState(0);
     const [detail, setDetail] = useState(null);
+    const [editableProposal, setEditableProposal] = useState(null);
+    const [uploading, setUploading] = useState(false);
     const proposals = uniqueTemplateProposals(proposedMaterials);
     const proposed = tab === 'proposed';
     const visibleProposals = proposals
         .filter(
             (product) =>
                 (query.group === 'ALL' || product.category === query.group) &&
-                categoryFits(product.category, environment, feedOnly) &&
+                (!feedOnly || product.category === 'FEED') &&
                 [
                     product.name,
                     product.productCompliance?.ingredientsText,
@@ -502,9 +566,15 @@ const ExpertProtocolMaterialPicker = ({
     const selectionError = (product) =>
         templateMaterialSelectionError(product, { environment, feedOnly, production });
     const canSelect = (product) => !selectionError(product);
+    const editOptions = editableProposal && proposalEditOptions?.(editableProposal);
     const selectProduct = (product) => {
         const { _proposalKey, ...content } = product;
         void _proposalKey;
+        const error = validateSelection?.(content);
+        if (error) {
+            message.info(error);
+            return;
+        }
         if (canSelect(product)) onSelect(structuredClone(content));
     };
     const [state, setState] = useState({
@@ -653,6 +723,24 @@ const ExpertProtocolMaterialPicker = ({
         },
         {
             title: '',
+            key: 'edit-proposal',
+            width: 40,
+            render: (_, product) => onUpdateProposal && (!proposalEditOptions || proposalEditOptions(product)) && (
+                <Tooltip title="Sửa đề xuất">
+                    <Button
+                        type="text"
+                        icon={<EditOutlined />}
+                        aria-label={`Sửa đề xuất ${product.name}`}
+                        onClick={() => {
+                            setEditableProposal(product);
+                            setTab('recommendation');
+                        }}
+                    />
+                </Tooltip>
+            ),
+        },
+        {
+            title: '',
             key: 'add',
             width: 40,
             render: (_, product) => (
@@ -676,7 +764,9 @@ const ExpertProtocolMaterialPicker = ({
             width={920}
             rootClassName="[&_.ant-modal-wrap]:overflow-hidden!"
             footer={null}
-            onCancel={onClose}
+            onCancel={() => {
+                if (!uploading) onClose();
+            }}
             destroyOnHidden
             className="max-w-[calc(100vw-32px)]! [&_.ant-modal-content]:flex! [&_.ant-modal-content]:h-[min(860px,calc(100dvh-24px))]! [&_.ant-modal-content]:flex-col! [&_.ant-modal-content]:overflow-hidden! [&_.ant-modal-content]:rounded-2xl! [&_.ant-modal-content]:px-6! [&_.ant-modal-content]:py-5! [&_.ant-modal-body]:flex! [&_.ant-modal-body]:min-h-0! [&_.ant-modal-body]:flex-1! [&_.ant-modal-body]:flex-col! [&_.ant-modal-body]:overflow-hidden!"
             title={
@@ -696,6 +786,8 @@ const ExpertProtocolMaterialPicker = ({
             <Tabs
                 activeKey={tab}
                 onChange={(key) => {
+                    if (uploading) return;
+                    setEditableProposal(null);
                     setTab(key);
                     setQuery((current) => ({ ...current, page: 1 }));
                     if (key === 'warehouse') setState((current) => ({ ...current, loading: true }));
@@ -713,7 +805,7 @@ const ExpertProtocolMaterialPicker = ({
                     },
                     {
                         key: 'recommendation',
-                        label: 'Đề xuất vật tư mới',
+                        label: editableProposal ? 'Chỉnh sửa đề xuất' : 'Đề xuất vật tư mới',
                         icon: <ExperimentOutlined />,
                     },
                 ]}
@@ -725,14 +817,27 @@ const ExpertProtocolMaterialPicker = ({
                 {tab === 'recommendation' ? (
                     <>
                         <MaterialRecommendation
+                            farmId={farm.id}
                             production={production}
                             feedOnly={feedOnly}
-                            environment={environment}
-                            initialValues={initialRecommendation}
+                            environment={editOptions?.environment ?? environment}
+                            initialValues={editableProposal}
                             manufacturers={manufacturers}
                             reservedSupplierNames={reservedSupplierNames}
-                            onSelect={onSelect}
-                            onBack={() => setTab('warehouse')}
+                            onSelect={editableProposal && onUpdateProposal ? (product) => {
+                                onUpdateProposal(editableProposal, product);
+                                setEditableProposal(null);
+                                setTab('proposed');
+                            } : onSelect}
+                            validateSelection={editableProposal && onUpdateProposal
+                                ? editOptions?.validate
+                                : validateSelection}
+                            uploading={uploading}
+                            setUploading={setUploading}
+                            onBack={() => {
+                                setTab(editableProposal ? 'proposed' : 'warehouse');
+                                setEditableProposal(null);
+                            }}
                         />
                     </>
                 ) : (
@@ -770,7 +875,7 @@ const ExpertProtocolMaterialPicker = ({
                                 columns={
                                     proposed
                                         ? columns.filter((column) => column.key !== 'stock')
-                                        : columns
+                                        : columns.filter((column) => column.key !== 'edit-proposal')
                                 }
                                 dataSource={
                                     proposed

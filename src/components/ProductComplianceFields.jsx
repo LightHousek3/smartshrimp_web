@@ -3,16 +3,15 @@ import InputNumber from './ProtocolNumberInput';
 import { registrationFormat, registrationNumberError } from '../utils/materialCompliance';
 
 /** Capture label facts and evidence; the server validates and stamps the declaration on save. */
-const ProductComplianceFields = ({ requiredComplete = false }) => (
+const ProductComplianceFields = ({ requiredComplete = false, showAntibioticField }) => (
     <>
         <Form.Item
             name={['productCompliance', 'regulatoryType']}
             label="Phân loại pháp lý"
             rules={[
-                { required: true },
                 {
+                    required: true,
                     validator: (_, value) =>
-                        !requiredComplete ||
                         ['feed', 'environment', 'dual_purpose', 'medicine'].includes(value)
                             ? Promise.resolve()
                             : Promise.reject(
@@ -61,12 +60,10 @@ const ProductComplianceFields = ({ requiredComplete = false }) => (
                         validateTrigger="onBlur"
                         validateFirst
                         rules={[
-                            { required: requiredComplete, whitespace: true, max: 100 },
                             ({ getFieldValue }) => ({
                                 validator: (_, value) => {
-                                    const issue = registrationNumberError(
-                                        getFieldValue(['productCompliance', 'regulatoryType']),
-                                        value,
+                                    const issue = !requiredComplete && !value ? null : registrationNumberError(
+                                        getFieldValue(['productCompliance', 'regulatoryType']), value,
                                     );
                                     return issue
                                         ? Promise.reject(new Error(issue))
@@ -75,7 +72,7 @@ const ProductComplianceFields = ({ requiredComplete = false }) => (
                             }),
                         ]}
                     >
-                        <Input maxLength={100} placeholder={registration.placeholder} />
+                        <Input disabled={!type} maxLength={100} placeholder={registration.placeholder} />
                     </Form.Item>
                 );
             }}
@@ -87,17 +84,16 @@ const ProductComplianceFields = ({ requiredComplete = false }) => (
         >
             <Input.TextArea rows={4} maxLength={20000} showCount />
         </Form.Item>
-        <Form.Item
+        {showAntibioticField && <Form.Item
             name={['productCompliance', 'containsAntibiotic']}
             label="Có chứa kháng sinh?"
             rules={[
                 {
                     required: requiredComplete,
                     type: 'boolean',
-                    message: 'Cần đối chiếu và xác định có chứa kháng sinh hay không.',
+                    message: 'Vui lòng xác nhận có chứa kháng sinh',
                 },
             ]}
-            extra="Anh/chị đối chiếu thành phần trước khi chọn. Vật tư chứa kháng sinh cần phác đồ điều trị riêng, không dùng trong mẫu nuôi."
         >
             <Select
                 allowClear
@@ -110,7 +106,7 @@ const ProductComplianceFields = ({ requiredComplete = false }) => (
                 ]}
                 placeholder="Chưa xác định"
             />
-        </Form.Item>
+        </Form.Item>}
         <Form.Item
             name={['productCompliance', 'usageInstructions']}
             label="Loài, liều, đường dùng, tần suất/liệu trình theo nhãn"

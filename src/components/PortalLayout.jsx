@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { App, Button } from 'antd';
 import { CloseOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import ErrorBoundary from './ErrorBoundary';
 import { useAuth } from '../contexts/useAuth';
 import { BRAND_LOGO_URL, ROLE_LABELS } from '../constants/portal';
@@ -30,6 +30,10 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
     const [loggingOut, setLoggingOut] = useState(false);
     const { account, logout } = useAuth();
     const location = useLocation();
+    // Viewing a template is a drawer within the same list route.
+    const routeKey = matchPath('/expert/protocols/:templateId?', location.pathname)
+        ? '/expert/protocols'
+        : location.pathname;
     const navigate = useNavigate();
     const { message } = App.useApp();
     const AccountSummary = onViewProfile ? 'button' : 'div';
@@ -192,9 +196,9 @@ const PortalLayout = ({ portalLabel, portalIcon = null, menuItems, accountSubtit
                 </header>}
                 {isExpertScreen ? (
                     <div className={expertPageClassName}>
-                        <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
+                        <ErrorBoundary key={routeKey}><Outlet /></ErrorBoundary>
                     </div>
-                ) : <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>}
+                ) : <ErrorBoundary key={routeKey}><Outlet /></ErrorBoundary>}
             </main>
         </div>
     );

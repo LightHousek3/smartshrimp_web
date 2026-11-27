@@ -518,6 +518,8 @@ const ragDocumentAPI = {
 };
 
 const expertProtocolTemplateAPI = {
+    validateMaterialProposal: (body) =>
+        apiClient.post('/expert/protocol-templates/materials/validate-proposal', body),
     updateStatus: async (templateId, status, expectedVersionNo) => {
         const response = await apiClient.patch(
             `/expert/protocol-templates/${encodeURIComponent(templateId)}/status`,

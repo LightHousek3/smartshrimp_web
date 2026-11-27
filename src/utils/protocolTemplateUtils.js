@@ -216,6 +216,7 @@ const isTemplate = (row) =>
     typeof row?.title === 'string' &&
     ['active', 'inactive'].includes(row.status) &&
     typeof row.canDelete === 'boolean' &&
+    (row.canManage === undefined || typeof row.canManage === 'boolean') &&
     (row.description === null || typeof row.description === 'string') &&
     [null, 'WHITELEG', 'BLACK_TIGER'].includes(row.shrimpType) &&
     hasTemplateFarm(row) &&
@@ -645,7 +646,8 @@ const unitLabels = {
     PACK: 'gói',
     BOTTLE: 'chai',
 };
-const doseNumber = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 4 });
+const doseNumber = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 4, useGrouping: 'always' });
+export const formatProtocolNumber = (value) => doseNumber.format(value);
 
 /** Validate template metadata, duration and item details as one response contract. */
 export const parseProtocolTemplateDetail = (response) => {
@@ -947,9 +949,10 @@ export const buildTemplateCreatePayload = (values, stages) => {
 
 /** Format the authored dose for ONE occurrence; never calculate daily totals or invent biomass. */
 export const formatTemplateDose = ({ doseBasis, doseValue, doseUnit }) => {
-    const value = doseNumber.format(doseValue);
+    if (doseValue == null || doseValue === '' || !Number.isFinite(Number(doseValue))) return '—';
+    const value = formatProtocolNumber(doseValue);
     if (doseBasis === 'PERCENT_BIOMASS') return `${value}% sinh khối`;
-    const dose = `${value} ${unitLabels[doseUnit]}`;
+    const dose = unitLabels[doseUnit] ? `${value} ${unitLabels[doseUnit]}` : value;
     if (doseBasis === 'PER_KG_BIOMASS') return `${dose} / kg sinh khối`;
     if (doseBasis === 'PER_M3_WATER') return `${dose} / m³ nước`;
     return dose;

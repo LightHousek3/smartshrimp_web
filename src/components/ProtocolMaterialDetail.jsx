@@ -39,6 +39,8 @@ const regulatoryLabels = {
 const unitLabel = (unit) =>
     materialUnitOptions.find(({ value }) => value === unit)?.label ??
     unit?.toLowerCase();
+const hasNumber = (value) =>
+    value != null && String(value).trim() !== '' && Number.isFinite(Number(value));
 
 /** Show the exact selected catalog/proposal snapshot without fetching materials outside the chosen farm. */
 const ProtocolMaterialDetail = ({
@@ -46,22 +48,27 @@ const ProtocolMaterialDetail = ({
     manufacturers = [],
     selectable,
     selectionError,
+    instructions,
     onSelect,
     onClose,
 }) => {
-    const profile = product.productCompliance ?? {};
+    const profile = product.productCompliance ?? product.compliance ?? {};
+    const unit = product.unit?.toUpperCase();
+    const category = product.category?.toUpperCase();
+    const packaged = ['PACK', 'BOTTLE'].includes(unit);
+    const medicine = profile.regulatoryType
+        ? profile.regulatoryType === 'medicine'
+        : category === 'MEDICINE';
     const manufacturer =
         product.manufacturer ??
         manufacturers.find(({ id }) => id === product.manufacturerId);
+    const conversion = hasNumber(product.conversionQuantity) && product.conversionUnit?.trim()
+        ? `${number.format(product.conversionQuantity)} ${product.conversionUnit.toLowerCase()} / ${unitLabel(unit)}`
+        : null;
     const information = [
-        ['Nhóm', <MaterialCategoryTag category={product.category} />],
-        ['Đơn vị', unitLabel(product.unit)],
-        [
-            'Quy cách',
-            product.conversionQuantity != null
-                ? `${number.format(product.conversionQuantity)} ${product.conversionUnit?.toLowerCase()} / ${unitLabel(product.unit)}`
-                : null,
-        ],
+        ['Nhóm', categoryColors[category] ? <MaterialCategoryTag category={category} /> : null],
+        ['Đơn vị', unitLabel(unit)],
+        ...(packaged ? [['Quy cách', conversion]] : []),
         ['Nhà sản xuất', manufacturer?.name],
         ['Địa chỉ', manufacturer?.address],
         [
@@ -71,11 +78,17 @@ const ProtocolMaterialDetail = ({
                 manufacturer?.phone,
                 manufacturer?.email,
             ]
+                .map((value) => value?.trim())
                 .filter(Boolean)
                 .join(' · '),
         ],
         ['Phân loại pháp lý', regulatoryLabels[profile.regulatoryType]],
-        ['Mã tiếp nhận / số ĐKLH', profile.registrationNumber],
+        [
+            medicine
+                ? 'Số đăng ký lưu hành thuốc thú y'
+                : 'Mã số tiếp nhận',
+            profile.registrationNumber,
+        ],
         ['Thành phần theo nhãn', profile.ingredientsText],
         [
             'Kháng sinh',
@@ -83,15 +96,13 @@ const ProtocolMaterialDetail = ({
                 ? 'Có'
                 : profile.containsAntibiotic === false
                   ? 'Đã đối chiếu: không có'
-                  : 'Chưa xác định',
+                  : null,
         ],
         ['Hướng dẫn theo nhãn', profile.usageInstructions],
-        [
+        ...(medicine ? [[
             'Thời gian ngừng thuốc',
-            profile.withdrawalDays != null
-                ? `${number.format(profile.withdrawalDays)} ngày`
-                : 'Chưa xác định',
-        ],
+            hasNumber(profile.withdrawalDays) ? `${number.format(profile.withdrawalDays)} ngày` : null,
+        ]] : []),
         [
             'Nguồn hồ sơ',
             profile.evidenceUrls?.length ? (
@@ -110,13 +121,14 @@ const ProtocolMaterialDetail = ({
             ) : null,
         ],
         ['Lý do đề xuất', product.recommendationReason],
+        ['Hướng dẫn trong phác đồ', instructions],
         ['Mô tả hiện có', product.description],
         ...(product.id
             ? [
                   [
                       'Tồn kho tham khảo',
-                      product.stockQuantity != null
-                          ? `${number.format(product.stockQuantity)} ${unitLabel(product.unit)} · ${product.lotCount ?? 0} lô`
+                      hasNumber(product.stockQuantity)
+                          ? `${number.format(product.stockQuantity)} ${unitLabel(unit) ?? '—'}${hasNumber(product.lotCount) ? ` · ${product.lotCount} lô` : ''}`
                           : null,
                   ],
               ]
@@ -139,13 +151,11 @@ const ProtocolMaterialDetail = ({
             footer={
                 <Flex justify="end" gap={8}>
                     <Button onClick={onClose}>Đóng</Button>
-                    <Button
-                        type="primary"
-                        disabled={!selectable}
-                        onClick={onSelect}
-                    >
-                        Thêm vào phác đồ
-                    </Button>
+                    {onSelect && (
+                        <Button type="primary" disabled={!selectable} onClick={onSelect}>
+                            Thêm vào phác đồ
+                        </Button>
+                    )}
                 </Flex>
             }
         >
@@ -155,7 +165,7 @@ const ProtocolMaterialDetail = ({
                     level={5}
                     className="m-0! min-w-0! break-words!"
                 >
-                    {product.name}
+                    {product.name?.trim() || '—'}
                 </Typography.Title>
             </Flex>
             <Alert
@@ -179,7 +189,7 @@ const ProtocolMaterialDetail = ({
                     label,
                     children: (
                         <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                            {value ?? 'Chưa cung cấp'}
+                            {(typeof value === 'string' ? value.trim() || null : value) ?? '—'}
                         </div>
                     ),
                 }))}
