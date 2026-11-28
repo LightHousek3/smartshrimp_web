@@ -66,6 +66,29 @@ export const protocolMeals = (rows) => {
     return [...meals.values()];
 };
 
+export const protocolExecutionExplanations = (rows) => {
+    const explanations = new Map();
+    for (const row of rows) {
+        if (row.status !== 'COMPLETED') continue;
+        const note = row.note?.trim();
+        const variance = row.varianceReason?.trim();
+        for (const text of new Set([note, variance])) {
+            if (!text) continue;
+            // The database assigns the same recording timestamp within a batch transaction.
+            const key = JSON.stringify([row.recordedAt ?? row.scheduleId ?? row.itemId,
+                row.executedAt, row.executorName, text]);
+            if (!explanations.has(key)) {
+                explanations.set(key, { key, text, hasNote: false, hasVariance: false, materials: [] });
+            }
+            const explanation = explanations.get(key);
+            explanation.hasNote ||= text === note;
+            explanation.hasVariance ||= text === variance;
+            explanation.materials.push(row.productName);
+        }
+    }
+    return [...explanations.values()];
+};
+
 /** Legacy records with different deadlines keep the start time and omit a shared deadline. */
 export const mealTimeRange = (time, rows) => {
     if (!time) return 'Chưa đặt giờ';
