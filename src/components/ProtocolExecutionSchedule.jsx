@@ -5,7 +5,7 @@ import { expertProductionProtocolAPI, expertTreatmentProtocolAPI } from '../apis
 import { getErrorMessage } from '../utils/errorMessage';
 import {
     mealTimeRange, protocolCurrentRows, protocolDayDate, protocolDayMarkers, protocolDayPosition, protocolMeals,
-    protocolExpectedItems, protocolMealState,
+    protocolExecutionExplanations, protocolExpectedItems, protocolMealState,
 } from '../utils/protocolExecutionUtils';
 import { DOSE_LABELS, OPERATION_LABELS, UNIT_LABELS } from '../constants/productionProtocol';
 import ErrorState from './ErrorState';
@@ -57,7 +57,7 @@ const ItemFacts = ({ row, replaced }) => {
     const differentProduct = row.actualProductDiffers && row.actualProductName;
     const hasExecution = row.executorName || row.executedAt || row.recordedAt;
     const cancelled = row.status === 'CANCELLED';
-    const hasNotes = row.instructions || row.note || row.varianceReason || cancelled;
+    const hasNotes = row.instructions || cancelled;
     return <article className={`grid ${itemColumns} min-w-0 border-t border-slate-100 px-3 py-3 sm:px-4`}>
         <div className="col-span-2 flex min-w-0 items-start gap-2 sm:col-span-1">
             <ProtocolProductImages product={{ name: row.productName, imageUrls: row.productImageUrls }} size={32} />
@@ -92,11 +92,9 @@ const ItemFacts = ({ row, replaced }) => {
             {!hasExecution && !hasNotes && <span className="text-slate-400">—</span>}
         </div>
         {hasNotes && <details className="col-span-full rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-700">
-            <summary className="w-fit cursor-pointer font-medium">{cancelled ? 'Chi tiết hủy lịch' : 'Hướng dẫn và ghi chú'}</summary>
+            <summary className="w-fit cursor-pointer font-medium">{cancelled ? 'Chi tiết hủy lịch' : 'Hướng dẫn của Chuyên gia'}</summary>
             <dl className="mt-2 space-y-1.5 break-words">
                 {row.instructions && <div><dt className="font-semibold">Hướng dẫn của Chuyên gia</dt><dd className="whitespace-pre-line">{row.instructions}</dd></div>}
-                {row.varianceReason && <div><dt className="font-semibold">Lý do điều chỉnh</dt><dd className="whitespace-pre-line">{row.varianceReason}</dd></div>}
-                {row.note && <div><dt className="font-semibold">Ghi chú thực hiện</dt><dd className="whitespace-pre-line">{row.note}</dd></div>}
                 {cancelled && <div><dt className="font-semibold">Lý do không thực hiện</dt><dd className="whitespace-pre-line">{row.cancellationReason || 'Chưa có lý do'}</dd></div>}
                 {row.cancelledAt && <div className="text-slate-500">{row.cancelledByName ?? 'Hệ thống'} · {dateTime.format(new Date(row.cancelledAt))}</div>}
             </dl>
@@ -210,6 +208,7 @@ const ProtocolExecutionSchedule = ({ detail }) => {
                 : <div className="space-y-3">{protocolMeals(data.schedule.rows).map((group) => {
                     const current = protocolCurrentRows(group.rows);
                     const currentSet = new Set(current);
+                    const explanations = protocolExecutionExplanations(group.rows);
                     return <section key={group.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                         <header className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2.5 sm:px-4">
                             <div>
@@ -226,6 +225,15 @@ const ProtocolExecutionSchedule = ({ detail }) => {
                             <span>Vật tư</span><span>Kế hoạch</span><span>Thực dùng</span><span>Người và thời điểm</span>
                         </div>
                         {group.rows.map((row) => <ItemFacts key={row.scheduleId ?? row.itemId} row={row} replaced={!currentSet.has(row)} />)}
+                        {explanations.length > 0 && <dl className="m-0 space-y-2 border-t border-slate-100 bg-slate-50 px-3 py-2.5 text-xs text-slate-700 sm:px-4">
+                            {explanations.map(({ key, text, hasNote, hasVariance, materials }) => <div key={key} className="min-w-0 [overflow-wrap:anywhere]">
+                                <dt className="font-semibold">{hasVariance
+                                    ? (hasNote ? 'Lý do ghi nhận' : 'Lý do điều chỉnh lượng dùng')
+                                    : 'Ghi chú của Kỹ thuật viên'}</dt>
+                                {group.rows.length > 1 && <dd className="m-0 text-slate-500">{materials.join(', ')}</dd>}
+                                <dd className="m-0 whitespace-pre-line">{text}</dd>
+                            </div>)}
+                        </dl>}
                     </section>;
                 })}</div>}
         </section>

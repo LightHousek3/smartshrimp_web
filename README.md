@@ -1,16 +1,37 @@
-# React + Vite
+# SmartShrimp Web Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Farm Operations Management and Technical Consulting System for Shrimp Farms
 
-Currently, two official plugins are available:
+The SmartShrimp web portal is the workspace for administrators and aquaculture experts.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Administrators** manage accounts and the reference documents used by the SmartShrimp assistant, and monitor system activity.
+- **Experts** review assigned production cycles, water quality, and shrimp health records. They manage disease cases and communicate with technicians.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Technology
 
-## Expanding the ESLint configuration
+**React · Vite · React Router · Ant Design · Tailwind CSS**
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Getting started
+
+Use Node.js 22.12 or later and a running SmartShrimp Backend. Set `VITE_API_BASE_URL` in `.env` if the API is served at an address other than `http://localhost:3000/api/v1`. The backend must allow the portal's origin when it differs from the defaults.
+
+```sh
+npm ci
+npm run dev
+```
+
+Vite serves the portal at `http://localhost:5173` by default. Use `npm run lint` to check the source and `npm run build` to create a production bundle in `dist/`.
+
+## Project team
+
+**Mentor** — Nguyễn Đình Vinh
+
+**Members**
+
+- Phạm Hải Đăng
+- Nguyễn Thị Kim Soàn
+- Phạm Quốc Tự
+- Liêu Tấn Đạt
+- Cô Thái Bảo
